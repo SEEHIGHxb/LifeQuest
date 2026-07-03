@@ -1,17 +1,21 @@
 // state.js - LifeQuest State Management & Scientific Scoring
 
 const STORAGE_KEY = "lifequest_state";
-const HISTORY_LIMIT = 200;
+const HISTORY_LIMIT = 500;
 const DAILY_LOG_LIMIT = 5;
+const SNAPSHOT_INTERVAL_DAYS = 7;
+const SNAPSHOT_LIMIT = 260; // ~5 years of weekly snapshots
 
 const DEFAULT_STATE = {
   onboarded: false,
-  schemaVersion: 2,
+  schemaVersion: 3,
   profile: {
     name: "Guest",
     level: 1,
     xp: 0,
     rank: "Pathfinder",
+    age: 25,
+    gender: "unspecified", // male, female, unspecified — for benchmark norm selection
     region: "Provinces", // Provinces or Bangkok
     employment: "Office Worker", // Office Worker, Freelancer, Business Owner, Unemployed, Student
     relationshipStatus: "Single", // Single, Coupled
@@ -49,7 +53,8 @@ const DEFAULT_STATE = {
   goals: [],
   customActions: [],
   dailyLimits: {},
-  questResets: { daily: "", weekly: "" }
+  questResets: { daily: "", weekly: "" },
+  snapshots: [] // weekly {date, aspects} records for trend charts
 };
 
 function getStorage() {
@@ -75,35 +80,93 @@ function isoWeekKey(date) {
 export class GameStateManager {
   constructor() {
     this.state = this.loadState();
-    if (this.state.onboarded && this.resetPeriodicQuests()) {
-      this.saveState();
+    if (this.state.onboarded) {
+      const questsChanged = this.resetPeriodicQuests();
+      const snapshotTaken = this.maybeTakeSnapshot();
+      if (questsChanged || snapshotTaken) {
+        this.saveState();
+      }
     }
   }
 
-  // Merge saved data over defaults so old saves survive new schema fields.
+  // Merge parsed data over defaults so saves survive new same-schema fields.
+  mergeSavedState(parsed) {
+    const defaults = structuredClone(DEFAULT_STATE);
+    return {
+      ...defaults,
+      ...parsed,
+      profile: { ...defaults.profile, ...(parsed.profile || {}) },
+      aspects: { ...defaults.aspects, ...(parsed.aspects || {}) },
+      history: Array.isArray(parsed.history) ? parsed.history.slice(0, HISTORY_LIMIT) : [],
+      goals: Array.isArray(parsed.goals) ? parsed.goals : [],
+      customActions: Array.isArray(parsed.customActions) ? parsed.customActions : [],
+      dailyLimits: parsed.dailyLimits && typeof parsed.dailyLimits === "object" ? parsed.dailyLimits : {},
+      questResets: { ...defaults.questResets, ...(parsed.questResets || {}) },
+      snapshots: Array.isArray(parsed.snapshots) ? parsed.snapshots.slice(-SNAPSHOT_LIMIT) : [],
+      schemaVersion: DEFAULT_STATE.schemaVersion
+    };
+  }
+
   loadState() {
     const defaults = structuredClone(DEFAULT_STATE);
     try {
       const saved = getStorage()?.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return {
-          ...defaults,
-          ...parsed,
-          profile: { ...defaults.profile, ...(parsed.profile || {}) },
-          aspects: { ...defaults.aspects, ...(parsed.aspects || {}) },
-          history: Array.isArray(parsed.history) ? parsed.history.slice(0, HISTORY_LIMIT) : [],
-          goals: Array.isArray(parsed.goals) ? parsed.goals : [],
-          customActions: Array.isArray(parsed.customActions) ? parsed.customActions : [],
-          dailyLimits: parsed.dailyLimits && typeof parsed.dailyLimits === "object" ? parsed.dailyLimits : {},
-          questResets: { ...defaults.questResets, ...(parsed.questResets || {}) },
-          schemaVersion: DEFAULT_STATE.schemaVersion
-        };
+        // v3 changed the measurement model (quantified logs, demographics,
+        // snapshots) — older saves restart onboarding for a clean baseline.
+        if (parsed.schemaVersion !== DEFAULT_STATE.schemaVersion) {
+          console.info(`LifeQuest: schema v${parsed.schemaVersion || 1} save found; v${DEFAULT_STATE.schemaVersion} requires a fresh baseline.`);
+          return defaults;
+        }
+        return this.mergeSavedState(parsed);
       }
     } catch (e) {
       console.error("Failed to load state from localStorage:", e);
     }
     return defaults;
+  }
+
+  // --- SNAPSHOTS (weekly aspect history for trend charts) ---
+
+  maybeTakeSnapshot() {
+    if (!this.state.onboarded) return false;
+    const last = this.state.snapshots[this.state.snapshots.length - 1];
+    if (last) {
+      const daysSince = (Date.now() - new Date(last.date).getTime()) / 86400000;
+      if (daysSince < SNAPSHOT_INTERVAL_DAYS) return false;
+    }
+    this.state.snapshots.push({
+      date: new Date().toISOString(),
+      aspects: { ...this.state.aspects }
+    });
+    if (this.state.snapshots.length > SNAPSHOT_LIMIT) {
+      this.state.snapshots = this.state.snapshots.slice(-SNAPSHOT_LIMIT);
+    }
+    return true;
+  }
+
+  // --- BACKUP EXPORT / IMPORT ---
+
+  exportState() {
+    return JSON.stringify(this.state, null, 2);
+  }
+
+  importState(jsonText) {
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      throw new Error("File is not valid JSON.");
+    }
+    if (!parsed || typeof parsed !== "object" || !parsed.profile || !parsed.aspects) {
+      throw new Error("File is not a LifeQuest backup (missing profile/aspects).");
+    }
+    if (parsed.schemaVersion !== DEFAULT_STATE.schemaVersion) {
+      throw new Error(`Backup schema v${parsed.schemaVersion || 1} is not compatible with v${DEFAULT_STATE.schemaVersion}.`);
+    }
+    this.state = this.mergeSavedState(parsed);
+    this.saveState();
   }
 
   saveState() {
@@ -394,6 +457,8 @@ export class GameStateManager {
     const p = this.state.profile;
 
     p.name = (surveyData.name || "").trim() || "Guest";
+    p.age = Math.max(15, Math.min(100, parseInt(surveyData.age || 25)));
+    p.gender = ["male", "female"].includes(surveyData.gender) ? surveyData.gender : "unspecified";
     p.region = surveyData.region;
     p.employment = surveyData.employment;
     p.relationshipStatus = surveyData.relationshipStatus;
@@ -434,6 +499,8 @@ export class GameStateManager {
 
     this.initializeDefaultQuests();
     this.resetPeriodicQuests();
+    this.state.snapshots = [];
+    this.maybeTakeSnapshot(); // baseline snapshot anchors the trend charts
     this.saveState();
   }
 
@@ -520,7 +587,9 @@ export class GameStateManager {
 
   // --- ACTIONS LOGGING ---
 
-  logAction(actionId, actionName, impacts, xpReward) {
+  // quantity: optional {value, unit, label} with the real measured amount
+  // (e.g., {value: 30, unit: "minutes"}) — the raw data for measured scoring.
+  logAction(actionId, actionName, impacts, xpReward, quantity = null) {
     this.resetPeriodicQuests();
 
     const today = new Date().toDateString();
@@ -553,13 +622,22 @@ export class GameStateManager {
 
     this.addXP(xpReward);
 
-    this.state.history.unshift({
+    const entry = {
       id: crypto.randomUUID().slice(0, 9),
+      actionId,
       actionName,
       timestamp: new Date().toISOString(),
       xpReward,
       impacts
-    });
+    };
+    if (quantity && Number.isFinite(parseFloat(quantity.value))) {
+      entry.quantity = {
+        value: parseFloat(quantity.value),
+        unit: String(quantity.unit || ""),
+        label: String(quantity.label || "")
+      };
+    }
+    this.state.history.unshift(entry);
     if (this.state.history.length > HISTORY_LIMIT) {
       this.state.history.length = HISTORY_LIMIT;
     }

@@ -30,21 +30,30 @@ const MOCK_COMPETITORS = [
   { name: "Pom-Pom", level: 12, totalPoints: 1280 }
 ];
 
-// Presets for actions that users can log
+// Presets for actions that users can log.
+// `metric` marks quantifiable actions: the user is asked for the real amount,
+// which is stored on the history entry (raw data for measured scoring).
 export const ACTION_PRESETS = [
-  { id: "save_money", title: "Add to Savings", aspect: "finance", impacts: { finance: 8 }, xp: 20, desc: "Deposit money/savings (+8 Finance)" },
+  { id: "save_money", title: "Add to Savings", aspect: "finance", impacts: { finance: 8 }, xp: 20, desc: "Deposit money/savings (+8 Finance)",
+    metric: { label: "Amount saved", unit: "THB", default: 500, min: 1, max: 1000000, step: 1 } },
   { id: "cbt_journal", title: "CBT Journaling", aspect: "mental", impacts: { mental: 8 }, xp: 20, desc: "Write cognitive reappraisal (+8 Mental)" },
   { id: "phys_sigh", title: "Physiological Sigh", aspect: "mental", impacts: { mental: 5 }, xp: 10, desc: "Breath control vagus reset (+5 Mental)" },
-  { id: "workout", title: "30-min Exercise", aspect: "physical", impacts: { physical: 10, mental: 3 }, xp: 30, desc: "Exercise MVPA (+10 Phys, +3 Mental)" },
-  { id: "eat_veggies", title: "5 portions Veggies", aspect: "physical", impacts: { physical: 5 }, xp: 15, desc: "Eat healthy greens (+5 Physical)" },
-  { id: "drink_water", title: "Drink 2.5L Water", aspect: "physical", impacts: { physical: 5 }, xp: 10, desc: "Hydration target (+5 Physical)" },
+  { id: "workout", title: "Exercise Session", aspect: "physical", impacts: { physical: 10, mental: 3 }, xp: 30, desc: "Exercise MVPA (+10 Phys, +3 Mental)",
+    metric: { label: "Duration", unit: "minutes", default: 30, min: 5, max: 600, step: 5 } },
+  { id: "eat_veggies", title: "Veggie Portions", aspect: "physical", impacts: { physical: 5 }, xp: 15, desc: "Eat healthy greens (+5 Physical)",
+    metric: { label: "Portions today", unit: "portions", default: 5, min: 1, max: 15, step: 1 } },
+  { id: "drink_water", title: "Water Intake", aspect: "physical", impacts: { physical: 5 }, xp: 10, desc: "Hydration target (+5 Physical)",
+    metric: { label: "Amount today", unit: "liters", default: 2.5, min: 0.5, max: 10, step: 0.1 } },
   { id: "call_friend", title: "Connect with Friend", aspect: "relationships", impacts: { relationships: 10, mental: 2 }, xp: 20, desc: "Call relative or friend (+10 Rel, +2 Ment)" },
   { id: "date_night", title: "Relationship Date", aspect: "relationships", impacts: { relationships: 8 }, xp: 25, desc: "Quality partner time (+8 Relationships)" },
-  { id: "make_merit", title: "Make Merit / Donation", aspect: "socialContribution", impacts: { socialContribution: 10, finance: -2 }, xp: 25, desc: "Tham Bun / Donate (+10 Social, -2 Fin)" },
-  { id: "volunteer", title: "Volunteer 1 Hour", aspect: "socialContribution", impacts: { socialContribution: 12 }, xp: 35, desc: "Community service (+12 Social)" },
+  { id: "make_merit", title: "Make Merit / Donation", aspect: "socialContribution", impacts: { socialContribution: 10, finance: -2 }, xp: 25, desc: "Tham Bun / Donate (+10 Social, -2 Fin)",
+    metric: { label: "Amount donated", unit: "THB", default: 100, min: 1, max: 1000000, step: 1 } },
+  { id: "volunteer", title: "Volunteer", aspect: "socialContribution", impacts: { socialContribution: 12 }, xp: 35, desc: "Community service (+12 Social)",
+    metric: { label: "Time spent", unit: "hours", default: 1, min: 0.5, max: 24, step: 0.5 } },
   { id: "recycle_waste", title: "Separate Recycling", aspect: "environment", impacts: { environment: 8 }, xp: 15, desc: "Household waste sort (+8 Env)" },
   { id: "public_transit", title: "Ride BTS / MRT", aspect: "environment", impacts: { environment: 8 }, xp: 20, desc: "Avoid car commute (+8 Env)" },
-  { id: "learn_future_skills", title: "Study AI / Data Sci", aspect: "humanityFuture", impacts: { humanityFuture: 10, personalGoals: 5 }, xp: 30, desc: "Upskill future tech (+10 Future, +5 Goals)" },
+  { id: "learn_future_skills", title: "Study AI / Data Sci", aspect: "humanityFuture", impacts: { humanityFuture: 10, personalGoals: 5 }, xp: 30, desc: "Upskill future tech (+10 Future, +5 Goals)",
+    metric: { label: "Study time", unit: "hours", default: 1, min: 0.5, max: 16, step: 0.5 } },
   { id: "mentor_someone", title: "Mentor / Teach", aspect: "humanityFuture", impacts: { humanityFuture: 8, relationships: 2 }, xp: 25, desc: "Share upskilling (+8 Future, +2 Rel)" }
 ];
 
@@ -125,6 +134,17 @@ export function renderOnboarding(containerId, onComplete) {
         <div class="form-group">
           <label for="onb-name">Crew Member Name</label>
           <input type="text" id="onb-name" class="form-control" placeholder="E.g., Stelle" value="Guest" maxlength="40">
+        </div>
+        <div class="grid-2">
+          ${numberField("onb-age", "Age (for population benchmarks)", 25, 'min="15" max="100"')}
+          <div class="form-group">
+            <label for="onb-gender">Gender (for benchmark norms)</label>
+            <select id="onb-gender" class="form-control">
+              <option value="unspecified">Prefer not to say</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
         </div>
         <div class="form-group">
           <label for="onb-region">Primary Region (Cost of Living Mapping)</label>
@@ -279,6 +299,8 @@ export function renderOnboarding(containerId, onComplete) {
 
       const surveyData = {
         name: val("onb-name"),
+        age: val("onb-age"),
+        gender: val("onb-gender"),
         region: val("onb-region"),
         employment: val("onb-employment"),
         relationshipStatus: val("onb-relationship"),
@@ -391,7 +413,7 @@ export function renderDashboard(containerId, state) {
               state.history.slice(0, 10).map(item => `
                 <div class="terminal-line">
                   <span class="terminal-gold">[${new Date(item.timestamp).toLocaleTimeString()}]</span>
-                  Logged action: <span class="terminal-accent">"${escapeHtml(item.actionName)}"</span>. Reward +${item.xpReward} XP.
+                  Logged: <span class="terminal-accent">"${escapeHtml(item.actionName)}"</span>${item.quantity ? ` — ${item.quantity.value} ${escapeHtml(item.quantity.unit)}` : ""}. Reward +${item.xpReward} XP.
                 </div>
               `).join("")
             }
@@ -472,12 +494,21 @@ export function renderLedger(containerId, state, onLogAction, onRoutineChange) {
     </div>
   `;
 
-  // Bind logging clicks (presets + custom routines)
+  // Bind logging clicks (presets + custom routines).
+  // Quantifiable actions ask for the real amount first; others log directly.
   const allActions = [...ACTION_PRESETS, ...customActions];
   container.querySelectorAll(".action-card").forEach(card => {
     const logIt = () => {
       const action = allActions.find(a => a.id === card.getAttribute("data-id"));
-      if (action) onLogAction(action.id, action.title, action.impacts, action.xp);
+      if (!action) return;
+      if (action.metric) {
+        promptQuantity(action, (value) => {
+          onLogAction(action.id, action.title, action.impacts, action.xp,
+            { value, unit: action.metric.unit, label: action.metric.label });
+        });
+      } else {
+        onLogAction(action.id, action.title, action.impacts, action.xp);
+      }
     };
     card.addEventListener("click", logIt);
     card.addEventListener("keydown", (e) => {
@@ -507,6 +538,53 @@ export function renderLedger(containerId, state, onLogAction, onRoutineChange) {
 
     stateManager.addCustomAction(title, aspect, pts, xp);
     onRoutineChange();
+  });
+}
+
+// Small modal asking for the real measured amount before logging.
+function promptQuantity(action, onConfirm) {
+  const m = action.metric;
+  const overlay = document.createElement("div");
+  overlay.className = "popup-overlay";
+  overlay.innerHTML = `
+    <div class="popup-card" style="max-width: 360px;">
+      <h3 style="font-family: var(--font-serif); font-weight: 700; margin-bottom: 6px;">${escapeHtml(action.title)}</h3>
+      <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 15px;">Enter the real amount — it becomes part of your measured record.</p>
+      <div class="form-group" style="text-align: left;">
+        <label for="quantity-input">${escapeHtml(m.label)} (${escapeHtml(m.unit)})</label>
+        <input type="number" id="quantity-input" class="form-control" value="${m.default}" min="${m.min}" max="${m.max}" step="${m.step}">
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+        <button type="button" class="btn btn-quantity-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary btn-quantity-confirm">Log It</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const input = overlay.querySelector("#quantity-input");
+  input.focus();
+  input.select();
+
+  const close = () => overlay.remove();
+  const confirm = () => {
+    const value = parseFloat(input.value);
+    if (!Number.isFinite(value) || value < m.min || value > m.max) {
+      input.style.borderColor = "var(--color-crimson)";
+      return;
+    }
+    close();
+    onConfirm(value);
+  };
+
+  overlay.querySelector(".btn-quantity-cancel").addEventListener("click", close);
+  overlay.querySelector(".btn-quantity-confirm").addEventListener("click", confirm);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") confirm();
+    if (e.key === "Escape") close();
+  });
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) close();
   });
 }
 

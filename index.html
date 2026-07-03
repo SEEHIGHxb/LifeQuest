@@ -6,7 +6,7 @@
   <title>LifeQuest: Astral Express Registry</title>
   <!-- Google Fonts for Astral Express Theme -->
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./index.css?v=7">
+  <link rel="stylesheet" href="./index.css?v=8">
 </head>
 <body>
   <div class="app-container">
@@ -16,8 +16,11 @@
         <h1>LIFEQUEST</h1>
         <p>Astral Express Registry &bull; Nameless Crew</p>
       </div>
-      <div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button id="btn-export-data" class="btn" style="font-size: 0.8rem; padding: 4px 10px;">Export</button>
+        <button id="btn-import-data" class="btn" style="font-size: 0.8rem; padding: 4px 10px;">Import</button>
         <button id="btn-reset-data" class="btn btn-danger" style="font-size: 0.8rem; padding: 4px 10px;">Reset Registry</button>
+        <input type="file" id="import-file-input" accept="application/json,.json" class="d-none">
       </div>
     </header>
 
@@ -44,6 +47,6 @@
   </div>
 
   <!-- Core Scripts -->
-  <script type="module" src="./app.js?v=7"></script>
+  <script type="module" src="./app.js?v=8"></script>
 </body>
 </html>

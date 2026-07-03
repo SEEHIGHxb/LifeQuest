@@ -8,13 +8,30 @@ import {
   renderQuests,
   renderLeaderboard,
   getLumiTip
-} from "./ui.js?v=7";
+} from "./ui.js?v=8";
 
 const TOAST_DURATION_MS = 1600;
 const TYPEWRITER_SPEED_MS = 15;
+const TABS = ["dashboard", "ledger", "quests", "leaderboard"];
+const DEFAULT_TAB = "dashboard";
 
-let activeTab = "dashboard";
 let lumiTypewriterInterval = null;
+
+// --- ROUTING (hash-based so GitHub Pages and the back button both work) ---
+
+function tabFromHash() {
+  const tab = window.location.hash.replace(/^#\/?/, "");
+  return TABS.includes(tab) ? tab : DEFAULT_TAB;
+}
+
+function navigateTo(tab) {
+  const target = `#/${tab}`;
+  if (window.location.hash === target) {
+    renderActiveTab(); // same-tab click: just refresh
+  } else {
+    window.location.hash = target; // hashchange listener renders
+  }
+}
 
 function initializeApp() {
   const state = stateManager.state;
@@ -33,30 +50,19 @@ function initializeApp() {
     document.getElementById("assistant-mount").classList.remove("d-none");
     setupNavigation();
     setupAssistant();
+    setupBackupControls();
     renderActiveTab();
   }
 }
 
 function setupNavigation() {
-  const tabs = ["dashboard", "ledger", "quests", "leaderboard"];
-  tabs.forEach(tab => {
+  TABS.forEach(tab => {
     const btn = document.getElementById(`tab-${tab}`);
     if (btn) {
       // Remove old listeners by cloning node (clean re-binding)
       const newBtn = btn.cloneNode(true);
       btn.parentNode.replaceChild(newBtn, btn);
-
-      newBtn.addEventListener("click", () => {
-        document.querySelectorAll(".tab-btn").forEach(b => {
-          b.classList.remove("active");
-          b.setAttribute("aria-selected", "false");
-        });
-        newBtn.classList.add("active");
-        newBtn.setAttribute("aria-selected", "true");
-
-        activeTab = tab;
-        renderActiveTab();
-      });
+      newBtn.addEventListener("click", () => navigateTo(tab));
     }
   });
 
@@ -68,7 +74,7 @@ function setupNavigation() {
     newResetBtn.addEventListener("click", () => {
       if (confirm("Lumi Warning: Are you sure you want to wipe all records and baseline synchronization? This cannot be undone.")) {
         stateManager.resetState();
-        activeTab = "dashboard";
+        window.location.hash = "";
         initializeApp();
       }
     });
@@ -77,6 +83,16 @@ function setupNavigation() {
 
 function renderActiveTab() {
   const state = stateManager.state;
+  const activeTab = tabFromHash();
+
+  // Reflect route in tab buttons
+  TABS.forEach(tab => {
+    const btn = document.getElementById(`tab-${tab}`);
+    if (btn) {
+      btn.classList.toggle("active", tab === activeTab);
+      btn.setAttribute("aria-selected", tab === activeTab ? "true" : "false");
+    }
+  });
 
   if (activeTab === "dashboard") {
     renderDashboard("main-view", state);
@@ -91,13 +107,61 @@ function renderActiveTab() {
   updateAssistantBubble();
 }
 
-function handleLogAction(id, title, impacts, xp) {
-  const result = stateManager.logAction(id, title, impacts, xp);
+function handleLogAction(id, title, impacts, xp, quantity = null) {
+  const result = stateManager.logAction(id, title, impacts, xp, quantity);
   if (result.ok) {
-    showToast(`+${xp} XP logged!`);
+    const detail = quantity ? ` (${quantity.value} ${quantity.unit})` : "";
+    showToast(`+${xp} XP logged${detail}!`);
     renderActiveTab();
   } else {
     showToast(result.reason, "warning");
+  }
+}
+
+// --- BACKUP EXPORT / IMPORT ---
+
+function setupBackupControls() {
+  const exportBtn = document.getElementById("btn-export-data");
+  if (exportBtn) {
+    const newExportBtn = exportBtn.cloneNode(true);
+    exportBtn.parentNode.replaceChild(newExportBtn, exportBtn);
+    newExportBtn.addEventListener("click", () => {
+      const stamp = new Date().toISOString().slice(0, 10);
+      const blob = new Blob([stateManager.exportState()], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `lifequest_backup_${stamp}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast("Registry exported.");
+    });
+  }
+
+  const importBtn = document.getElementById("btn-import-data");
+  const fileInput = document.getElementById("import-file-input");
+  if (importBtn && fileInput) {
+    const newImportBtn = importBtn.cloneNode(true);
+    importBtn.parentNode.replaceChild(newImportBtn, importBtn);
+    newImportBtn.addEventListener("click", () => {
+      if (confirm("Importing a backup replaces ALL current data. Continue?")) {
+        fileInput.value = "";
+        fileInput.click();
+      }
+    });
+
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      try {
+        stateManager.importState(await file.text());
+        showToast("Registry imported successfully.");
+        initializeApp();
+      } catch (err) {
+        console.error("Import failed:", err);
+        showToast(`Import failed: ${err.message}`, "warning");
+      }
+    });
   }
 }
 
@@ -204,6 +268,13 @@ window.addEventListener("lifequest_levelup", (e) => {
 window.addEventListener("lifequest_quest_completed", (e) => {
   const data = e.detail;
   showToast(`Mission Complete: "${data.title}" (+${data.xp} XP)`);
+});
+
+// Re-render when the route changes (back/forward buttons, tab clicks)
+window.addEventListener("hashchange", () => {
+  if (stateManager.state.onboarded) {
+    renderActiveTab();
+  }
 });
 
 // Start the App

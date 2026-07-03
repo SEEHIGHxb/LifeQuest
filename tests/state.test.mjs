@@ -150,10 +150,10 @@ test("custom actions get stable ids and are rate-limited", () => {
   assert.equal(m.state.dailyLimits[action.id], undefined, "limits entry cleaned up");
 });
 
-test("loadState merges legacy saves over new defaults (migration)", () => {
-  // Legacy v1 save: missing customActions, questResets, several profile fields
+test("same-schema saves merge over defaults (field backfill)", () => {
   installMockStorage({
     lifequest_state: JSON.stringify({
+      schemaVersion: 3,
       onboarded: true,
       profile: { name: "OldUser", level: 4, xp: 20 },
       aspects: { finance: 55 },
@@ -171,6 +171,85 @@ test("loadState merges legacy saves over new defaults (migration)", () => {
   assert.equal(m.state.profile.digitalLiteracy, 50, "new profile fields backfilled");
 });
 
+test("pre-v3 saves trigger a fresh start (measurement model changed)", () => {
+  installMockStorage({
+    lifequest_state: JSON.stringify({
+      schemaVersion: 2,
+      onboarded: true,
+      profile: { name: "V2User", level: 9 },
+      aspects: { finance: 70 }
+    })
+  });
+  const m = new GameStateManager();
+  assert.equal(m.state.onboarded, false, "old schema requires re-onboarding");
+  assert.equal(m.state.profile.name, "Guest");
+});
+
+test("logAction stores real quantities on history entries", () => {
+  const m = new GameStateManager();
+  m.logAction("workout", "Exercise Session", { physical: 10 }, 30, { value: 45, unit: "minutes", label: "Duration" });
+  m.logAction("phys_sigh", "Physiological Sigh", { mental: 5 }, 10);
+  assert.deepEqual(m.state.history[1].quantity, { value: 45, unit: "minutes", label: "Duration" });
+  assert.equal(m.state.history[0].quantity, undefined, "event-only actions have no quantity");
+  assert.equal(m.state.history[1].actionId, "workout", "actionId recorded for measured scoring");
+});
+
+test("weekly snapshots: one at onboarding, none again within 7 days, one after", () => {
+  const m = new GameStateManager();
+  m.state.onboarded = true;
+  assert.equal(m.maybeTakeSnapshot(), true, "first snapshot taken");
+  assert.equal(m.maybeTakeSnapshot(), false, "no duplicate within the interval");
+  m.state.snapshots[0].date = new Date(Date.now() - 8 * 86400000).toISOString();
+  assert.equal(m.maybeTakeSnapshot(), true, "snapshot taken after 7 days");
+  assert.equal(m.state.snapshots.length, 2);
+  assert.ok(m.state.snapshots[1].aspects, "snapshot carries aspect values");
+});
+
+test("export/import round-trips full state", () => {
+  const m = new GameStateManager();
+  m.state.onboarded = true;
+  m.state.profile.name = "Backup User";
+  m.logAction("save_money", "Add to Savings", { finance: 8 }, 20, { value: 1500, unit: "THB", label: "Amount saved" });
+  const backup = m.exportState();
+
+  installMockStorage();
+  const restored = new GameStateManager();
+  restored.importState(backup);
+  assert.equal(restored.state.profile.name, "Backup User");
+  assert.equal(restored.state.history[0].quantity.value, 1500);
+  assert.equal(restored.state.onboarded, true);
+});
+
+test("importState rejects invalid or incompatible backups", () => {
+  const m = new GameStateManager();
+  assert.throws(() => m.importState("{not json"), /not valid JSON/);
+  assert.throws(() => m.importState('{"foo": 1}'), /not a LifeQuest backup/);
+  assert.throws(
+    () => m.importState(JSON.stringify({ schemaVersion: 2, profile: {}, aspects: {} })),
+    /schema v2/
+  );
+});
+
+test("submitOnboarding stores clamped age and validated gender", () => {
+  const m = new GameStateManager();
+  const survey = {
+    name: "Demo", age: "200", gender: "female", region: "Bangkok",
+    employment: "Student", relationshipStatus: "Single",
+    income: 20000, savingsRate: 10, height: 170, weight: 60, sleepHours: 7,
+    vegetablePortions: 2, waterLiters: 1.5, weeklyVigorousDays: 0, weeklyVigorousMins: 0,
+    weeklyModerateDays: 0, weeklyModerateMins: 0, weeklyWalkingDays: 3, weeklyWalkingMins: 20,
+    weeklyLearningHours: 2, digitalLiteracy: 50, monthlyDonations: 0, volunteeringHours: 0,
+    singleUsePlastics: 5, longTermInvestments: "false",
+    cfpb: [2, 2, 2, 2, 2], jss: [0, 0, 0, 0], st5: [0, 0, 0, 0, 0], who5: [3, 3, 3, 3, 3],
+    lsns: [3, 3, 3, 3, 3, 3], ucla: [1, 1, 1], ras: [3, 3, 3], gse: [3, 3, 3, 3, 3, 3],
+    grit: [4, 3, 4, 4], ptm: [2, 1, 2, 2, 3], geb: [2, 2, 3, 3, 2, 2], lfis: [3, 2, 2, 3, 2]
+  };
+  m.submitOnboarding(survey);
+  assert.equal(m.state.profile.age, 100, "age clamped to 15-100");
+  assert.equal(m.state.profile.gender, "female");
+  assert.equal(m.state.snapshots.length, 1, "baseline snapshot taken at onboarding");
+});
+
 test("corrupt saved state falls back to defaults", () => {
   installMockStorage({ lifequest_state: "{not json" });
   const m = new GameStateManager();
@@ -178,11 +257,11 @@ test("corrupt saved state falls back to defaults", () => {
   assert.equal(m.state.profile.name, "Guest");
 });
 
-test("history is capped", () => {
+test("history is capped at 500 entries", () => {
   const m = new GameStateManager();
-  for (let i = 0; i < 210; i++) {
+  for (let i = 0; i < 510; i++) {
     // unique ids to dodge the daily limit
     m.logAction(`a${i}`, "Act", { mental: 1 }, 1);
   }
-  assert.ok(m.state.history.length <= 200);
+  assert.equal(m.state.history.length, 500);
 });

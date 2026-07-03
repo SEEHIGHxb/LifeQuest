@@ -14,7 +14,11 @@ no backend; all data lives in your browser's localStorage.
   - Relationships: LSNS-6, UCLA Loneliness (3-item), RAS (couples only)
   - Personal Goals: GSE-6 self-efficacy, Grit-S, learning habits
   - Social Contribution, Environment (GEB), and Humanity's Future (long-term index)
-- **Routines Ledger**: preset + custom routines, 5 logs/routine/day fatigue cap
+- **Routines Ledger**: preset + custom routines, 5 logs/routine/day fatigue cap;
+  quantifiable routines record real amounts (minutes, THB, liters) as measured data
+- **Weekly snapshots** of all aspect scores (foundation for trend charts)
+- **Backup**: one-click JSON export / import from the header
+- **Hash routing** (`#/dashboard`, `#/ledger`, ...) — browser back/forward work
 - **Missions**: progress automatically from matching logged routines; daily/weekly cycles reset; epic missions with milestones
 - **Radar chart**: dependency-free SVG rendering of the 8 aspects
 - **Rankings**: your score alongside the Express crew
