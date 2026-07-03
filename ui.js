@@ -3,6 +3,7 @@
 import { stateManager } from "./state.js";
 import { renderRadarChart } from "./chart.js";
 import { INSTRUMENTS } from "./surveys.js";
+import { getAllBenchmarks, collectSources, ordinal } from "./benchmarks.js";
 
 // Escape user-provided strings before inserting into innerHTML.
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, c => ({
@@ -355,6 +356,10 @@ export function renderDashboard(containerId, state) {
   const p = state.profile;
   const xpNeeded = p.level * 100;
   const xpPercent = Math.round((p.xp / xpNeeded) * 100);
+  const benchmarks = getAllBenchmarks(state);
+  const benchmarkSources = collectSources(benchmarks);
+
+  const METHOD_TAGS = { distribution: "vs published norms", threshold: "vs participation rates", estimate: "estimate" };
 
   container.innerHTML = `
     <div class="dashboard-grid">
@@ -391,7 +396,9 @@ export function renderDashboard(containerId, state) {
         <div class="card">
           <h4 class="card-header">Synchronization Metrics</h4>
           <div style="display: flex; flex-direction: column; gap: 12px;">
-            ${Object.entries(state.aspects).map(([key, val]) => `
+            ${Object.entries(state.aspects).map(([key, val]) => {
+              const b = benchmarks[key];
+              return `
                 <div>
                   <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 500; margin-bottom: 2px;">
                     <span>${ASPECT_LABELS[key] || key}</span>
@@ -400,8 +407,28 @@ export function renderDashboard(containerId, state) {
                   <div class="xp-bar-container" style="height: 5px; margin-top: 0;" role="progressbar" aria-label="${ASPECT_LABELS[key] || key}" aria-valuenow="${val}" aria-valuemin="0" aria-valuemax="100">
                     <div class="xp-bar-fill" style="width: ${val}%; background-color: var(--color-gold);"></div>
                   </div>
+                  ${b ? `
+                  <div class="benchmark-line" title="${escapeHtml(b.summary)}">
+                    Society: ~${ordinal(b.percentile)} percentile <span class="benchmark-method">(${METHOD_TAGS[b.method] || b.method})</span>
+                  </div>` : ""}
                 </div>
-              `).join("")}
+              `;
+            }).join("")}
+          </div>
+          <div class="benchmark-sources">
+            <details>
+              <summary>Benchmark sources &amp; methodology</summary>
+              <p class="benchmark-disclaimer">
+                Percentiles compare your baseline answers with published population
+                statistics — they are honest approximations, not exact ranks.
+                "Estimate" marks curves calibrated to a published anchor point.
+              </p>
+              <ul>
+                ${benchmarkSources.map(src => `
+                  <li><a href="${src.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(src.label)}</a></li>
+                `).join("")}
+              </ul>
+            </details>
           </div>
         </div>
 

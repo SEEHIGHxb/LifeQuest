@@ -16,6 +16,12 @@ no backend; all data lives in your browser's localStorage.
   - Social Contribution, Environment (GEB), and Humanity's Future (long-term index)
 - **Routines Ledger**: preset + custom routines, 5 logs/routine/day fatigue cap;
   quantifiable routines record real amounts (minutes, THB, liters) as measured data
+- **Society benchmarks**: each aspect shows your approximate percentile against
+  published population statistics (NSO income/wages, Thai physical-activity
+  surveillance, WHO-5 community norms, DMH ST-5 bands, UCLA-3/LSNS-6 samples,
+  GSE 25-country norms, CAF World Giving Index, Thai plastic-use and pension
+  coverage data) — every number cites its source in the UI, and estimates are
+  labeled as estimates
 - **Weekly snapshots** of all aspect scores (foundation for trend charts)
 - **Backup**: one-click JSON export / import from the header
 - **Hash routing** (`#/dashboard`, `#/ledger`, ...) — browser back/forward work
@@ -54,6 +60,7 @@ Static-host friendly (GitHub Pages, Netlify, etc.) — publish the repo root as-
 | `index.html` / `index.css` | Shell and Astral Express design system |
 | `app.js` | Coordinator: navigation, toasts, level-up modal, Lumi assistant |
 | `state.js` | `GameStateManager`: persistence, migration, scoring, quests, XP |
+| `benchmarks.js` | Population percentile benchmarks with cited sources |
 | `surveys.js` | Survey instrument question banks and option scales |
 | `ui.js` | View rendering: onboarding, dashboard, ledger, missions, rankings |
 | `chart.js` | SVG radar chart renderer |

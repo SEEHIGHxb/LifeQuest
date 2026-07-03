@@ -664,6 +664,53 @@ header {
   letter-spacing: 1px;
 }
 
+/* Benchmark percentiles (dashboard) */
+.benchmark-line {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  margin-top: 3px;
+}
+
+.benchmark-method {
+  opacity: 0.75;
+  font-style: italic;
+}
+
+.benchmark-sources {
+  margin-top: 14px;
+  border-top: 1px dashed var(--color-card-border);
+  padding-top: 10px;
+  font-size: 0.75rem;
+}
+
+.benchmark-sources summary {
+  cursor: pointer;
+  color: var(--color-astral-dark);
+  font-weight: 600;
+}
+
+.benchmark-disclaimer {
+  margin: 8px 0;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.benchmark-sources ul {
+  margin: 6px 0 0 18px;
+  padding: 0;
+}
+
+.benchmark-sources li {
+  margin-bottom: 5px;
+  line-height: 1.35;
+}
+
+.benchmark-sources a {
+  color: var(--color-astral-dark);
+  word-break: break-word;
+}
+
 /* Helper styles */
 .text-gold { color: var(--color-gold); }
 .text-purple { color: var(--color-astral-dark); text-shadow: 0 0 2px rgba(10, 155, 181, 0.1); }

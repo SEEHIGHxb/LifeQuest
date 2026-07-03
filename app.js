@@ -8,7 +8,7 @@ import {
   renderQuests,
   renderLeaderboard,
   getLumiTip
-} from "./ui.js?v=8";
+} from "./ui.js?v=9";
 
 const TOAST_DURATION_MS = 1600;
 const TYPEWRITER_SPEED_MS = 15;

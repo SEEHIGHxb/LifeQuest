@@ -54,7 +54,8 @@ const DEFAULT_STATE = {
   customActions: [],
   dailyLimits: {},
   questResets: { daily: "", weekly: "" },
-  snapshots: [] // weekly {date, aspects} records for trend charts
+  snapshots: [], // weekly {date, aspects} records for trend charts
+  baseline: null // raw instrument sums from onboarding, for benchmark percentiles
 };
 
 function getStorage() {
@@ -103,6 +104,7 @@ export class GameStateManager {
       dailyLimits: parsed.dailyLimits && typeof parsed.dailyLimits === "object" ? parsed.dailyLimits : {},
       questResets: { ...defaults.questResets, ...(parsed.questResets || {}) },
       snapshots: Array.isArray(parsed.snapshots) ? parsed.snapshots.slice(-SNAPSHOT_LIMIT) : [],
+      baseline: parsed.baseline && typeof parsed.baseline === "object" ? parsed.baseline : null,
       schemaVersion: DEFAULT_STATE.schemaVersion
     };
   }
@@ -481,6 +483,25 @@ export class GameStateManager {
     p.monthlyDonations = parseFloat(surveyData.monthlyDonations || 0);
     p.volunteeringHours = parseFloat(surveyData.volunteeringHours || 0);
     p.longTermInvestments = surveyData.longTermInvestments === "true";
+
+    // Raw instrument sums preserved for benchmark percentiles and the
+    // Phase 4 monthly re-assessments.
+    const rawSum = answers => (answers || []).reduce((sum, val) => sum + parseInt(val || 0), 0);
+    this.state.baseline = {
+      date: new Date().toISOString(),
+      cfpb: rawSum(surveyData.cfpb),
+      jss: rawSum(surveyData.jss),
+      st5: rawSum(surveyData.st5),
+      who5: rawSum(surveyData.who5),
+      lsns: rawSum(surveyData.lsns),
+      ucla: rawSum(surveyData.ucla),
+      ras: p.relationshipStatus === "Single" ? null : rawSum(surveyData.ras),
+      gse: rawSum(surveyData.gse),
+      grit: rawSum(surveyData.grit),
+      ptm: rawSum(surveyData.ptm),
+      geb: rawSum(surveyData.geb),
+      lfis: rawSum(surveyData.lfis)
+    };
 
     const aspects = this.state.aspects;
     aspects.finance = this.calculateFinanceScore(p, surveyData.cfpb);
