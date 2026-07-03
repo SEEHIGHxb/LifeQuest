@@ -1,9 +1,10 @@
 // ui.js - LifeQuest UI Rendering Views & Lumi Dialogue
 
 import { stateManager } from "./state.js";
-import { renderRadarChart } from "./chart.js";
+import { renderRadarChart, renderTrendChart } from "./chart.js";
 import { INSTRUMENTS } from "./surveys.js";
 import { getAllBenchmarks, collectSources, ordinal } from "./benchmarks.js";
+import { getAspectDetail } from "./aspects.js";
 
 // Escape user-provided strings before inserting into innerHTML.
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, c => ({
@@ -399,9 +400,9 @@ export function renderDashboard(containerId, state) {
             ${Object.entries(state.aspects).map(([key, val]) => {
               const b = benchmarks[key];
               return `
-                <div>
+                <a href="#/aspect/${key}" class="aspect-row" aria-label="Open ${ASPECT_LABELS[key] || key} details">
                   <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 500; margin-bottom: 2px;">
-                    <span>${ASPECT_LABELS[key] || key}</span>
+                    <span>${ASPECT_LABELS[key] || key} <span class="aspect-row-arrow">&rsaquo;</span></span>
                     <span class="text-gold" style="font-family: var(--font-mono); font-weight: bold;">${val}%</span>
                   </div>
                   <div class="xp-bar-container" style="height: 5px; margin-top: 0;" role="progressbar" aria-label="${ASPECT_LABELS[key] || key}" aria-valuenow="${val}" aria-valuemin="0" aria-valuemax="100">
@@ -411,7 +412,7 @@ export function renderDashboard(containerId, state) {
                   <div class="benchmark-line" title="${escapeHtml(b.summary)}">
                     Society: ~${ordinal(b.percentile)} percentile <span class="benchmark-method">(${METHOD_TAGS[b.method] || b.method})</span>
                   </div>` : ""}
-                </div>
+                </a>
               `;
             }).join("")}
           </div>
@@ -453,20 +454,153 @@ export function renderDashboard(containerId, state) {
   renderRadarChart("radar-chart-container", state.aspects);
 }
 
-// 3. RENDER THE ACTION LEDGER
-export function renderLedger(containerId, state, onLogAction, onRoutineChange) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-
-  const customActions = state.customActions || [];
-
-  const actionCard = (action, removable) => `
+// Shared routine-card markup (ledger + aspect pages).
+function actionCard(action, removable) {
+  return `
     <div class="action-card" data-id="${action.id}" role="button" tabindex="0" aria-label="Log ${escapeHtml(action.title)}">
       ${removable ? `<button type="button" class="action-remove" data-remove-id="${action.id}" aria-label="Remove routine" title="Remove routine">✕</button>` : ""}
       <div class="action-title">${escapeHtml(action.title)}</div>
       <div class="action-impacts">+${action.xp} XP</div>
       <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHtml(action.desc)}</div>
     </div>`;
+}
+
+// Shared click/keyboard binding for routine cards. Quantifiable actions
+// ask for the real amount first; others log directly.
+function bindActionCards(container, actions, onLogAction) {
+  container.querySelectorAll(".action-card").forEach(card => {
+    const logIt = () => {
+      const action = actions.find(a => a.id === card.getAttribute("data-id"));
+      if (!action) return;
+      if (action.metric) {
+        promptQuantity(action, (value) => {
+          onLogAction(action.id, action.title, action.impacts, action.xp,
+            { value, unit: action.metric.unit, label: action.metric.label });
+        });
+      } else {
+        onLogAction(action.id, action.title, action.impacts, action.xp);
+      }
+    };
+    card.addEventListener("click", logIt);
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        logIt();
+      }
+    });
+  });
+}
+
+// 2b. RENDER A DEDICATED ASPECT PAGE (#/aspect/<key>)
+export function renderAspectPage(containerId, state, aspectKey, onLogAction) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const detail = getAspectDetail(state, aspectKey);
+  if (!detail) return;
+
+  const b = detail.benchmark;
+  const METHOD_TAGS = { distribution: "vs published norms", threshold: "vs participation rates", estimate: "estimate" };
+
+  // Routines that positively impact this aspect (presets + custom).
+  const relevantActions = [...ACTION_PRESETS, ...(state.customActions || [])]
+    .filter(a => (a.impacts[aspectKey] || 0) > 0);
+
+  container.innerHTML = `
+    <a href="#/dashboard" class="aspect-back">&larr; Express Desk</a>
+
+    <div class="card aspect-header-card">
+      <div>
+        <h2 class="aspect-title">${detail.label}</h2>
+        <p class="aspect-blurb">${detail.blurb}</p>
+      </div>
+      <div class="aspect-score-badge">
+        <span class="aspect-score-value">${detail.score}</span>
+        <span class="aspect-score-max">/100</span>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div>
+        <div class="card">
+          <h4 class="card-header">Standing vs Society</h4>
+          ${b ? `
+            <div class="gauge-track" role="progressbar" aria-label="Percentile vs society" aria-valuenow="${b.percentile}" aria-valuemin="1" aria-valuemax="99">
+              <div class="gauge-fill" style="width: ${b.percentile}%;"></div>
+              <div class="gauge-marker" style="left: ${b.percentile}%;"></div>
+            </div>
+            <div class="gauge-caption">
+              <span>~${ordinal(b.percentile)} percentile</span>
+              <span class="benchmark-method">(${METHOD_TAGS[b.method] || b.method})</span>
+            </div>
+            <p class="gauge-summary">${escapeHtml(b.summary)}</p>
+            ${b.notes.map(n => `<p class="gauge-note">${escapeHtml(n)}</p>`).join("")}
+            <div class="benchmark-sources">
+              <details>
+                <summary>Sources</summary>
+                <ul>
+                  ${b.sources.map(src => `<li><a href="${src.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(src.label)}</a></li>`).join("")}
+                </ul>
+              </details>
+            </div>
+          ` : `
+            <p style="font-size: 0.85rem; color: var(--color-text-secondary);">
+              No baseline data for this comparison yet — re-run the onboarding sync to unlock it.
+            </p>
+          `}
+        </div>
+
+        <div class="card">
+          <h4 class="card-header">Component Breakdown</h4>
+          ${detail.components.length === 0 ? `
+            <p style="font-size: 0.85rem; color: var(--color-text-secondary);">Baseline survey data needed for this breakdown.</p>
+          ` : detail.components.map(c => `
+            <div class="component-row">
+              <div class="component-head">
+                <span>${escapeHtml(c.label)}</span>
+                <span class="text-gold" style="font-family: var(--font-mono); font-weight: bold;">${c.value}</span>
+              </div>
+              <div class="xp-bar-container" style="height: 5px; margin-top: 0;" role="progressbar" aria-label="${escapeHtml(c.label)}" aria-valuenow="${c.value}" aria-valuemin="0" aria-valuemax="100">
+                <div class="xp-bar-fill" style="width: ${c.value}%;"></div>
+              </div>
+              <div class="component-detail">${escapeHtml(c.detail)}</div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h4 class="card-header">Trend (Weekly Snapshots)</h4>
+          <div id="aspect-trend-chart"></div>
+        </div>
+
+        <div class="card">
+          <h4 class="card-header">Log a ${detail.label} Routine</h4>
+          ${relevantActions.length === 0 ? `
+            <p style="font-size: 0.85rem; color: var(--color-text-secondary);">
+              No routines target this aspect yet — register one in the Routines Ledger.
+            </p>
+          ` : `
+            <div class="action-grid">
+              ${relevantActions.map(a => actionCard(a, false)).join("")}
+            </div>
+          `}
+        </div>
+      </div>
+    </div>
+  `;
+
+  renderTrendChart("aspect-trend-chart", detail.trend);
+  bindActionCards(container, relevantActions, onLogAction);
+}
+
+// 3. RENDER THE ACTION LEDGER
+export function renderLedger(containerId, state, onLogAction, onRoutineChange) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const customActions = state.customActions || [];
 
   container.innerHTML = `
     <div class="dashboard-grid">
@@ -522,29 +656,7 @@ export function renderLedger(containerId, state, onLogAction, onRoutineChange) {
   `;
 
   // Bind logging clicks (presets + custom routines).
-  // Quantifiable actions ask for the real amount first; others log directly.
-  const allActions = [...ACTION_PRESETS, ...customActions];
-  container.querySelectorAll(".action-card").forEach(card => {
-    const logIt = () => {
-      const action = allActions.find(a => a.id === card.getAttribute("data-id"));
-      if (!action) return;
-      if (action.metric) {
-        promptQuantity(action, (value) => {
-          onLogAction(action.id, action.title, action.impacts, action.xp,
-            { value, unit: action.metric.unit, label: action.metric.label });
-        });
-      } else {
-        onLogAction(action.id, action.title, action.impacts, action.xp);
-      }
-    };
-    card.addEventListener("click", logIt);
-    card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        logIt();
-      }
-    });
-  });
+  bindActionCards(container, [...ACTION_PRESETS, ...customActions], onLogAction);
 
   // Bind remove buttons for custom routines
   container.querySelectorAll(".action-remove").forEach(btn => {

@@ -22,9 +22,14 @@ no backend; all data lives in your browser's localStorage.
   GSE 25-country norms, CAF World Giving Index, Thai plastic-use and pension
   coverage data) — every number cites its source in the UI, and estimates are
   labeled as estimates
-- **Weekly snapshots** of all aspect scores (foundation for trend charts)
+- **Dedicated aspect pages** (`#/aspect/physical`, ...): percentile gauge vs
+  society, component breakdown (e.g., Physical → Activity / Body / Sleep /
+  Nutrition), trend chart of weekly snapshots, and one-tap logging of the
+  routines that target that aspect — reachable by clicking any aspect on the
+  dashboard
+- **Weekly snapshots** of all aspect scores, drawn as trend lines on aspect pages
 - **Backup**: one-click JSON export / import from the header
-- **Hash routing** (`#/dashboard`, `#/ledger`, ...) — browser back/forward work
+- **Hash routing** (`#/dashboard`, `#/ledger`, `#/aspect/<key>`, ...) — browser back/forward work
 - **Missions**: progress automatically from matching logged routines; daily/weekly cycles reset; epic missions with milestones
 - **Radar chart**: dependency-free SVG rendering of the 8 aspects
 - **Rankings**: your score alongside the Express crew
@@ -61,6 +66,7 @@ Static-host friendly (GitHub Pages, Netlify, etc.) — publish the repo root as-
 | `app.js` | Coordinator: navigation, toasts, level-up modal, Lumi assistant |
 | `state.js` | `GameStateManager`: persistence, migration, scoring, quests, XP |
 | `benchmarks.js` | Population percentile benchmarks with cited sources |
+| `aspects.js` | Per-aspect detail: component breakdowns and trend series |
 | `surveys.js` | Survey instrument question banks and option scales |
 | `ui.js` | View rendering: onboarding, dashboard, ledger, missions, rankings |
 | `chart.js` | SVG radar chart renderer |

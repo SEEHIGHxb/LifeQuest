@@ -22,6 +22,98 @@ const ASPECT_KEYS = [
   "humanityFuture"
 ];
 
+// Line chart of one aspect's weekly snapshots (0-100 scale).
+export function renderTrendChart(containerId, trend) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (!trend || trend.length === 0) {
+    container.innerHTML = `<p style="font-size: 0.85rem; color: var(--color-text-secondary);">No snapshots yet — trends appear after your first weekly sync.</p>`;
+    return;
+  }
+
+  const width = container.clientWidth || 520;
+  const height = 180;
+  const pad = { top: 14, right: 14, bottom: 26, left: 34 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", height);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+  const xFor = i => trend.length === 1
+    ? pad.left + plotW / 2
+    : pad.left + (i / (trend.length - 1)) * plotW;
+  const yFor = v => pad.top + (1 - v / 100) * plotH;
+
+  // Horizontal grid lines with score labels
+  [0, 25, 50, 75, 100].forEach(level => {
+    const y = yFor(level);
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", pad.left);
+    line.setAttribute("y1", y);
+    line.setAttribute("x2", width - pad.right);
+    line.setAttribute("y2", y);
+    line.setAttribute("stroke", "rgba(32, 50, 76, 0.1)");
+    line.setAttribute("stroke-width", "1");
+    svg.appendChild(line);
+
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.setAttribute("x", pad.left - 6);
+    label.setAttribute("y", y + 3);
+    label.setAttribute("text-anchor", "end");
+    label.setAttribute("fill", "var(--color-text-secondary)");
+    label.style.fontFamily = "var(--font-mono)";
+    label.style.fontSize = "9px";
+    label.textContent = level;
+    svg.appendChild(label);
+  });
+
+  // Score line
+  if (trend.length > 1) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+    path.setAttribute("points", trend.map((t, i) => `${xFor(i)},${yFor(t.value)}`).join(" "));
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "var(--color-astral)");
+    path.setAttribute("stroke-width", "2.5");
+    path.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(path);
+  }
+
+  // Points + first/last date labels
+  trend.forEach((t, i) => {
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("cx", xFor(i));
+    dot.setAttribute("cy", yFor(t.value));
+    dot.setAttribute("r", "3.5");
+    dot.setAttribute("fill", "var(--color-gold)");
+    dot.setAttribute("stroke", "#ffffff");
+    dot.setAttribute("stroke-width", "1.5");
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = `${new Date(t.date).toLocaleDateString()}: ${t.value}`;
+    dot.appendChild(title);
+    svg.appendChild(dot);
+
+    if (i === 0 || i === trend.length - 1) {
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("x", xFor(i));
+      label.setAttribute("y", height - 8);
+      label.setAttribute("text-anchor", i === 0 ? "start" : "end");
+      if (trend.length === 1) label.setAttribute("text-anchor", "middle");
+      label.setAttribute("fill", "var(--color-text-secondary)");
+      label.style.fontFamily = "var(--font-mono)";
+      label.style.fontSize = "9px";
+      label.textContent = new Date(t.date).toLocaleDateString();
+      svg.appendChild(label);
+    }
+  });
+
+  container.appendChild(svg);
+}
+
 export function renderRadarChart(containerId, aspects) {
   const container = document.getElementById(containerId);
   if (!container) return;

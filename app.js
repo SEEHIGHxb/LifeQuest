@@ -7,8 +7,10 @@ import {
   renderLedger,
   renderQuests,
   renderLeaderboard,
+  renderAspectPage,
   getLumiTip
-} from "./ui.js?v=9";
+} from "./ui.js?v=10";
+import { ASPECT_KEYS } from "./aspects.js";
 
 const TOAST_DURATION_MS = 1600;
 const TYPEWRITER_SPEED_MS = 15;
@@ -19,9 +21,15 @@ let lumiTypewriterInterval = null;
 
 // --- ROUTING (hash-based so GitHub Pages and the back button both work) ---
 
-function tabFromHash() {
-  const tab = window.location.hash.replace(/^#\/?/, "");
-  return TABS.includes(tab) ? tab : DEFAULT_TAB;
+// Parses "#/dashboard" -> {type:"tab", tab} and "#/aspect/<key>" ->
+// {type:"aspect", key}; anything unknown falls back to the dashboard.
+function routeFromHash() {
+  const path = window.location.hash.replace(/^#\/?/, "");
+  const aspectMatch = path.match(/^aspect\/([a-zA-Z]+)$/);
+  if (aspectMatch && ASPECT_KEYS.includes(aspectMatch[1])) {
+    return { type: "aspect", key: aspectMatch[1] };
+  }
+  return { type: "tab", tab: TABS.includes(path) ? path : DEFAULT_TAB };
 }
 
 function navigateTo(tab) {
@@ -83,9 +91,10 @@ function setupNavigation() {
 
 function renderActiveTab() {
   const state = stateManager.state;
-  const activeTab = tabFromHash();
+  const route = routeFromHash();
+  const activeTab = route.type === "tab" ? route.tab : null;
 
-  // Reflect route in tab buttons
+  // Reflect route in tab buttons (none active on aspect pages)
   TABS.forEach(tab => {
     const btn = document.getElementById(`tab-${tab}`);
     if (btn) {
@@ -94,7 +103,9 @@ function renderActiveTab() {
     }
   });
 
-  if (activeTab === "dashboard") {
+  if (route.type === "aspect") {
+    renderAspectPage("main-view", state, route.key, handleLogAction);
+  } else if (activeTab === "dashboard") {
     renderDashboard("main-view", state);
   } else if (activeTab === "ledger") {
     renderLedger("main-view", state, handleLogAction, renderActiveTab);
