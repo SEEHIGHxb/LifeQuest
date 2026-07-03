@@ -1,0 +1,11 @@
+{
+  "name": "life-is-a-game",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LifeQuest - gamified life tracker with scientifically-grounded aspect scoring",
+  "scripts": {
+    "start": "npx --yes http-server . -p 8123 -c-1",
+    "test": "node --test \"tests/*.test.mjs\""
+  }
+}

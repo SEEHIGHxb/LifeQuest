@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LifeQuest: Astral Express Registry</title>
+  <!-- Google Fonts for Astral Express Theme -->
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./index.css?v=7">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Main Header -->
+    <header>
+      <div class="brand">
+        <h1>LIFEQUEST</h1>
+        <p>Astral Express Registry &bull; Nameless Crew</p>
+      </div>
+      <div>
+        <button id="btn-reset-data" class="btn btn-danger" style="font-size: 0.8rem; padding: 4px 10px;">Reset Registry</button>
+      </div>
+    </header>
+
+    <!-- Navigation Tab container -->
+    <div id="nav-container" class="nav-tabs d-none" role="tablist" aria-label="Main navigation">
+      <button class="tab-btn active" id="tab-dashboard" role="tab" aria-selected="true">Express Desk</button>
+      <button class="tab-btn" id="tab-ledger" role="tab" aria-selected="false">Routines Ledger</button>
+      <button class="tab-btn" id="tab-quests" role="tab" aria-selected="false">Missions</button>
+      <button class="tab-btn" id="tab-leaderboard" role="tab" aria-selected="false">Rankings</button>
+    </div>
+
+    <!-- Main View Mount -->
+    <main id="main-view">
+      <!-- Injected views go here -->
+    </main>
+
+    <!-- Floating Assistant Mascot (Lumi) -->
+    <div id="assistant-mount" class="assistant-wrapper d-none">
+      <div class="speech-bubble" id="assistant-speech-bubble" aria-live="polite">
+        Loading synchronization protocols...
+      </div>
+      <img src="./assets/lumi_profile.jpg" alt="Lumi, your navigation assistant" class="assistant-avatar" id="assistant-lumi-avatar">
+    </div>
+  </div>
+
+  <!-- Core Scripts -->
+  <script type="module" src="./app.js?v=7"></script>
+</body>
+</html>
