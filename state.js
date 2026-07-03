@@ -6,6 +6,23 @@ const DAILY_LOG_LIMIT = 5;
 const SNAPSHOT_INTERVAL_DAYS = 7;
 const SNAPSHOT_LIMIT = 260; // ~5 years of weekly snapshots
 
+// Commitment mode: a weekly pledge to one aspect with a bonus on completion.
+const COMMIT_MIN_TARGET = 3;
+const COMMIT_MAX_TARGET = 21;
+const COMMIT_BONUS_BASE_XP = 30;
+const COMMIT_BONUS_PER_LOG_XP = 10;
+const COMMIT_BONUS_CAP_XP = 150;
+
+// Monthly mini re-assessment: short instruments recalibrate the survey-based
+// aspects (hybrid model). A single check-in can never swing a score by more
+// than CHECKIN_MAX_SHIFT points.
+const CHECKIN_INTERVAL_DAYS = 28;
+const CHECKIN_MAX_SHIFT = 15;
+const CHECKIN_ACTIVITY_BONUS_CAP = 3;
+const CHECKIN_LOGS_PER_BONUS_POINT = 3;
+const CHECKIN_XP = 40;
+const CHECKIN_LIMIT = 60; // ~5 years of monthly records
+
 const DEFAULT_STATE = {
   onboarded: false,
   schemaVersion: 3,
@@ -55,7 +72,9 @@ const DEFAULT_STATE = {
   dailyLimits: {},
   questResets: { daily: "", weekly: "" },
   snapshots: [], // weekly {date, aspects} records for trend charts
-  baseline: null // raw instrument sums from onboarding, for benchmark percentiles
+  baseline: null, // raw instrument sums from onboarding, for benchmark percentiles
+  commitment: null, // active weekly aspect pledge {aspect, weeklyTarget, week, progress, completed}
+  checkins: [] // monthly mini re-assessment records {date, sums, shifts}
 };
 
 function getStorage() {
@@ -105,6 +124,8 @@ export class GameStateManager {
       questResets: { ...defaults.questResets, ...(parsed.questResets || {}) },
       snapshots: Array.isArray(parsed.snapshots) ? parsed.snapshots.slice(-SNAPSHOT_LIMIT) : [],
       baseline: parsed.baseline && typeof parsed.baseline === "object" ? parsed.baseline : null,
+      commitment: parsed.commitment && typeof parsed.commitment === "object" ? parsed.commitment : null,
+      checkins: Array.isArray(parsed.checkins) ? parsed.checkins.slice(-CHECKIN_LIMIT) : [],
       schemaVersion: DEFAULT_STATE.schemaVersion
     };
   }
@@ -227,10 +248,134 @@ export class GameStateManager {
           g.currentValue = 0;
         }
       });
+      // Commitments renew each week: progress restarts, bonus earnable again.
+      if (this.state.commitment) {
+        this.state.commitment = { ...this.state.commitment, week, progress: 0, completed: false };
+      }
       this.state.questResets.weekly = week;
       changed = true;
     }
     return changed;
+  }
+
+  // --- COMMITMENT MODE (weekly aspect pledge) ---
+
+  commitBonusXp(weeklyTarget) {
+    return Math.min(COMMIT_BONUS_CAP_XP, COMMIT_BONUS_BASE_XP + weeklyTarget * COMMIT_BONUS_PER_LOG_XP);
+  }
+
+  commitToAspect(aspectKey, weeklyTarget) {
+    if (this.state.aspects[aspectKey] === undefined) return null;
+    const target = Math.max(COMMIT_MIN_TARGET, Math.min(COMMIT_MAX_TARGET, parseInt(weeklyTarget || COMMIT_MIN_TARGET)));
+    this.state.commitment = {
+      aspect: aspectKey,
+      weeklyTarget: target,
+      week: isoWeekKey(new Date()),
+      progress: 0,
+      completed: false
+    };
+    this.saveState();
+    return this.state.commitment;
+  }
+
+  clearCommitment() {
+    this.state.commitment = null;
+    this.saveState();
+  }
+
+  // Any log that positively moves the pledged aspect counts toward the week.
+  applyCommitmentProgress(impacts) {
+    const c = this.state.commitment;
+    if (!c || c.completed) return;
+    if ((impacts[c.aspect] || 0) <= 0) return;
+    c.progress += 1;
+    if (c.progress >= c.weeklyTarget) {
+      c.completed = true;
+      const bonus = this.commitBonusXp(c.weeklyTarget);
+      this.addXP(bonus);
+      dispatchAppEvent("lifequest_commitment_completed", { aspect: c.aspect, bonus });
+    }
+  }
+
+  // --- MONTHLY MINI RE-ASSESSMENT (hybrid model recalibration) ---
+
+  lastCalibrationDate() {
+    const lastCheckin = this.state.checkins[this.state.checkins.length - 1];
+    if (lastCheckin) return lastCheckin.date;
+    return this.state.baseline ? this.state.baseline.date : null;
+  }
+
+  isCheckinDue() {
+    if (!this.state.onboarded || !this.state.baseline) return false;
+    const last = this.lastCalibrationDate();
+    if (!last) return false;
+    return (Date.now() - new Date(last).getTime()) / 86400000 >= CHECKIN_INTERVAL_DAYS;
+  }
+
+  countPositiveLogsSince(aspectKey, sinceIso) {
+    const since = new Date(sinceIso).getTime();
+    return this.state.history.filter(h =>
+      new Date(h.timestamp).getTime() >= since && ((h.impacts || {})[aspectKey] || 0) > 0
+    ).length;
+  }
+
+  // Re-runs the short survey instruments and recalibrates the survey-based
+  // aspects toward the new reading, plus a small bonus for consistent related
+  // logging since the last calibration. Shifts are capped at ±CHECKIN_MAX_SHIFT.
+  submitCheckin(surveyData) {
+    const p = this.state.profile;
+    const b = this.state.baseline;
+    if (!b) return null;
+
+    const rawSum = answers => (answers || []).reduce((sum, val) => sum + parseInt(val || 0), 0);
+    const sums = {
+      who5: rawSum(surveyData.who5),
+      st5: rawSum(surveyData.st5),
+      ucla: rawSum(surveyData.ucla),
+      gse: rawSum(surveyData.gse),
+      ras: p.relationshipStatus === "Single" ? null : rawSum(surveyData.ras)
+    };
+    const since = this.lastCalibrationDate();
+
+    // Survey-derived targets, mirroring the onboarding formulas but computed
+    // from raw sums. LSNS, grit, and learning reuse their stored values.
+    const stressFactor = st5 =>
+      st5 <= 4 ? 100 - st5 * 10 : st5 <= 7 ? 60 - (st5 - 4) * 10 : st5 <= 9 ? 30 - (st5 - 7) * 10 : 0;
+    const socialNetwork = (b.lsns / 30) * 100;
+    const lowLoneliness = 100 - ((sums.ucla - 3) / 6) * 100;
+    const efficacy = ((sums.gse - 6) / 18) * 100;
+    const grit = ((b.grit - 4) / 16) * 100;
+    const study = Math.min(100, (parseFloat(p.weeklyLearningHours || 0) / 5) * 100);
+    const digital = Math.min(100, Math.max(0, parseFloat(p.digitalLiteracy || 0)));
+
+    const targets = {
+      mental: 0.5 * (sums.who5 * 4) + 0.5 * stressFactor(sums.st5),
+      relationships: p.relationshipStatus === "Single" || sums.ras === null
+        ? 0.5 * socialNetwork + 0.5 * lowLoneliness
+        : 0.4 * socialNetwork + 0.3 * lowLoneliness + 0.3 * (((sums.ras - 3) / 12) * 100),
+      personalGoals: 0.4 * efficacy + 0.3 * grit + 0.3 * (0.5 * study + 0.5 * digital)
+    };
+
+    const shifts = {};
+    for (const [aspect, target] of Object.entries(targets)) {
+      const logs = this.countPositiveLogsSince(aspect, since);
+      const activityBonus = Math.min(CHECKIN_ACTIVITY_BONUS_CAP, Math.floor(logs / CHECKIN_LOGS_PER_BONUS_POINT));
+      const current = this.state.aspects[aspect];
+      const shift = Math.max(-CHECKIN_MAX_SHIFT, Math.min(CHECKIN_MAX_SHIFT, Math.round(target + activityBonus - current)));
+      shifts[aspect] = shift;
+      this.state.aspects[aspect] = Math.max(0, Math.min(100, current + shift));
+    }
+
+    // Refresh the stored raw sums so benchmarks track the latest reading.
+    this.state.baseline = { ...b, who5: sums.who5, st5: sums.st5, ucla: sums.ucla, gse: sums.gse, ras: sums.ras ?? b.ras };
+
+    this.state.checkins.push({ date: new Date().toISOString(), sums, shifts });
+    if (this.state.checkins.length > CHECKIN_LIMIT) {
+      this.state.checkins = this.state.checkins.slice(-CHECKIN_LIMIT);
+    }
+    this.addXP(CHECKIN_XP);
+    this.saveState();
+    return shifts;
   }
 
   // --- SCIENTIFIC ASPECT SCORING CALCULATIONS ---
@@ -521,6 +666,8 @@ export class GameStateManager {
     this.initializeDefaultQuests();
     this.resetPeriodicQuests();
     this.state.snapshots = [];
+    this.state.commitment = null;
+    this.state.checkins = [];
     this.maybeTakeSnapshot(); // baseline snapshot anchors the trend charts
     this.saveState();
   }
@@ -664,6 +811,7 @@ export class GameStateManager {
     }
 
     this.applyGoalProgress(actionId, impacts);
+    this.applyCommitmentProgress(impacts);
 
     this.saveState();
     return { ok: true };

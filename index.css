@@ -859,6 +859,81 @@ header {
   word-break: break-word;
 }
 
+/* Suggestions (dashboard + aspect pages) */
+.suggestion-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.suggestion-item {
+  border-left: 3px solid var(--color-astral);
+  background: rgba(0, 184, 230, 0.06);
+  border-radius: 0 4px 4px 0;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  transition: background var(--transition-speed);
+}
+
+.suggestion-link:hover .suggestion-item {
+  background: var(--color-astral-glow);
+}
+
+.suggestion-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-navy);
+}
+
+.suggestion-text {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+.suggestion-meta {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--color-gold);
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+/* Monthly re-sync banner */
+.checkin-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  border: 1.5px solid var(--color-gold);
+  background: var(--color-gold-glow);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+}
+
+.checkin-banner p {
+  font-size: 0.85rem;
+  color: var(--color-navy);
+  line-height: 1.4;
+}
+
+/* Weekly commitment */
+.commit-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.commit-note {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
 /* Helper styles */
 .text-gold { color: var(--color-gold); }
 .text-purple { color: var(--color-astral-dark); text-shadow: 0 0 2px rgba(10, 155, 181, 0.1); }

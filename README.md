@@ -27,9 +27,20 @@ no backend; all data lives in your browser's localStorage.
   Nutrition), trend chart of weekly snapshots, and one-tap logging of the
   routines that target that aspect — reachable by clicking any aspect on the
   dashboard
+- **Personalized suggestions**: a rule-based engine targets your weakest measured
+  components and adapts the advice to your profile — region (Bangkok transit vs
+  upcountry), employment status, and relationship status — on the dashboard
+  (top 3) and on every aspect page
+- **Weekly commitments**: pledge a routine count for one aspect; progress is
+  pinned to the dashboard, hitting the target earns bonus XP, and the pledge
+  renews every ISO week until you end it
+- **Monthly re-sync**: every 28 days the short instruments (WHO-5, ST-5,
+  UCLA-3, GSE-6, RAS for couples) re-run and recalibrate the survey-based
+  aspects — shifts are capped at ±15 per sync, with a small bonus for
+  consistent related logging (the hybrid scoring model)
 - **Weekly snapshots** of all aspect scores, drawn as trend lines on aspect pages
 - **Backup**: one-click JSON export / import from the header
-- **Hash routing** (`#/dashboard`, `#/ledger`, `#/aspect/<key>`, ...) — browser back/forward work
+- **Hash routing** (`#/dashboard`, `#/ledger`, `#/aspect/<key>`, `#/checkin`, ...) — browser back/forward work
 - **Missions**: progress automatically from matching logged routines; daily/weekly cycles reset; epic missions with milestones
 - **Radar chart**: dependency-free SVG rendering of the 8 aspects
 - **Rankings**: your score alongside the Express crew
@@ -67,6 +78,7 @@ Static-host friendly (GitHub Pages, Netlify, etc.) — publish the repo root as-
 | `state.js` | `GameStateManager`: persistence, migration, scoring, quests, XP |
 | `benchmarks.js` | Population percentile benchmarks with cited sources |
 | `aspects.js` | Per-aspect detail: component breakdowns and trend series |
+| `suggestions.js` | Rule-based, profile-aware suggestion engine |
 | `surveys.js` | Survey instrument question banks and option scales |
 | `ui.js` | View rendering: onboarding, dashboard, ledger, missions, rankings |
 | `chart.js` | SVG radar chart renderer |

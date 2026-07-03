@@ -5,6 +5,7 @@ import { renderRadarChart, renderTrendChart } from "./chart.js";
 import { INSTRUMENTS } from "./surveys.js";
 import { getAllBenchmarks, collectSources, ordinal } from "./benchmarks.js";
 import { getAspectDetail } from "./aspects.js";
+import { getAspectSuggestions, getTopSuggestions } from "./suggestions.js";
 
 // Escape user-provided strings before inserting into innerHTML.
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, c => ({
@@ -349,6 +350,34 @@ export function renderOnboarding(containerId, onComplete) {
   });
 }
 
+// Shared markup for one suggestion entry (dashboard + aspect pages).
+function suggestionItem(s, showAspect) {
+  return `
+    <a href="#/aspect/${s.aspect}" class="suggestion-link">
+      <div class="suggestion-item">
+        <div class="suggestion-title">${escapeHtml(s.title)}</div>
+        <div class="suggestion-text">${escapeHtml(s.text)}</div>
+        <div class="suggestion-meta">${showAspect ? `${escapeHtml(s.aspectLabel)} &bull; ` : ""}${escapeHtml(s.componentLabel)}: ${s.componentValue}/100</div>
+      </div>
+    </a>`;
+}
+
+// Pinned commitment progress (dashboard + aspect page).
+function commitmentPin(commitment) {
+  const pct = Math.min(100, Math.round((commitment.progress / commitment.weeklyTarget) * 100));
+  return `
+    <div class="commit-head">
+      <span>${ASPECT_LABELS[commitment.aspect] || commitment.aspect} &bull; this week</span>
+      <span class="text-gold" style="font-family: var(--font-mono); font-weight: bold;">${commitment.progress} / ${commitment.weeklyTarget}</span>
+    </div>
+    <div class="xp-bar-container" style="height: 6px; margin-top: 4px;" role="progressbar" aria-label="Commitment progress" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
+      <div class="xp-bar-fill" style="width: ${pct}%;"></div>
+    </div>
+    <div class="commit-note">${commitment.completed
+      ? "✅ Pledge complete — bonus XP banked. Resets next week."
+      : `Log ${commitment.weeklyTarget - commitment.progress} more ${ASPECT_LABELS[commitment.aspect] || commitment.aspect} routine(s) for +${stateManager.commitBonusXp(commitment.weeklyTarget)} bonus XP.`}</div>`;
+}
+
 // 2. RENDER THE MAIN DASHBOARD
 export function renderDashboard(containerId, state) {
   const container = document.getElementById(containerId);
@@ -359,10 +388,18 @@ export function renderDashboard(containerId, state) {
   const xpPercent = Math.round((p.xp / xpNeeded) * 100);
   const benchmarks = getAllBenchmarks(state);
   const benchmarkSources = collectSources(benchmarks);
+  const suggestions = getTopSuggestions(state, 3);
+  const commitment = state.commitment;
+  const checkinDue = stateManager.isCheckinDue();
 
   const METHOD_TAGS = { distribution: "vs published norms", threshold: "vs participation rates", estimate: "estimate" };
 
   container.innerHTML = `
+    ${checkinDue ? `
+      <div class="checkin-banner">
+        <p><strong>Monthly Re-Sync due.</strong> Re-run the short well-being instruments so your scores track your real standing, not last month's.</p>
+        <a href="#/checkin" class="btn btn-primary" style="white-space: nowrap;">Start Re-Sync</a>
+      </div>` : ""}
     <div class="dashboard-grid">
       <!-- LEFT COLUMN: STATUS & RADAR CHART -->
       <div>
@@ -386,10 +423,25 @@ export function renderDashboard(containerId, state) {
           </div>
         </div>
 
+        ${commitment ? `
+        <div class="card">
+          <h4 class="card-header">Weekly Commitment</h4>
+          <a href="#/aspect/${commitment.aspect}" class="suggestion-link">${commitmentPin(commitment)}</a>
+        </div>` : ""}
+
         <div class="card">
           <h4 class="card-header">Alignment Metrics</h4>
           <div id="radar-chart-container" style="width: 100%; display: flex; justify-content: center; align-items: center;"></div>
         </div>
+
+        ${suggestions.length > 0 ? `
+        <div class="card">
+          <h4 class="card-header">Lumi's Suggestions</h4>
+          <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: 10px;">
+            Targeting your weakest measured components — tap one to open that aspect.
+          </p>
+          ${suggestions.map(s => suggestionItem(s, true)).join("")}
+        </div>` : ""}
       </div>
 
       <!-- RIGHT COLUMN: RATINGS LIST & TERMINAL -->
@@ -492,7 +544,7 @@ function bindActionCards(container, actions, onLogAction) {
 }
 
 // 2b. RENDER A DEDICATED ASPECT PAGE (#/aspect/<key>)
-export function renderAspectPage(containerId, state, aspectKey, onLogAction) {
+export function renderAspectPage(containerId, state, aspectKey, onLogAction, onRefresh) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
@@ -500,6 +552,9 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction) {
   if (!detail) return;
 
   const b = detail.benchmark;
+  const suggestions = getAspectSuggestions(state, aspectKey);
+  const commitment = state.commitment;
+  const isCommittedHere = commitment && commitment.aspect === aspectKey;
   const METHOD_TAGS = { distribution: "vs published norms", threshold: "vs participation rates", estimate: "estimate" };
 
   // Routines that positively impact this aspect (presets + custom).
@@ -567,9 +622,46 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction) {
             </div>
           `).join("")}
         </div>
+
+        ${suggestions.length > 0 ? `
+        <div class="card">
+          <h4 class="card-header">Suggested Focus</h4>
+          ${suggestions.map(s => `
+            <div class="suggestion-item">
+              <div class="suggestion-title">${escapeHtml(s.title)}</div>
+              <div class="suggestion-text">${escapeHtml(s.text)}</div>
+              <div class="suggestion-meta">${escapeHtml(s.componentLabel)}: ${s.componentValue}/100</div>
+            </div>
+          `).join("")}
+        </div>` : ""}
       </div>
 
       <div>
+        <div class="card">
+          <h4 class="card-header">Weekly Commitment</h4>
+          ${isCommittedHere ? `
+            ${commitmentPin(commitment)}
+            <button type="button" id="btn-end-commit" class="btn" style="margin-top: 12px; font-size: 0.8rem;">End Commitment</button>
+          ` : commitment ? `
+            <p style="font-size: 0.85rem; color: var(--color-text-secondary);">
+              You're already committed to
+              <a href="#/aspect/${commitment.aspect}">${ASPECT_LABELS[commitment.aspect] || commitment.aspect}</a>
+              this week — one pledge at a time keeps it honest.
+            </p>
+          ` : `
+            <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 10px;">
+              Pledge a weekly routine count for ${detail.label}. Hitting it earns bonus XP; the pledge renews every week until you end it.
+            </p>
+            <form id="commit-form" style="display: flex; gap: 10px; align-items: flex-end;">
+              <div class="form-group" style="flex-grow: 1; margin-bottom: 0;">
+                <label for="commit-target">Routine logs per week (3-21)</label>
+                <input type="number" id="commit-target" class="form-control" value="5" min="3" max="21" required>
+              </div>
+              <button type="submit" class="btn btn-primary">Commit</button>
+            </form>
+          `}
+        </div>
+
         <div class="card">
           <h4 class="card-header">Trend (Weekly Snapshots)</h4>
           <div id="aspect-trend-chart"></div>
@@ -593,6 +685,76 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction) {
 
   renderTrendChart("aspect-trend-chart", detail.trend);
   bindActionCards(container, relevantActions, onLogAction);
+
+  const commitForm = container.querySelector("#commit-form");
+  if (commitForm) {
+    commitForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      stateManager.commitToAspect(aspectKey, parseInt(document.getElementById("commit-target").value));
+      if (onRefresh) onRefresh();
+    });
+  }
+  const endCommitBtn = container.querySelector("#btn-end-commit");
+  if (endCommitBtn) {
+    endCommitBtn.addEventListener("click", () => {
+      if (confirm("End this week's commitment? Progress will be discarded.")) {
+        stateManager.clearCommitment();
+        if (onRefresh) onRefresh();
+      }
+    });
+  }
+}
+
+// 2c. RENDER THE MONTHLY MINI RE-ASSESSMENT (#/checkin)
+export function renderCheckin(containerId, state, onComplete) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const isCoupled = state.profile.relationshipStatus !== "Single";
+
+  container.innerHTML = `
+    <a href="#/dashboard" class="aspect-back">&larr; Express Desk</a>
+    <div class="onboarding-container card">
+      <div class="brand" style="text-align: center; margin-bottom: 25px;">
+        <h1>MONTHLY RE-SYNC</h1>
+        <p>Short instruments only &bull; recalibrates Mental, Relationships &amp; Personal Goals</p>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 20px;">
+        Answer for the recent weeks, not how you felt at onboarding. Scores shift
+        by at most ±15 points per re-sync, and consistent routine logging since
+        the last sync adds a small bonus. Reward: +40 XP.
+      </p>
+      <form id="checkin-form">
+        ${instrumentBlock("who5")}
+        ${instrumentBlock("st5")}
+        ${instrumentBlock("ucla")}
+        ${isCoupled ? instrumentBlock("ras") : ""}
+        ${instrumentBlock("gse")}
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 15px;">Complete Re-Sync</button>
+      </form>
+      <p id="checkin-error" class="d-none" style="color: var(--color-crimson); margin-top: 12px; font-weight: 600;"></p>
+    </div>
+  `;
+
+  document.getElementById("checkin-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById("checkin-error");
+    errorEl.classList.add("d-none");
+    try {
+      const shifts = stateManager.submitCheckin({
+        who5: collectInstrument("who5"),
+        st5: collectInstrument("st5"),
+        ucla: collectInstrument("ucla"),
+        ras: isCoupled ? collectInstrument("ras") : null,
+        gse: collectInstrument("gse")
+      });
+      onComplete(shifts);
+    } catch (err) {
+      console.error("Check-in submission failed:", err);
+      errorEl.textContent = "Re-Sync Error: " + err.message;
+      errorEl.classList.remove("d-none");
+    }
+  });
 }
 
 // 3. RENDER THE ACTION LEDGER

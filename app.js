@@ -8,9 +8,10 @@ import {
   renderQuests,
   renderLeaderboard,
   renderAspectPage,
+  renderCheckin,
   getLumiTip
-} from "./ui.js?v=10";
-import { ASPECT_KEYS } from "./aspects.js";
+} from "./ui.js?v=11";
+import { ASPECT_KEYS, ASPECT_META } from "./aspects.js";
 
 const TOAST_DURATION_MS = 1600;
 const TYPEWRITER_SPEED_MS = 15;
@@ -28,6 +29,9 @@ function routeFromHash() {
   const aspectMatch = path.match(/^aspect\/([a-zA-Z]+)$/);
   if (aspectMatch && ASPECT_KEYS.includes(aspectMatch[1])) {
     return { type: "aspect", key: aspectMatch[1] };
+  }
+  if (path === "checkin") {
+    return { type: "checkin" };
   }
   return { type: "tab", tab: TABS.includes(path) ? path : DEFAULT_TAB };
 }
@@ -104,7 +108,9 @@ function renderActiveTab() {
   });
 
   if (route.type === "aspect") {
-    renderAspectPage("main-view", state, route.key, handleLogAction);
+    renderAspectPage("main-view", state, route.key, handleLogAction, renderActiveTab);
+  } else if (route.type === "checkin") {
+    renderCheckin("main-view", state, handleCheckinComplete);
   } else if (activeTab === "dashboard") {
     renderDashboard("main-view", state);
   } else if (activeTab === "ledger") {
@@ -116,6 +122,17 @@ function renderActiveTab() {
   }
 
   updateAssistantBubble();
+}
+
+function handleCheckinComplete(shifts) {
+  if (shifts) {
+    const parts = Object.entries(shifts)
+      .map(([key, v]) => `${ASPECT_META[key]?.label || key} ${v >= 0 ? "+" : ""}${v}`);
+    showToast(`Re-Sync complete: ${parts.join(", ")} (+40 XP)`);
+  } else {
+    showToast("Re-Sync needs a baseline — run the onboarding sync first.", "warning");
+  }
+  window.location.hash = "#/dashboard";
 }
 
 function handleLogAction(id, title, impacts, xp, quantity = null) {
@@ -279,6 +296,11 @@ window.addEventListener("lifequest_levelup", (e) => {
 window.addEventListener("lifequest_quest_completed", (e) => {
   const data = e.detail;
   showToast(`Mission Complete: "${data.title}" (+${data.xp} XP)`);
+});
+
+window.addEventListener("lifequest_commitment_completed", (e) => {
+  const data = e.detail;
+  showToast(`Weekly Commitment honored! +${data.bonus} bonus XP`);
 });
 
 // Re-render when the route changes (back/forward buttons, tab clicks)
