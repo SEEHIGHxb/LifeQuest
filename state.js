@@ -1,5 +1,7 @@
 // state.js - LifeQuest State Management & Scientific Scoring
 
+import { t, tp } from "./i18n.js";
+
 const STORAGE_KEY = "lifequest_state";
 const HISTORY_LIMIT = 500;
 const DAILY_LOG_LIMIT = 5;
@@ -33,7 +35,7 @@ const DEFAULT_STATE = {
     name: "Guest",
     level: 1,
     xp: 0,
-    rank: "Pathfinder",
+    rank: "Foundational",
     age: 25,
     gender: "unspecified", // male, female, unspecified — for benchmark norm selection
     region: "Provinces", // Provinces or Bangkok
@@ -185,13 +187,16 @@ export class GameStateManager {
     try {
       parsed = JSON.parse(jsonText);
     } catch {
-      throw new Error("File is not valid JSON.");
+      throw new Error(t("File is not valid JSON."));
     }
     if (!parsed || typeof parsed !== "object" || !parsed.profile || !parsed.aspects) {
-      throw new Error("File is not a LifeQuest backup (missing profile/aspects).");
+      throw new Error(t("This file is not a valid backup (missing profile/aspects)."));
     }
     if (parsed.schemaVersion !== DEFAULT_STATE.schemaVersion) {
-      throw new Error(`Backup schema v${parsed.schemaVersion || 1} is not compatible with v${DEFAULT_STATE.schemaVersion}.`);
+      throw new Error(tp("Backup schema v{found} is not compatible with v{expected}.", {
+        found: parsed.schemaVersion || 1,
+        expected: DEFAULT_STATE.schemaVersion
+      }));
     }
     this.state = this.mergeSavedState(parsed);
     this.saveState();
@@ -211,13 +216,13 @@ export class GameStateManager {
   }
 
   getRank(level) {
-    if (level >= 56) return "Aeon Emissary";
-    if (level >= 46) return "Trailblazer";
-    if (level >= 36) return "Astral Ranger";
-    if (level >= 26) return "Pioneer";
-    if (level >= 16) return "Voyager";
-    if (level >= 6) return "Explorer";
-    return "Pathfinder";
+    if (level >= 56) return "Exemplary";
+    if (level >= 46) return "Distinguished";
+    if (level >= 36) return "Advanced";
+    if (level >= 26) return "Proficient";
+    if (level >= 16) return "Progressing";
+    if (level >= 6) return "Developing";
+    return "Foundational";
   }
 
   getRankClass(level) {
@@ -316,7 +321,7 @@ export class GameStateManager {
       return { ok: true, updated: true, friend: existing };
     }
     if (this.state.friends.length >= FRIEND_LIMIT) {
-      return { ok: false, reason: `Crew roster is full (max ${FRIEND_LIMIT}).` };
+      return { ok: false, reason: tp("Participant list is full (max {max}).", { max: FRIEND_LIMIT }) };
     }
     const entry = {
       id: "crew_" + crypto.randomUUID().slice(0, 8),
@@ -810,7 +815,10 @@ export class GameStateManager {
     if (limit.count >= DAILY_LOG_LIMIT) {
       return {
         ok: false,
-        reason: `Daily limit reached for "${actionName}" (max ${DAILY_LOG_LIMIT} logs). Lumi recommends a break.`
+        reason: tp('Daily limit reached for "{name}" (max {max} logs). Take a break and return tomorrow.', {
+          name: t(actionName),
+          max: DAILY_LOG_LIMIT
+        })
       };
     }
 

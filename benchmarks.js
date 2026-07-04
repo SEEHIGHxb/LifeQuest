@@ -6,6 +6,9 @@
 //   method "threshold"    - placement against published participation rates
 //   method "estimate"     - calibrated curve anchored to published figures
 // The UI must always show the method and sources next to the number.
+// Source labels stay in English on purpose: they are literature citations.
+
+import { t, tp } from "./i18n.js";
 
 const SOURCES = {
   nsoIncome: {
@@ -101,9 +104,11 @@ function financeBenchmark(profile) {
   return {
     percentile,
     method: "estimate",
-    summary: `Income of ${Math.round(income).toLocaleString()} THB/mo vs ${profile.region === "Bangkok" ? "Bangkok" : "Thai"} workers`,
+    summary: tp(profile.region === "Bangkok"
+      ? "Income of {income} THB/mo vs Bangkok workers"
+      : "Income of {income} THB/mo vs Thai workers", { income: Math.round(income).toLocaleString() }),
     notes: [
-      "Lognormal curve calibrated to the Labour Force Survey average wage; NSO does not publish worker-level deciles openly."
+      t("Lognormal curve calibrated to the Labour Force Survey average wage; NSO does not publish worker-level deciles openly.")
     ],
     sources: [SOURCES.botWage, SOURCES.nsoIncome]
   };
@@ -139,15 +144,15 @@ function physicalBenchmark(profile) {
   if (w > 0 && h > 0) {
     const bmi = w / (h * h);
     const overweightShare = profile.gender === "male" ? 32.9 : profile.gender === "female" ? 41.8 : 37.5;
-    notes.push(bmi < 25
-      ? `BMI ${bmi.toFixed(1)} — below the BMI-25 line that ${overweightShare}% of Thai adults are over.`
-      : `BMI ${bmi.toFixed(1)} — in the ${overweightShare}% of Thai adults at BMI 25+.`);
+    notes.push(tp(bmi < 25
+      ? "BMI {bmi} — below the BMI-25 line that {share}% of Thai adults are over."
+      : "BMI {bmi} — in the {share}% of Thai adults at BMI 25+.", { bmi: bmi.toFixed(1), share: overweightShare }));
   }
 
   return {
     percentile: toPercentile(p01),
     method: "estimate",
-    summary: `${Math.round(met)} MET-min/week vs Thai adults (WHO guideline = 600)`,
+    summary: tp("{met} MET-min/week vs Thai adults (WHO guideline = 600)", { met: Math.round(met) }),
     notes,
     sources: [SOURCES.thaiSpa, SOURCES.nhesBmi]
   };
@@ -160,12 +165,12 @@ function mentalBenchmark(baseline) {
   const notes = [];
   if (Number.isFinite(baseline.st5)) {
     const band = baseline.st5 <= 4 ? "no stress problem" : baseline.st5 <= 6 ? "possible stress problem" : "stress problem";
-    notes.push(`ST-5 stress score ${baseline.st5}/15 — "${band}" band on the Thai DMH scale.`);
+    notes.push(tp('ST-5 stress score {n}/15 — "{band}" band on the Thai DMH scale.', { n: baseline.st5, band: t(band) }));
   }
   return {
     percentile: toPercentile(normalCdf(score100, 67.56, 22.96)),
     method: "distribution",
-    summary: `WHO-5 well-being ${score100}/100 vs general-population norms`,
+    summary: tp("WHO-5 well-being {score}/100 vs general-population norms", { score: score100 }),
     notes,
     sources: [SOURCES.who5Norms, SOURCES.st5Dmh]
   };
@@ -177,14 +182,14 @@ function relationshipsBenchmark(baseline) {
   const uclaP = 1 - normalCdf(baseline.ucla, 3.89, 1.34); // lower loneliness = better
   const lsnsP = normalCdf(baseline.lsns, 17.0, 5.5);
   const notes = [
-    baseline.lsns < 12
-      ? `LSNS-6 score ${baseline.lsns}/30 is under the social-isolation cutoff of 12.`
-      : `LSNS-6 score ${baseline.lsns}/30 is above the social-isolation cutoff of 12.`
+    tp(baseline.lsns < 12
+      ? "LSNS-6 score {n}/30 is under the social-isolation cutoff of 12."
+      : "LSNS-6 score {n}/30 is above the social-isolation cutoff of 12.", { n: baseline.lsns })
   ];
   return {
     percentile: toPercentile((uclaP + lsnsP) / 2),
     method: "estimate",
-    summary: "Loneliness (UCLA-3) and social network (LSNS-6) vs published community samples",
+    summary: t("Loneliness (UCLA-3) and social network (LSNS-6) vs published community samples"),
     notes,
     sources: [SOURCES.ucla3, SOURCES.lsns6]
   };
@@ -196,7 +201,7 @@ function personalGoalsBenchmark(baseline) {
   const perItem = baseline.gse / 6; // GSE-6 raw 6-24 -> per-item 1-4
   const notes = [];
   if (Number.isFinite(baseline.grit)) {
-    notes.push(`Grit ${(baseline.grit / 4).toFixed(1)}/5 vs the ~3.4 adult reference point.`);
+    notes.push(tp("Grit {g}/5 vs the ~3.4 adult reference point.", { g: (baseline.grit / 4).toFixed(1) }));
   }
   return {
     // Per-item comparison against the GSE-10 norm (29.55/10 items = 2.96,
@@ -204,7 +209,7 @@ function personalGoalsBenchmark(baseline) {
     // is an approximation.
     percentile: toPercentile(normalCdf(perItem, 2.955, 0.532)),
     method: "estimate",
-    summary: "Self-efficacy (GSE) vs 25-country norms, N=19,120",
+    summary: t("Self-efficacy (GSE) vs 25-country norms, N=19,120"),
     notes,
     sources: [SOURCES.gseScholz, SOURCES.gritDuckworth]
   };
@@ -234,8 +239,8 @@ function socialContributionBenchmark(profile) {
   return {
     percentile,
     method: "threshold",
-    summary: `Giving participation: ${band}`,
-    notes: ["Participation-rate placement, not an exact rank — CAF publishes yes/no rates, not amounts."],
+    summary: tp("Giving participation: {band}", { band: t(band) }),
+    notes: [t("Participation-rate placement, not an exact rank — CAF publishes yes/no rates, not amounts.")],
     sources: [SOURCES.cafWgi]
   };
 }
@@ -257,8 +262,8 @@ function environmentBenchmark(profile) {
   return {
     percentile,
     method: "estimate",
-    summary: `${pieces} single-use plastic pieces/day vs the ~3/day Thai average`,
-    notes: ["Banded around the post-plastic-ban Thai average; per-person distribution data is not published."],
+    summary: tp("{pieces} single-use plastic pieces/day vs the ~3/day Thai average", { pieces }),
+    notes: [t("Banded around the post-plastic-ban Thai average; per-person distribution data is not published.")],
     sources: [SOURCES.thaiPlastic]
   };
 }
@@ -269,10 +274,10 @@ function humanityFutureBenchmark(profile) {
   return {
     percentile: invested ? 70 : 30,
     method: "threshold",
-    summary: invested
+    summary: t(invested
       ? "Holds long-term retirement investments — ahead of most Thai workers"
-      : "No long-term retirement investments yet — like most Thai workers",
-    notes: ["Most Thai workers lack adequate retirement savings; ~2 in 3 over-60s get no social-security annuity."],
+      : "No long-term retirement investments yet — like most Thai workers"),
+    notes: [t("Most Thai workers lack adequate retirement savings; ~2 in 3 over-60s get no social-security annuity.")],
     sources: [SOURCES.thaiRetirement]
   };
 }

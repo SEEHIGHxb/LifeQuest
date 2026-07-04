@@ -5,6 +5,8 @@
 // Friends exchange codes over chat and paste them into the Rankings tab —
 // real people, no backend, works on any static host. Pure module: no DOM.
 
+import { t, tp } from "./i18n.js";
+
 const CODE_PREFIX = "LQ1-";
 const NAME_MAX_LENGTH = 20;
 const LEVEL_MAX = 999;
@@ -52,31 +54,31 @@ export function encodeCrewCode(state) {
 export function decodeCrewCode(code) {
   const trimmed = String(code || "").trim();
   if (!trimmed.startsWith(CODE_PREFIX)) {
-    throw new Error(`Crew codes start with "${CODE_PREFIX}".`);
+    throw new Error(tp('Comparison codes start with "{prefix}".', { prefix: CODE_PREFIX }));
   }
   let payload;
   try {
     payload = JSON.parse(fromBase64Url(trimmed.slice(CODE_PREFIX.length)));
   } catch {
-    throw new Error("That code is damaged — ask your crewmate to copy it again.");
+    throw new Error(t("That code is damaged — ask the participant to copy it again."));
   }
   if (!payload || payload.v !== 1) {
-    throw new Error("Unsupported crew code version.");
+    throw new Error(t("Unsupported comparison code version."));
   }
   const name = typeof payload.n === "string" ? payload.n.trim().slice(0, NAME_MAX_LENGTH) : "";
   const level = parseInt(payload.l);
   const points = parseInt(payload.p);
   const aspects = payload.a;
-  if (!name) throw new Error("Crew code is missing a name.");
+  if (!name) throw new Error(t("Comparison code is missing a name."));
   if (!Number.isInteger(level) || level < 1 || level > LEVEL_MAX) {
-    throw new Error("Crew code has an invalid level.");
+    throw new Error(t("Comparison code has an invalid level."));
   }
   if (!Number.isInteger(points) || points < 0 || points > POINTS_MAX) {
-    throw new Error("Crew code has invalid points.");
+    throw new Error(t("Comparison code has invalid points."));
   }
   if (!Array.isArray(aspects) || aspects.length !== ASPECT_COUNT
     || !aspects.every(v => Number.isFinite(v) && v >= 0 && v <= 100)) {
-    throw new Error("Crew code has invalid aspect scores.");
+    throw new Error(t("Comparison code has invalid aspect scores."));
   }
   return {
     name,

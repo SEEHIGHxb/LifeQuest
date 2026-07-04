@@ -223,7 +223,7 @@ test("export/import round-trips full state", () => {
 test("importState rejects invalid or incompatible backups", () => {
   const m = new GameStateManager();
   assert.throws(() => m.importState("{not json"), /not valid JSON/);
-  assert.throws(() => m.importState('{"foo": 1}'), /not a LifeQuest backup/);
+  assert.throws(() => m.importState('{"foo": 1}'), /not a valid backup/);
   assert.throws(
     () => m.importState(JSON.stringify({ schemaVersion: 2, profile: {}, aspects: {} })),
     /schema v2/

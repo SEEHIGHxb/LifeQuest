@@ -3,10 +3,11 @@
 import { stateManager } from "./state.js";
 import { renderRadarChart, renderTrendChart } from "./chart.js";
 import { INSTRUMENTS } from "./surveys.js";
-import { getAllBenchmarks, collectSources, ordinal } from "./benchmarks.js";
+import { getAllBenchmarks, collectSources } from "./benchmarks.js";
 import { getAspectDetail } from "./aspects.js";
 import { getAspectSuggestions, getTopSuggestions } from "./suggestions.js";
 import { encodeCrewCode, decodeCrewCode, crewPoints } from "./crewcode.js";
+import { t, tp, percentileLabel, dateLocale } from "./i18n.js";
 
 // Escape user-provided strings before inserting into innerHTML.
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, c => ({
@@ -24,14 +25,17 @@ const ASPECT_LABELS = {
   humanityFuture: "Humanity's Future"
 };
 
-// Mock competitors for the Astral Express Rankings
+// Localized aspect label (falls back to the raw key).
+const aspectLabel = key => t(ASPECT_LABELS[key] || key);
+
+// Sample profiles that populate the peer-comparison board until real codes are added
 const MOCK_COMPETITORS = [
-  { name: "Himeko", level: 48, totalPoints: 4850 },
-  { name: "Welt", level: 42, totalPoints: 4280 },
-  { name: "Dan Heng", level: 31, totalPoints: 3150 },
-  { name: "March 7th", level: 24, totalPoints: 2420 },
-  { name: "Stelle", level: 19, totalPoints: 1950 },
-  { name: "Pom-Pom", level: 12, totalPoints: 1280 }
+  { name: "Nadia", level: 48, totalPoints: 4850 },
+  { name: "Marcus", level: 42, totalPoints: 4280 },
+  { name: "Priya", level: 31, totalPoints: 3150 },
+  { name: "Kenji", level: 24, totalPoints: 2420 },
+  { name: "Sofia", level: 19, totalPoints: 1950 },
+  { name: "Liam", level: 12, totalPoints: 1280 }
 ];
 
 // Presets for actions that users can log.
@@ -73,17 +77,17 @@ export function getLumiTip(aspects) {
   }
 
   const dialogs = {
-    finance: "Our finance ledger shows some vulnerability, Trailblazer. Perhaps a budget plan? Let's check our savings rate.",
-    physical: "Lumi notices your physical stamina could use a boost. A walk around the Express would do wonders.",
-    mental: "A heavy heart or cluttered thoughts? Take a deep breath with me. Two quick inhales through the nose... and one long, slow sigh out.",
-    relationships: "Even among the stars, hearts need company. Have you connected with a close friend recently?",
-    personalGoals: "The Trailblaze requires constant practice. Just 20 minutes of learning today will sync your goal metrics.",
-    socialContribution: "Making merit brings light to the community. Even a small act of kindness to a stranger spreads warmth.",
-    environment: "A cleaner planet fosters a cleaner mind. Have we separated our plastics today?",
-    humanityFuture: "The future feels vast, but savings and upskilling anchor tomorrow. Let us study a future skill today."
+    finance: "Your finance score has room to grow. A simple monthly budget and a set savings rate are good starting points.",
+    physical: "Your physical activity could use a lift. A short walk today is an easy way to build momentum.",
+    mental: "Feeling stretched? Try a slow breathing break — two short inhales through the nose, then one long exhale.",
+    relationships: "Connection matters. Consider reaching out to a close friend or relative this week.",
+    personalGoals: "Steady practice moves your goals forward. Even 20 minutes of focused learning today helps.",
+    socialContribution: "Small acts of giving add up. A minor kindness or a modest donation strengthens this area.",
+    environment: "Everyday choices shape your footprint. Separating recyclables today is a simple step.",
+    humanityFuture: "Long-term security grows from consistent habits — saving and upskilling both anchor your future."
   };
 
-  return dialogs[lowestAspect] || "Every day aboard the Express is another entry in the logbook of your Trailblaze.";
+  return t(dialogs[lowestAspect] || "Log a routine today to keep your assessment current and track your progress.");
 }
 
 // --- ONBOARDING FORM BUILDERS ---
@@ -99,12 +103,12 @@ function numberField(id, label, value, attrs = "") {
 function radioQuestion(instrKey, itemIndex, item) {
   return `
     <fieldset class="survey-question">
-      <legend>${itemIndex + 1}. ${item.text}</legend>
+      <legend>${itemIndex + 1}. ${t(item.text)}</legend>
       <div class="radio-group">
         ${item.options.map(o => `
           <label class="radio-option">
             <input type="radio" name="${instrKey}-q${itemIndex}" value="${o.v}" ${o.v === item.def ? "checked" : ""}>
-            ${o.l}
+            ${t(o.l)}
           </label>`).join("")}
       </div>
     </fieldset>`;
@@ -114,7 +118,7 @@ function instrumentBlock(instrKey) {
   const instr = INSTRUMENTS[instrKey];
   return `
     <div class="instrument-block">
-      <p class="instrument-title">${instr.title}</p>
+      <p class="instrument-title">${t(instr.title)}</p>
       ${instr.items.map((item, i) => radioQuestion(instrKey, i, item)).join("")}
     </div>`;
 }
@@ -133,86 +137,86 @@ export function renderOnboarding(containerId, onComplete) {
 
   const pages = [
     {
-      title: "Step 1: Crew Profile & Finance",
+      title: t("Step 1: Profile & Finance"),
       body: `
         <div class="form-group">
-          <label for="onb-name">Crew Member Name</label>
-          <input type="text" id="onb-name" class="form-control" placeholder="E.g., Stelle" value="Guest" maxlength="40">
+          <label for="onb-name">${t("Name")}</label>
+          <input type="text" id="onb-name" class="form-control" placeholder="${t("E.g., Alex")}" value="${t("Guest")}" maxlength="40">
         </div>
         <div class="grid-2">
-          ${numberField("onb-age", "Age (for population benchmarks)", 25, 'min="15" max="100"')}
+          ${numberField("onb-age", t("Age (for population benchmarks)"), 25, 'min="15" max="100"')}
           <div class="form-group">
-            <label for="onb-gender">Gender (for benchmark norms)</label>
+            <label for="onb-gender">${t("Gender (for benchmark norms)")}</label>
             <select id="onb-gender" class="form-control">
-              <option value="unspecified">Prefer not to say</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
+              <option value="unspecified">${t("Prefer not to say")}</option>
+              <option value="male">${t("Male")}</option>
+              <option value="female">${t("Female")}</option>
             </select>
           </div>
         </div>
         <div class="form-group">
-          <label for="onb-region">Primary Region (Cost of Living Mapping)</label>
+          <label for="onb-region">${t("Primary Region (Cost of Living Mapping)")}</label>
           <select id="onb-region" class="form-control">
-            <option value="Provinces">Provinces / Upcountry Thailand</option>
-            <option value="Bangkok">Bangkok &amp; Vicinity</option>
+            <option value="Provinces">${t("Provinces / Upcountry Thailand")}</option>
+            <option value="Bangkok">${t("Bangkok & Vicinity")}</option>
           </select>
         </div>
         <div class="form-group">
-          <label for="onb-employment">Employment Status</label>
+          <label for="onb-employment">${t("Employment Status")}</label>
           <select id="onb-employment" class="form-control">
-            <option value="Office Worker">Office Worker / Salary Employee</option>
-            <option value="Freelancer">Freelancer / Independent</option>
-            <option value="Business Owner">Business Owner / Entrepreneur</option>
-            <option value="Unemployed">Unemployed / Looking for Work</option>
-            <option value="Student">Student</option>
+            <option value="Office Worker">${t("Office Worker / Salary Employee")}</option>
+            <option value="Freelancer">${t("Freelancer / Independent")}</option>
+            <option value="Business Owner">${t("Business Owner / Entrepreneur")}</option>
+            <option value="Unemployed">${t("Unemployed / Looking for Work")}</option>
+            <option value="Student">${t("Student")}</option>
           </select>
         </div>
         <div class="form-group">
-          <label for="onb-relationship">Relationship Status</label>
+          <label for="onb-relationship">${t("Relationship Status")}</label>
           <select id="onb-relationship" class="form-control">
-            <option value="Single">Single</option>
-            <option value="Coupled">In a Relationship / Married</option>
+            <option value="Single">${t("Single")}</option>
+            <option value="Coupled">${t("In a Relationship / Married")}</option>
           </select>
         </div>
-        ${numberField("onb-income", "Monthly Individual Income (Net THB)", 15000, 'min="0"')}
-        ${numberField("onb-savings", "Monthly Savings Rate (% of Income)", 10, 'min="0" max="100"')}
+        ${numberField("onb-income", t("Monthly Individual Income (Net THB)"), 15000, 'min="0"')}
+        ${numberField("onb-savings", t("Monthly Savings Rate (% of Income)"), 10, 'min="0" max="100"')}
         ${instrumentBlock("cfpb")}`
     },
     {
-      title: "Step 2: Physical Baseline",
+      title: t("Step 2: Physical Baseline"),
       body: `
         <div class="grid-2">
-          ${numberField("onb-height", "Height (cm)", 170, 'min="100" max="250"')}
-          ${numberField("onb-weight", "Weight (kg)", 60, 'min="25" max="300"')}
+          ${numberField("onb-height", t("Height (cm)"), 170, 'min="100" max="250"')}
+          ${numberField("onb-weight", t("Weight (kg)"), 60, 'min="25" max="300"')}
         </div>
         <div class="grid-2">
-          ${numberField("onb-sleep", "Average Nightly Sleep (Hours)", 7, 'min="0" max="16" step="0.5"')}
-          ${numberField("onb-veg", "Vegetable/Fruit Portions per Day", 2, 'min="0" max="15"')}
+          ${numberField("onb-sleep", t("Average Nightly Sleep (Hours)"), 7, 'min="0" max="16" step="0.5"')}
+          ${numberField("onb-veg", t("Vegetable/Fruit Portions per Day"), 2, 'min="0" max="15"')}
         </div>
-        ${numberField("onb-water", "Water Intake per Day (Liters)", 1.5, 'min="0" max="10" step="0.1"')}
-        <p class="instrument-title">Weekly Physical Activity (IPAQ)</p>
+        ${numberField("onb-water", t("Water Intake per Day (Liters)"), 1.5, 'min="0" max="10" step="0.1"')}
+        <p class="instrument-title">${t("Weekly Physical Activity (IPAQ)")}</p>
         <div class="grid-2">
-          ${numberField("onb-vig-days", "Vigorous Exercise (Days/Week)", 0, 'min="0" max="7"')}
-          ${numberField("onb-vig-mins", "Vigorous Minutes per Day", 0, 'min="0" max="600"')}
-        </div>
-        <div class="grid-2">
-          ${numberField("onb-mod-days", "Moderate Exercise (Days/Week)", 0, 'min="0" max="7"')}
-          ${numberField("onb-mod-mins", "Moderate Minutes per Day", 0, 'min="0" max="600"')}
+          ${numberField("onb-vig-days", t("Vigorous Exercise (Days/Week)"), 0, 'min="0" max="7"')}
+          ${numberField("onb-vig-mins", t("Vigorous Minutes per Day"), 0, 'min="0" max="600"')}
         </div>
         <div class="grid-2">
-          ${numberField("onb-walk-days", "Walking (Days/Week)", 3, 'min="0" max="7"')}
-          ${numberField("onb-walk-mins", "Walking Minutes per Day", 20, 'min="0" max="600"')}
+          ${numberField("onb-mod-days", t("Moderate Exercise (Days/Week)"), 0, 'min="0" max="7"')}
+          ${numberField("onb-mod-mins", t("Moderate Minutes per Day"), 0, 'min="0" max="600"')}
+        </div>
+        <div class="grid-2">
+          ${numberField("onb-walk-days", t("Walking (Days/Week)"), 3, 'min="0" max="7"')}
+          ${numberField("onb-walk-mins", t("Walking Minutes per Day"), 20, 'min="0" max="600"')}
         </div>
         ${instrumentBlock("jss")}`
     },
     {
-      title: "Step 3: Mental Well-Being",
+      title: t("Step 3: Mental Well-Being"),
       body: `
         ${instrumentBlock("st5")}
         ${instrumentBlock("who5")}`
     },
     {
-      title: "Step 4: Relationships",
+      title: t("Step 4: Relationships"),
       body: `
         ${instrumentBlock("lsns")}
         ${instrumentBlock("ucla")}
@@ -221,31 +225,31 @@ export function renderOnboarding(containerId, onComplete) {
         </div>`
     },
     {
-      title: "Step 5: Goals & Learning",
+      title: t("Step 5: Goals & Learning"),
       body: `
         ${instrumentBlock("gse")}
         ${instrumentBlock("grit")}
         <div class="grid-2">
-          ${numberField("onb-learning", "Weekly Learning / Study Hours", 2, 'min="0" max="80" step="0.5"')}
-          ${numberField("onb-digital", "Digital Literacy Self-Rating (0-100)", 50, 'min="0" max="100"')}
+          ${numberField("onb-learning", t("Weekly Learning / Study Hours"), 2, 'min="0" max="80" step="0.5"')}
+          ${numberField("onb-digital", t("Digital Literacy Self-Rating (0-100)"), 50, 'min="0" max="100"')}
         </div>`
     },
     {
-      title: "Step 6: Contribution, Environment & Future",
+      title: t("Step 6: Contribution, Environment & Future"),
       body: `
         ${instrumentBlock("ptm")}
         <div class="grid-2">
-          ${numberField("onb-donations", "Monthly Donations (THB)", 0, 'min="0"')}
-          ${numberField("onb-volunteer", "Volunteering Hours per Month", 0, 'min="0" max="300"')}
+          ${numberField("onb-donations", t("Monthly Donations (THB)"), 0, 'min="0"')}
+          ${numberField("onb-volunteer", t("Volunteering Hours per Month"), 0, 'min="0" max="300"')}
         </div>
         ${instrumentBlock("geb")}
-        ${numberField("onb-plastics", "Single-Use Plastic Items per Week", 5, 'min="0" max="100"')}
+        ${numberField("onb-plastics", t("Single-Use Plastic Items per Week"), 5, 'min="0" max="100"')}
         ${instrumentBlock("lfis")}
         <div class="form-group">
-          <label for="onb-pension">Long-term pension / retirement products (SSF, RMF, stock portfolio)?</label>
+          <label for="onb-pension">${t("Long-term pension / retirement products (SSF, RMF, stock portfolio)?")}</label>
           <select id="onb-pension" class="form-control">
-            <option value="false">No, not yet planning pension</option>
-            <option value="true">Yes, retirement assets secured</option>
+            <option value="false">${t("No, not yet planning pension")}</option>
+            <option value="true">${t("Yes, retirement assets secured")}</option>
           </select>
         </div>`
     }
@@ -254,8 +258,8 @@ export function renderOnboarding(containerId, onComplete) {
   container.innerHTML = `
     <div class="onboarding-container card">
       <div class="brand" style="text-align: center; margin-bottom: 25px;">
-        <h1>ASTRAL EXPRESS REGISTRY</h1>
-        <p>Nameless Crew &bull; Baseline Assessment</p>
+        <h1>${t("PERSONAL WELLBEING ASSESSMENT")}</h1>
+        <p>${t("Baseline Assessment")}</p>
       </div>
       <form id="onboarding-form">
         ${pages.map((page, i) => `
@@ -263,10 +267,10 @@ export function renderOnboarding(containerId, onComplete) {
             <h3 class="card-header">${page.title}</h3>
             ${page.body}
             <div style="display: flex; justify-content: space-between; margin-top: 20px;">
-              ${i > 0 ? `<button type="button" class="btn btn-onb-prev" data-page="${i}">Back</button>` : `<span></span>`}
+              ${i > 0 ? `<button type="button" class="btn btn-onb-prev" data-page="${i}">${t("Back")}</button>` : `<span></span>`}
               ${i < pages.length - 1
-                ? `<button type="button" class="btn btn-primary btn-onb-next" data-page="${i}">Next</button>`
-                : `<button type="submit" class="btn btn-primary">Synchronize Registry &amp; Board</button>`}
+                ? `<button type="button" class="btn btn-primary btn-onb-next" data-page="${i}">${t("Next")}</button>`
+                : `<button type="submit" class="btn btn-primary">${t("Complete Assessment")}</button>`}
             </div>
           </div>`).join("")}
       </form>
@@ -345,7 +349,7 @@ export function renderOnboarding(containerId, onComplete) {
       onComplete();
     } catch (err) {
       console.error("Onboarding submission failed:", err);
-      errorEl.textContent = "Synchronization Error: " + err.message;
+      errorEl.textContent = t("Assessment Error: ") + err.message;
       errorEl.classList.remove("d-none");
     }
   });
@@ -368,15 +372,19 @@ function commitmentPin(commitment) {
   const pct = Math.min(100, Math.round((commitment.progress / commitment.weeklyTarget) * 100));
   return `
     <div class="commit-head">
-      <span>${ASPECT_LABELS[commitment.aspect] || commitment.aspect} &bull; this week</span>
+      <span>${tp("{aspect} • this week", { aspect: aspectLabel(commitment.aspect) })}</span>
       <span class="text-gold" style="font-family: var(--font-mono); font-weight: bold;">${commitment.progress} / ${commitment.weeklyTarget}</span>
     </div>
-    <div class="xp-bar-container" style="height: 6px; margin-top: 4px;" role="progressbar" aria-label="Commitment progress" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
+    <div class="xp-bar-container" style="height: 6px; margin-top: 4px;" role="progressbar" aria-label="${t("Commitment progress")}" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
       <div class="xp-bar-fill" style="width: ${pct}%;"></div>
     </div>
     <div class="commit-note">${commitment.completed
-      ? "✅ Pledge complete — bonus XP banked. Resets next week."
-      : `Log ${commitment.weeklyTarget - commitment.progress} more ${ASPECT_LABELS[commitment.aspect] || commitment.aspect} routine(s) for +${stateManager.commitBonusXp(commitment.weeklyTarget)} bonus XP.`}</div>`;
+      ? t("✅ Pledge complete — bonus points banked. Resets next week.")
+      : tp("Log {n} more {aspect} routine(s) for +{xp} bonus points.", {
+          n: commitment.weeklyTarget - commitment.progress,
+          aspect: aspectLabel(commitment.aspect),
+          xp: stateManager.commitBonusXp(commitment.weeklyTarget)
+        })}</div>`;
 }
 
 // 2. RENDER THE MAIN DASHBOARD
@@ -393,13 +401,17 @@ export function renderDashboard(containerId, state) {
   const commitment = state.commitment;
   const checkinDue = stateManager.isCheckinDue();
 
-  const METHOD_TAGS = { distribution: "vs published norms", threshold: "vs participation rates", estimate: "estimate" };
+  const METHOD_TAGS = {
+    distribution: t("vs published norms"),
+    threshold: t("vs participation rates"),
+    estimate: t("estimate")
+  };
 
   container.innerHTML = `
     ${checkinDue ? `
       <div class="checkin-banner">
-        <p><strong>Monthly Re-Sync due.</strong> Re-run the short well-being instruments so your scores track your real standing, not last month's.</p>
-        <a href="#/checkin" class="btn btn-primary" style="white-space: nowrap;">Start Re-Sync</a>
+        <p><strong>${t("Monthly re-assessment due.")}</strong> ${t("Re-run the short well-being instruments so your scores track your real standing, not last month's.")}</p>
+        <a href="#/checkin" class="btn btn-primary" style="white-space: nowrap;">${t("Start Re-assessment")}</a>
       </div>` : ""}
     <div class="dashboard-grid">
       <!-- LEFT COLUMN: STATUS & RADAR CHART -->
@@ -411,35 +423,35 @@ export function renderDashboard(containerId, state) {
           </div>
           <div style="flex-grow: 1;">
             <h3 style="font-family: var(--font-serif); font-size: 1.4rem; font-weight: bold; color: var(--color-navy);">${escapeHtml(p.name)}</h3>
-            <p style="font-family: var(--font-serif); font-size: 0.8rem; color: var(--color-gold); text-transform: uppercase;">
-              ${p.rank} &bull; ${escapeHtml(p.employment)} (${escapeHtml(p.region)})
+            <p style="font-family: var(--font-sans); font-size: 0.82rem; color: var(--color-gold); font-weight: 600;">
+              ${t(p.rank)} &bull; ${escapeHtml(t(p.employment))} (${escapeHtml(t(p.region))})
             </p>
-            <div class="xp-bar-container" role="progressbar" aria-label="Experience progress" aria-valuenow="${xpPercent}" aria-valuemin="0" aria-valuemax="100">
+            <div class="xp-bar-container" role="progressbar" aria-label="${t("Experience progress")}" aria-valuenow="${xpPercent}" aria-valuemin="0" aria-valuemax="100">
               <div class="xp-bar-fill" style="width: ${xpPercent}%;"></div>
             </div>
             <div style="display: flex; justify-content: space-between; font-family: var(--font-serif); font-size: 0.75rem; margin-top: 4px; color: var(--color-text-secondary);">
-              <span>XP: ${p.xp} / ${xpNeeded}</span>
-              <span>Trailblaze Progress: ${xpPercent}%</span>
+              <span>Points: ${p.xp} / ${xpNeeded}</span>
+              <span>${tp("Progress: {pct}%", { pct: xpPercent })}</span>
             </div>
           </div>
         </div>
 
         ${commitment ? `
         <div class="card">
-          <h4 class="card-header">Weekly Commitment</h4>
+          <h4 class="card-header">${t("Weekly Commitment")}</h4>
           <a href="#/aspect/${commitment.aspect}" class="suggestion-link">${commitmentPin(commitment)}</a>
         </div>` : ""}
 
         <div class="card">
-          <h4 class="card-header">Alignment Metrics</h4>
+          <h4 class="card-header">${t("Aspect Radar")}</h4>
           <div id="radar-chart-container" style="width: 100%; display: flex; justify-content: center; align-items: center;"></div>
         </div>
 
         ${suggestions.length > 0 ? `
         <div class="card">
-          <h4 class="card-header">Lumi's Suggestions</h4>
+          <h4 class="card-header">${t("Recommendations")}</h4>
           <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: 10px;">
-            Targeting your weakest measured components — tap one to open that aspect.
+            ${t("Targeting your weakest measured components — tap one to open that aspect.")}
           </p>
           ${suggestions.map(s => suggestionItem(s, true)).join("")}
         </div>` : ""}
@@ -448,22 +460,22 @@ export function renderDashboard(containerId, state) {
       <!-- RIGHT COLUMN: RATINGS LIST & TERMINAL -->
       <div>
         <div class="card">
-          <h4 class="card-header">Synchronization Metrics</h4>
+          <h4 class="card-header">${t("Aspect Scores")}</h4>
           <div style="display: flex; flex-direction: column; gap: 12px;">
             ${Object.entries(state.aspects).map(([key, val]) => {
               const b = benchmarks[key];
               return `
-                <a href="#/aspect/${key}" class="aspect-row" aria-label="Open ${ASPECT_LABELS[key] || key} details">
+                <a href="#/aspect/${key}" class="aspect-row" aria-label="${tp("Open {aspect} details", { aspect: aspectLabel(key) })}">
                   <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 500; margin-bottom: 2px;">
-                    <span>${ASPECT_LABELS[key] || key} <span class="aspect-row-arrow">&rsaquo;</span></span>
+                    <span>${aspectLabel(key)} <span class="aspect-row-arrow">&rsaquo;</span></span>
                     <span class="text-gold" style="font-family: var(--font-mono); font-weight: bold;">${val}%</span>
                   </div>
-                  <div class="xp-bar-container" style="height: 5px; margin-top: 0;" role="progressbar" aria-label="${ASPECT_LABELS[key] || key}" aria-valuenow="${val}" aria-valuemin="0" aria-valuemax="100">
+                  <div class="xp-bar-container" style="height: 5px; margin-top: 0;" role="progressbar" aria-label="${aspectLabel(key)}" aria-valuenow="${val}" aria-valuemin="0" aria-valuemax="100">
                     <div class="xp-bar-fill" style="width: ${val}%; background-color: var(--color-gold);"></div>
                   </div>
                   ${b ? `
                   <div class="benchmark-line" title="${escapeHtml(b.summary)}">
-                    Society: ~${ordinal(b.percentile)} percentile <span class="benchmark-method">(${METHOD_TAGS[b.method] || b.method})</span>
+                    ${tp("Society: ~{pct} percentile", { pct: percentileLabel(b.percentile) })} <span class="benchmark-method">(${METHOD_TAGS[b.method] || b.method})</span>
                   </div>` : ""}
                 </a>
               `;
@@ -471,11 +483,9 @@ export function renderDashboard(containerId, state) {
           </div>
           <div class="benchmark-sources">
             <details>
-              <summary>Benchmark sources &amp; methodology</summary>
+              <summary>${t("Benchmark sources & methodology")}</summary>
               <p class="benchmark-disclaimer">
-                Percentiles compare your baseline answers with published population
-                statistics — they are honest approximations, not exact ranks.
-                "Estimate" marks curves calibrated to a published anchor point.
+                ${t('Percentiles compare your baseline answers with published population statistics — they are honest approximations, not exact ranks. "Estimate" marks curves calibrated to a published anchor point.')}
               </p>
               <ul>
                 ${benchmarkSources.map(src => `
@@ -487,14 +497,14 @@ export function renderDashboard(containerId, state) {
         </div>
 
         <div class="card">
-          <h4 class="card-header">Express Log Terminal</h4>
+          <h4 class="card-header">${t("Recent Activity")}</h4>
           <div class="terminal" id="dashboard-terminal">
             ${state.history.length === 0 ?
-              `<div class="terminal-line"><span class="terminal-accent">> No logs recorded yet. Ledger is clean.</span></div>` :
+              `<div class="terminal-line"><span class="terminal-accent">> ${t("No logs recorded yet. Ledger is clean.")}</span></div>` :
               state.history.slice(0, 10).map(item => `
                 <div class="terminal-line">
-                  <span class="terminal-gold">[${new Date(item.timestamp).toLocaleTimeString()}]</span>
-                  Logged: <span class="terminal-accent">"${escapeHtml(item.actionName)}"</span>${item.quantity ? ` — ${item.quantity.value} ${escapeHtml(item.quantity.unit)}` : ""}. Reward +${item.xpReward} XP.
+                  <span class="terminal-gold">[${new Date(item.timestamp).toLocaleTimeString(dateLocale())}]</span>
+                  ${t("Logged:")} <span class="terminal-accent">"${escapeHtml(t(item.actionName))}"</span>${item.quantity ? ` — ${item.quantity.value} ${escapeHtml(t(item.quantity.unit))}` : ""}. ${tp("Reward +{xp} points.", { xp: item.xpReward })}
                 </div>
               `).join("")
             }
@@ -510,11 +520,11 @@ export function renderDashboard(containerId, state) {
 // Shared routine-card markup (ledger + aspect pages).
 function actionCard(action, removable) {
   return `
-    <div class="action-card" data-id="${action.id}" role="button" tabindex="0" aria-label="Log ${escapeHtml(action.title)}">
-      ${removable ? `<button type="button" class="action-remove" data-remove-id="${action.id}" aria-label="Remove routine" title="Remove routine">✕</button>` : ""}
-      <div class="action-title">${escapeHtml(action.title)}</div>
-      <div class="action-impacts">+${action.xp} XP</div>
-      <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHtml(action.desc)}</div>
+    <div class="action-card" data-id="${action.id}" role="button" tabindex="0" aria-label="${tp("Log {title}", { title: escapeHtml(t(action.title)) })}">
+      ${removable ? `<button type="button" class="action-remove" data-remove-id="${action.id}" aria-label="${t("Remove routine")}" title="${t("Remove routine")}">✕</button>` : ""}
+      <div class="action-title">${escapeHtml(t(action.title))}</div>
+      <div class="action-impacts">+${action.xp} points</div>
+      <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHtml(t(action.desc))}</div>
     </div>`;
 }
 
@@ -556,14 +566,18 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction, onR
   const suggestions = getAspectSuggestions(state, aspectKey);
   const commitment = state.commitment;
   const isCommittedHere = commitment && commitment.aspect === aspectKey;
-  const METHOD_TAGS = { distribution: "vs published norms", threshold: "vs participation rates", estimate: "estimate" };
+  const METHOD_TAGS = {
+    distribution: t("vs published norms"),
+    threshold: t("vs participation rates"),
+    estimate: t("estimate")
+  };
 
   // Routines that positively impact this aspect (presets + custom).
   const relevantActions = [...ACTION_PRESETS, ...(state.customActions || [])]
     .filter(a => (a.impacts[aspectKey] || 0) > 0);
 
   container.innerHTML = `
-    <a href="#/dashboard" class="aspect-back">&larr; Express Desk</a>
+    <a href="#/dashboard" class="aspect-back">&larr; ${t("Overview")}</a>
 
     <div class="card aspect-header-card">
       <div>
@@ -579,21 +593,21 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction, onR
     <div class="dashboard-grid">
       <div>
         <div class="card">
-          <h4 class="card-header">Standing vs Society</h4>
+          <h4 class="card-header">${t("Standing vs Society")}</h4>
           ${b ? `
-            <div class="gauge-track" role="progressbar" aria-label="Percentile vs society" aria-valuenow="${b.percentile}" aria-valuemin="1" aria-valuemax="99">
+            <div class="gauge-track" role="progressbar" aria-label="${t("Percentile vs society")}" aria-valuenow="${b.percentile}" aria-valuemin="1" aria-valuemax="99">
               <div class="gauge-fill" style="width: ${b.percentile}%;"></div>
               <div class="gauge-marker" style="left: ${b.percentile}%;"></div>
             </div>
             <div class="gauge-caption">
-              <span>~${ordinal(b.percentile)} percentile</span>
+              <span>${tp("~{pct} percentile", { pct: percentileLabel(b.percentile) })}</span>
               <span class="benchmark-method">(${METHOD_TAGS[b.method] || b.method})</span>
             </div>
             <p class="gauge-summary">${escapeHtml(b.summary)}</p>
             ${b.notes.map(n => `<p class="gauge-note">${escapeHtml(n)}</p>`).join("")}
             <div class="benchmark-sources">
               <details>
-                <summary>Sources</summary>
+                <summary>${t("Sources")}</summary>
                 <ul>
                   ${b.sources.map(src => `<li><a href="${src.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(src.label)}</a></li>`).join("")}
                 </ul>
@@ -601,15 +615,15 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction, onR
             </div>
           ` : `
             <p style="font-size: 0.85rem; color: var(--color-text-secondary);">
-              No baseline data for this comparison yet — re-run the onboarding sync to unlock it.
+              ${t("No baseline data for this comparison yet — re-run the onboarding sync to unlock it.")}
             </p>
           `}
         </div>
 
         <div class="card">
-          <h4 class="card-header">Component Breakdown</h4>
+          <h4 class="card-header">${t("Component Breakdown")}</h4>
           ${detail.components.length === 0 ? `
-            <p style="font-size: 0.85rem; color: var(--color-text-secondary);">Baseline survey data needed for this breakdown.</p>
+            <p style="font-size: 0.85rem; color: var(--color-text-secondary);">${t("Baseline survey data needed for this breakdown.")}</p>
           ` : detail.components.map(c => `
             <div class="component-row">
               <div class="component-head">
@@ -626,7 +640,7 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction, onR
 
         ${suggestions.length > 0 ? `
         <div class="card">
-          <h4 class="card-header">Suggested Focus</h4>
+          <h4 class="card-header">${t("Suggested Focus")}</h4>
           ${suggestions.map(s => `
             <div class="suggestion-item">
               <div class="suggestion-title">${escapeHtml(s.title)}</div>
@@ -639,40 +653,40 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction, onR
 
       <div>
         <div class="card">
-          <h4 class="card-header">Weekly Commitment</h4>
+          <h4 class="card-header">${t("Weekly Commitment")}</h4>
           ${isCommittedHere ? `
             ${commitmentPin(commitment)}
-            <button type="button" id="btn-end-commit" class="btn" style="margin-top: 12px; font-size: 0.8rem;">End Commitment</button>
+            <button type="button" id="btn-end-commit" class="btn" style="margin-top: 12px; font-size: 0.8rem;">${t("End Commitment")}</button>
           ` : commitment ? `
             <p style="font-size: 0.85rem; color: var(--color-text-secondary);">
-              You're already committed to
-              <a href="#/aspect/${commitment.aspect}">${ASPECT_LABELS[commitment.aspect] || commitment.aspect}</a>
-              this week — one pledge at a time keeps it honest.
+              ${tp("You're already committed to {link} this week — one pledge at a time keeps it honest.", {
+                link: `<a href="#/aspect/${commitment.aspect}">${aspectLabel(commitment.aspect)}</a>`
+              })}
             </p>
           ` : `
             <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 10px;">
-              Pledge a weekly routine count for ${detail.label}. Hitting it earns bonus XP; the pledge renews every week until you end it.
+              ${tp("Pledge a weekly routine count for {aspect}. Hitting it earns bonus points; the pledge renews every week until you end it.", { aspect: detail.label })}
             </p>
             <form id="commit-form" style="display: flex; gap: 10px; align-items: flex-end;">
               <div class="form-group" style="flex-grow: 1; margin-bottom: 0;">
-                <label for="commit-target">Routine logs per week (3-21)</label>
+                <label for="commit-target">${t("Routine logs per week (3-21)")}</label>
                 <input type="number" id="commit-target" class="form-control" value="5" min="3" max="21" required>
               </div>
-              <button type="submit" class="btn btn-primary">Commit</button>
+              <button type="submit" class="btn btn-primary">${t("Commit")}</button>
             </form>
           `}
         </div>
 
         <div class="card">
-          <h4 class="card-header">Trend (Weekly Snapshots)</h4>
+          <h4 class="card-header">${t("Trend (Weekly Snapshots)")}</h4>
           <div id="aspect-trend-chart"></div>
         </div>
 
         <div class="card">
-          <h4 class="card-header">Log a ${detail.label} Routine</h4>
+          <h4 class="card-header">${tp("Log a {aspect} Routine", { aspect: detail.label })}</h4>
           ${relevantActions.length === 0 ? `
             <p style="font-size: 0.85rem; color: var(--color-text-secondary);">
-              No routines target this aspect yet — register one in the Routines Ledger.
+              ${t("No routines target this aspect yet — register one in the Routines Ledger.")}
             </p>
           ` : `
             <div class="action-grid">
@@ -698,7 +712,7 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction, onR
   const endCommitBtn = container.querySelector("#btn-end-commit");
   if (endCommitBtn) {
     endCommitBtn.addEventListener("click", () => {
-      if (confirm("End this week's commitment? Progress will be discarded.")) {
+      if (confirm(t("End this week's commitment? Progress will be discarded."))) {
         stateManager.clearCommitment();
         if (onRefresh) onRefresh();
       }
@@ -714,16 +728,14 @@ export function renderCheckin(containerId, state, onComplete) {
   const isCoupled = state.profile.relationshipStatus !== "Single";
 
   container.innerHTML = `
-    <a href="#/dashboard" class="aspect-back">&larr; Express Desk</a>
+    <a href="#/dashboard" class="aspect-back">&larr; ${t("Overview")}</a>
     <div class="onboarding-container card">
       <div class="brand" style="text-align: center; margin-bottom: 25px;">
-        <h1>MONTHLY RE-SYNC</h1>
-        <p>Short instruments only &bull; recalibrates Mental, Relationships &amp; Personal Goals</p>
+        <h1>${t("MONTHLY RE-ASSESSMENT")}</h1>
+        <p>${t("Short instruments only • recalibrates Mental, Relationships & Personal Goals")}</p>
       </div>
       <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 20px;">
-        Answer for the recent weeks, not how you felt at onboarding. Scores shift
-        by at most ±15 points per re-sync, and consistent routine logging since
-        the last sync adds a small bonus. Reward: +40 XP.
+        ${t("Answer for the recent weeks, not how you felt at onboarding. Scores shift by at most ±15 points per re-assessment, and consistent routine logging since the last one adds a small bonus. Reward: +40 points.")}
       </p>
       <form id="checkin-form">
         ${instrumentBlock("who5")}
@@ -731,7 +743,7 @@ export function renderCheckin(containerId, state, onComplete) {
         ${instrumentBlock("ucla")}
         ${isCoupled ? instrumentBlock("ras") : ""}
         ${instrumentBlock("gse")}
-        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 15px;">Complete Re-Sync</button>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 15px;">${t("Complete Re-assessment")}</button>
       </form>
       <p id="checkin-error" class="d-none" style="color: var(--color-crimson); margin-top: 12px; font-weight: 600;"></p>
     </div>
@@ -752,7 +764,7 @@ export function renderCheckin(containerId, state, onComplete) {
       onComplete(shifts);
     } catch (err) {
       console.error("Check-in submission failed:", err);
-      errorEl.textContent = "Re-Sync Error: " + err.message;
+      errorEl.textContent = t("Re-assessment Error: ") + err.message;
       errorEl.classList.remove("d-none");
     }
   });
@@ -770,9 +782,9 @@ export function renderLedger(containerId, state, onLogAction, onRoutineChange) {
       <!-- ACTIONS LIST -->
       <div>
         <div class="card">
-          <h3 class="card-header">Log Routine</h3>
+          <h3 class="card-header">${t("Log Routine")}</h3>
           <p style="font-size: 0.9rem; color: var(--color-text-secondary); margin-bottom: 15px;">
-            Select a routine below to log to your ledger. Lumi will adjust your alignment metrics (max 5 logs per routine per day).
+            ${t("Select a routine below to record it. Your aspect scores update automatically (max 5 logs per routine per day).")}
           </p>
           <div class="action-grid">
             ${ACTION_PRESETS.map(a => actionCard(a, false)).join("")}
@@ -784,34 +796,34 @@ export function renderLedger(containerId, state, onLogAction, onRoutineChange) {
       <!-- CUSTOM ROUTINE CREATOR -->
       <div>
         <div class="card">
-          <h3 class="card-header">Register New Routine</h3>
+          <h3 class="card-header">${t("Register New Routine")}</h3>
           <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 15px;">
-            Registered routines appear in the routine grid and can be logged like presets.
+            ${t("Registered routines appear in the routine grid and can be logged like presets.")}
           </p>
           <form id="custom-action-form">
             <div class="form-group">
-              <label for="custom-title">Routine Name</label>
-              <input type="text" id="custom-title" class="form-control" placeholder="E.g., Practice Meditating" maxlength="60" required>
+              <label for="custom-title">${t("Routine Name")}</label>
+              <input type="text" id="custom-title" class="form-control" placeholder="${t("E.g., Practice Meditating")}" maxlength="60" required>
             </div>
 
             <div class="form-group">
-              <label for="custom-aspect">Target Aspect</label>
+              <label for="custom-aspect">${t("Target Aspect")}</label>
               <select id="custom-aspect" class="form-control">
-                ${Object.entries(ASPECT_LABELS).map(([key, label]) => `<option value="${key}">${label}</option>`).join("")}
+                ${Object.entries(ASPECT_LABELS).map(([key, label]) => `<option value="${key}">${t(label)}</option>`).join("")}
               </select>
             </div>
 
             <div class="form-group">
-              <label for="custom-points">Aspect Sync Impact (+1 to +15)</label>
+              <label for="custom-points">${t("Aspect Sync Impact (+1 to +15)")}</label>
               <input type="number" id="custom-points" class="form-control" value="5" min="1" max="15" required>
             </div>
 
             <div class="form-group">
-              <label for="custom-xp">XP Reward (+5 to +50)</label>
+              <label for="custom-xp">${t("Points Reward (+5 to +50)")}</label>
               <input type="number" id="custom-xp" class="form-control" value="15" min="5" max="50" required>
             </div>
 
-            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Register Routine</button>
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">${t("Register Routine")}</button>
           </form>
         </div>
       </div>
@@ -850,15 +862,15 @@ function promptQuantity(action, onConfirm) {
   overlay.className = "popup-overlay";
   overlay.innerHTML = `
     <div class="popup-card" style="max-width: 360px;">
-      <h3 style="font-family: var(--font-serif); font-weight: 700; margin-bottom: 6px;">${escapeHtml(action.title)}</h3>
-      <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 15px;">Enter the real amount — it becomes part of your measured record.</p>
+      <h3 style="font-family: var(--font-serif); font-weight: 700; margin-bottom: 6px;">${escapeHtml(t(action.title))}</h3>
+      <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 15px;">${t("Enter the real amount — it becomes part of your measured record.")}</p>
       <div class="form-group" style="text-align: left;">
-        <label for="quantity-input">${escapeHtml(m.label)} (${escapeHtml(m.unit)})</label>
+        <label for="quantity-input">${escapeHtml(t(m.label))} (${escapeHtml(t(m.unit))})</label>
         <input type="number" id="quantity-input" class="form-control" value="${m.default}" min="${m.min}" max="${m.max}" step="${m.step}">
       </div>
       <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
-        <button type="button" class="btn btn-quantity-cancel">Cancel</button>
-        <button type="button" class="btn btn-primary btn-quantity-confirm">Log It</button>
+        <button type="button" class="btn btn-quantity-cancel">${t("Cancel")}</button>
+        <button type="button" class="btn btn-primary btn-quantity-confirm">${t("Log It")}</button>
       </div>
     </div>
   `;
@@ -901,10 +913,10 @@ export function renderQuests(containerId, state) {
   const progressBar = (goal) => {
     const pct = Math.round((goal.currentValue / goal.targetValue) * 100);
     return `
-      <div class="xp-bar-container" style="height: 6px; margin-top: 8px;" role="progressbar" aria-label="${escapeHtml(goal.title)} progress" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
+      <div class="xp-bar-container" style="height: 6px; margin-top: 8px;" role="progressbar" aria-label="${escapeHtml(t(goal.title))}" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
         <div class="xp-bar-fill" style="width: ${pct}%;"></div>
       </div>
-      <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-text-secondary);">${goal.currentValue} / ${goal.targetValue} logged</span>`;
+      <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-text-secondary);">${tp("{current} / {target} logged", { current: goal.currentValue, target: goal.targetValue })}</span>`;
   };
 
   container.innerHTML = `
@@ -912,25 +924,25 @@ export function renderQuests(containerId, state) {
       <!-- ACTIVE MISSIONS -->
       <div>
         <div class="card">
-          <h3 class="card-header">Active Missions</h3>
+          <h3 class="card-header">${t("Active Goals")}</h3>
           <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 15px;">
-            Missions progress automatically as you log matching routines in the Ledger. Daily missions reset each day, weekly each week.
+            ${t("Goals progress automatically as you log matching routines. Daily goals reset each day, weekly goals each week.")}
           </p>
           <div style="display: flex; flex-direction: column; gap: 15px;">
             ${active.length === 0 ?
-              `<p style="font-style: italic; color: var(--color-text-secondary);">All missions completed! New cycles begin tomorrow.</p>` :
+              `<p style="font-style: italic; color: var(--color-text-secondary);">${t("All goals completed. New cycles begin tomorrow.")}</p>` :
               active.map(goal => `
-                <div style="border: 1.5px solid rgba(0, 184, 230, 0.3); border-radius: 4px; padding: 15px; background: rgba(255,255,255,0.6);">
+                <div style="border: 1px solid var(--color-card-border); border-radius: 4px; padding: 15px; background: #faf9f6;">
                   <div style="display: flex; gap: 8px; align-items: center;">
-                    <span class="holo-badge">${goal.type.toUpperCase()}</span>
-                    <strong style="font-size: 1.05rem;">${escapeHtml(goal.title)}</strong>
+                    <span class="holo-badge">${t(goal.type.toUpperCase())}</span>
+                    <strong style="font-size: 1.05rem;">${escapeHtml(t(goal.title))}</strong>
                   </div>
-                  <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin: 4px 0 4px 0;">${escapeHtml(goal.description)}</p>
-                  <span class="text-gold" style="font-family: var(--font-mono); font-size: 0.8rem; font-weight: bold;">Aspect: ${(ASPECT_LABELS[goal.aspect] || goal.aspect).toUpperCase()} &bull; +${goal.xpReward} XP</span>
+                  <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin: 4px 0 4px 0;">${escapeHtml(t(goal.description))}</p>
+                  <span class="text-gold" style="font-family: var(--font-mono); font-size: 0.8rem; font-weight: bold;">${tp("Aspect: {aspect} • +{xp} points", { aspect: aspectLabel(goal.aspect).toUpperCase(), xp: goal.xpReward })}</span>
                   ${progressBar(goal)}
                   ${goal.milestones ? `
                     <ul style="list-style: none; margin-top: 8px; font-size: 0.8rem; color: var(--color-text-secondary);">
-                      ${goal.milestones.map(m => `<li>${m.completed ? "✅" : "⬜"} ${escapeHtml(m.text)}</li>`).join("")}
+                      ${goal.milestones.map(m => `<li>${m.completed ? "✅" : "⬜"} ${escapeHtml(t(m.text))}</li>`).join("")}
                     </ul>` : ""}
                 </div>
               `).join("")
@@ -942,15 +954,15 @@ export function renderQuests(containerId, state) {
       <!-- COMPLETED LOG -->
       <div>
         <div class="card">
-          <h3 class="card-header">Completed Missions</h3>
+          <h3 class="card-header">${t("Completed Goals")}</h3>
           <div style="display: flex; flex-direction: column; gap: 10px;">
             ${completed.length === 0 ?
-              `<p style="font-style: italic; color: var(--color-text-secondary);">No completed missions in this cycle yet.</p>` :
+              `<p style="font-style: italic; color: var(--color-text-secondary);">${t("No completed goals in this cycle yet.")}</p>` :
               completed.map(goal => `
                 <div style="border: 1.5px solid var(--color-nectar); border-radius: 4px; padding: 12px; background: rgba(52,199,89,0.06); display: flex; align-items: center; justify-content: space-between;">
                   <div>
-                    <span style="font-weight: bold; color: var(--color-nectar);">${escapeHtml(goal.title)}</span>
-                    <p style="font-size: 0.75rem; color: var(--color-text-secondary);">Completed: +${goal.xpReward} XP</p>
+                    <span style="font-weight: bold; color: var(--color-nectar);">${escapeHtml(t(goal.title))}</span>
+                    <p style="font-size: 0.75rem; color: var(--color-text-secondary);">${tp("Completed: +{xp} points", { xp: goal.xpReward })}</p>
                   </div>
                   <div style="font-size: 1.2rem; color: var(--color-nectar);">✔</div>
                 </div>
@@ -970,7 +982,7 @@ export function renderLeaderboard(containerId, state, onRefresh) {
 
   const friends = state.friends || [];
   const userEntry = {
-    name: `${state.profile.name} (You)`,
+    name: tp("{name} (You)", { name: state.profile.name }),
     level: state.profile.level,
     totalPoints: crewPoints(state),
     isUser: true
@@ -988,26 +1000,23 @@ export function renderLeaderboard(containerId, state, onRefresh) {
   container.innerHTML = `
     <div style="max-width: 650px; margin: 0 auto;">
       <div class="card">
-        <h3 class="card-header">Crew Codes</h3>
+        <h3 class="card-header">${t("Comparison Codes")}</h3>
         <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 12px;">
-          Rankings compare you with <strong>real people</strong>: share your code with
-          friends over LINE or Discord, and paste theirs below. Codes carry only your
-          crew name, level, points, and aspect scores — nothing private. Re-paste a
-          newer code any time to update a crewmate.
+          ${t("Peer comparison uses <strong>real people</strong>: share your code with others over LINE or Discord, and paste theirs below. Codes carry only your name, level, points, and aspect scores — nothing private. Re-paste a newer code any time to update a participant.")}
         </p>
         <div class="form-group">
-          <label for="my-crew-code">Your Crew Code</label>
+          <label for="my-crew-code">${t("Your Comparison Code")}</label>
           <div style="display: flex; gap: 8px;">
             <input type="text" id="my-crew-code" class="form-control" value="${myCode}" readonly style="font-family: var(--font-mono); font-size: 0.75rem;">
-            <button type="button" id="btn-copy-code" class="btn btn-primary" style="white-space: nowrap;">Copy</button>
+            <button type="button" id="btn-copy-code" class="btn btn-primary" style="white-space: nowrap;">${t("Copy")}</button>
           </div>
         </div>
         <form id="add-friend-form">
           <div class="form-group">
-            <label for="friend-code">Add a crewmate's code</label>
+            <label for="friend-code">${t("Add a participant's code")}</label>
             <div style="display: flex; gap: 8px;">
               <input type="text" id="friend-code" class="form-control" placeholder="LQ1-..." style="font-family: var(--font-mono); font-size: 0.75rem;" required>
-              <button type="submit" class="btn btn-primary" style="white-space: nowrap;">Add Crew</button>
+              <button type="submit" class="btn btn-primary" style="white-space: nowrap;">${t("Add")}</button>
             </div>
           </div>
         </form>
@@ -1015,34 +1024,36 @@ export function renderLeaderboard(containerId, state, onRefresh) {
       </div>
 
       <div class="card">
-        <h3 class="card-header">Astral Express - Rankings</h3>
+        <h3 class="card-header">${t("Peer Comparison")}</h3>
         <p style="font-size: 0.9rem; color: var(--color-text-secondary); margin-bottom: 15px;">
           ${friends.length === 0
-            ? "No real crewmates yet — the Express NPCs keep the board warm until you add codes."
-            : `${friends.length} real crewmate${friends.length === 1 ? "" : "s"} on board. NPC rows are marked.`}
+            ? t("No participants added yet — sample profiles fill the board until you add codes.")
+            : tp(friends.length === 1
+                ? "{n} participant added. Sample rows are marked."
+                : "{n} participants added. Sample rows are marked.", { n: friends.length })}
         </p>
 
         <table style="width: 100%; border-collapse: collapse; text-align: left;">
           <thead>
-            <tr style="border-bottom: 2px solid var(--color-gold); font-family: var(--font-serif); font-size: 1.1rem; color: var(--color-navy);">
-              <th style="padding: 10px;">Rank</th>
-              <th style="padding: 10px;">Crew Member</th>
-              <th style="padding: 10px; text-align: center;">Level</th>
-              <th style="padding: 10px; text-align: right;">Total Points</th>
-              <th style="padding: 10px; text-align: center;">Clearance</th>
+            <tr style="border-bottom: 1px solid var(--color-card-border); font-family: var(--font-serif); font-size: 1.05rem; color: var(--color-navy);">
+              <th style="padding: 10px;">${t("Rank")}</th>
+              <th style="padding: 10px;">${t("Participant")}</th>
+              <th style="padding: 10px; text-align: center;">${t("Level")}</th>
+              <th style="padding: 10px; text-align: right;">${t("Total Points")}</th>
+              <th style="padding: 10px; text-align: center;">${t("Tier")}</th>
             </tr>
           </thead>
           <tbody>
             ${allPlayers.map((player, idx) => {
-              const rowStyle = player.isUser ? `background: rgba(0,184,230,0.1); font-weight: bold; border: 1.5px solid var(--color-gold);` : `border-bottom: 1px solid rgba(195,154,60,0.15);`;
-              const badgeClass = idx === 0 ? `background: var(--color-gold); color: #fff;` : idx === 1 ? `background: silver; color: #fff;` : `background: var(--bg-primary); color: var(--color-text-secondary);`;
+              const rowStyle = player.isUser ? `background: var(--color-astral-glow); font-weight: bold; border: 1px solid var(--color-gold);` : `border-bottom: 1px solid var(--color-card-border);`;
+              const badgeClass = idx === 0 ? `background: var(--color-gold); color: #fff;` : idx === 1 ? `background: #b8b2a6; color: #fff;` : `background: var(--bg-primary); color: var(--color-text-secondary);`;
               return `
                 <tr style="${rowStyle}">
                   <td style="padding: 12px 10px;"><span style="border-radius:50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; border: 1px solid var(--color-gold); ${badgeClass}">${idx + 1}</span></td>
                   <td style="padding: 12px 10px;">
-                    ${escapeHtml(player.name)}
-                    ${player.isNpc ? `<span class="npc-tag">NPC</span>` : ""}
-                    ${player.isFriend ? `<button type="button" class="friend-remove" data-friend-id="${player.id}" aria-label="Remove ${escapeHtml(player.name)}" title="Remove crewmate">✕</button>` : ""}
+                    ${escapeHtml(player.isNpc ? t(player.name) : player.name)}
+                    ${player.isNpc ? `<span class="npc-tag">${t("Sample")}</span>` : ""}
+                    ${player.isFriend ? `<button type="button" class="friend-remove" data-friend-id="${player.id}" aria-label="${tp("Remove {name}", { name: escapeHtml(player.name) })}" title="${t("Remove participant")}">✕</button>` : ""}
                   </td>
                   <td style="padding: 12px 10px; text-align: center; font-family: var(--font-mono);">${player.level}</td>
                   <td style="padding: 12px 10px; text-align: right; font-family: var(--font-mono);">${player.totalPoints}</td>
@@ -1066,8 +1077,8 @@ export function renderLeaderboard(containerId, state, onRefresh) {
       document.execCommand("copy");
     }
     const btn = document.getElementById("btn-copy-code");
-    btn.textContent = "Copied!";
-    setTimeout(() => { btn.textContent = "Copy"; }, 1500);
+    btn.textContent = t("Copied!");
+    setTimeout(() => { btn.textContent = t("Copy"); }, 1500);
   });
 
   document.getElementById("add-friend-form").addEventListener("submit", (e) => {

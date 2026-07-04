@@ -10,8 +10,9 @@ import {
   renderAspectPage,
   renderCheckin,
   getLumiTip
-} from "./ui.js?v=12";
+} from "./ui.js?v=14";
 import { ASPECT_KEYS, ASPECT_META } from "./aspects.js";
+import { t, tp, getLang, setLang } from "./i18n.js";
 
 const TOAST_DURATION_MS = 1600;
 const TYPEWRITER_SPEED_MS = 15;
@@ -45,8 +46,42 @@ function navigateTo(tab) {
   }
 }
 
+// Translate the static header/nav chrome that lives in index.html.
+function applyChromeTranslations() {
+  document.documentElement.lang = getLang();
+  document.title = t("Life Balance Index — Personal Wellbeing Assessment");
+  const brandSub = document.querySelector("header .brand p");
+  if (brandSub) brandSub.textContent = t("Personal Wellbeing Assessment");
+  const setText = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+  setText("btn-export-data", t("Export"));
+  setText("btn-import-data", t("Import"));
+  setText("btn-reset-data", t("Reset Data"));
+  setText("tab-dashboard", t("Overview"));
+  setText("tab-ledger", t("Activity Log"));
+  setText("tab-quests", t("Goals"));
+  setText("tab-leaderboard", t("Peer Comparison"));
+  // The toggle shows the language you would switch TO.
+  setText("btn-lang", getLang() === "th" ? "EN" : "ไทย");
+}
+
+function setupLanguageToggle() {
+  const btn = document.getElementById("btn-lang");
+  if (!btn) return;
+  const newBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn, btn);
+  newBtn.addEventListener("click", () => {
+    setLang(getLang() === "th" ? "en" : "th");
+    initializeApp(); // re-render everything in the new language
+  });
+}
+
 function initializeApp() {
   const state = stateManager.state;
+  applyChromeTranslations();
+  setupLanguageToggle();
 
   if (!state.onboarded) {
     // Show Onboarding Survey
@@ -84,7 +119,7 @@ function setupNavigation() {
     const newResetBtn = resetBtn.cloneNode(true);
     resetBtn.parentNode.replaceChild(newResetBtn, resetBtn);
     newResetBtn.addEventListener("click", () => {
-      if (confirm("Lumi Warning: Are you sure you want to wipe all records and baseline synchronization? This cannot be undone.")) {
+      if (confirm(t("Are you sure you want to erase all records and your baseline assessment? This cannot be undone."))) {
         stateManager.resetState();
         window.location.hash = "";
         initializeApp();
@@ -127,10 +162,10 @@ function renderActiveTab() {
 function handleCheckinComplete(shifts) {
   if (shifts) {
     const parts = Object.entries(shifts)
-      .map(([key, v]) => `${ASPECT_META[key]?.label || key} ${v >= 0 ? "+" : ""}${v}`);
-    showToast(`Re-Sync complete: ${parts.join(", ")} (+40 XP)`);
+      .map(([key, v]) => `${t(ASPECT_META[key]?.label || key)} ${v >= 0 ? "+" : ""}${v}`);
+    showToast(tp("Re-assessment complete: {parts} (+40 points)", { parts: parts.join(", ") }));
   } else {
-    showToast("Re-Sync needs a baseline — run the onboarding sync first.", "warning");
+    showToast(t("Re-assessment needs a baseline — complete the initial assessment first."), "warning");
   }
   window.location.hash = "#/dashboard";
 }
@@ -138,8 +173,8 @@ function handleCheckinComplete(shifts) {
 function handleLogAction(id, title, impacts, xp, quantity = null) {
   const result = stateManager.logAction(id, title, impacts, xp, quantity);
   if (result.ok) {
-    const detail = quantity ? ` (${quantity.value} ${quantity.unit})` : "";
-    showToast(`+${xp} XP logged${detail}!`);
+    const detail = quantity ? ` (${quantity.value} ${t(quantity.unit)})` : "";
+    showToast(tp("Activity recorded: +{xp} points{detail}.", { xp, detail }));
     renderActiveTab();
   } else {
     showToast(result.reason, "warning");
@@ -162,7 +197,7 @@ function setupBackupControls() {
       link.download = `lifequest_backup_${stamp}.json`;
       link.click();
       URL.revokeObjectURL(url);
-      showToast("Registry exported.");
+      showToast(t("Data exported."));
     });
   }
 
@@ -172,7 +207,7 @@ function setupBackupControls() {
     const newImportBtn = importBtn.cloneNode(true);
     importBtn.parentNode.replaceChild(newImportBtn, importBtn);
     newImportBtn.addEventListener("click", () => {
-      if (confirm("Importing a backup replaces ALL current data. Continue?")) {
+      if (confirm(t("Importing a backup replaces ALL current data. Continue?"))) {
         fileInput.value = "";
         fileInput.click();
       }
@@ -183,11 +218,11 @@ function setupBackupControls() {
       if (!file) return;
       try {
         stateManager.importState(await file.text());
-        showToast("Registry imported successfully.");
+        showToast(t("Data imported successfully."));
         initializeApp();
       } catch (err) {
         console.error("Import failed:", err);
-        showToast(`Import failed: ${err.message}`, "warning");
+        showToast(tp("Import failed: {msg}", { msg: err.message }), "warning");
       }
     });
   }
@@ -232,7 +267,7 @@ function setupAssistant() {
     avatar.parentNode.replaceChild(newAvatar, avatar);
 
     newAvatar.addEventListener("click", () => {
-      triggerLumiMessage("Yes? Lumi is here to guide your Trailblaze. Focus on your routines today.");
+      triggerLumiMessage(t("Here to help. Focus on logging your routines today to build momentum."));
     });
   }
 }
@@ -275,14 +310,14 @@ window.addEventListener("lifequest_levelup", (e) => {
   overlay.innerHTML = `
     <div class="popup-card">
       <div style="font-size: 3rem; margin-bottom: 10px;">🏆</div>
-      <h2 class="popup-title text-gold" style="font-family: var(--font-serif); font-weight: bold;">TRAILBLAZE LEVEL UP!</h2>
-      <p style="font-size: 1.1rem; margin-bottom: 15px;">Your Trailblaze synchronization level has increased.</p>
+      <h2 class="popup-title" style="font-family: var(--font-serif); font-weight: bold;">${t("Level Up")}</h2>
+      <p style="font-size: 1.1rem; margin-bottom: 15px;">${t("Your overall progress level has increased.")}</p>
       <div style="background: var(--color-astral-glow); border: 1.5px solid var(--color-astral-dark); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-        <span style="font-family: var(--font-mono); font-size: 1.4rem; font-weight: bold; color: var(--color-navy);">LEVEL ${data.level}</span>
+        <span style="font-family: var(--font-mono); font-size: 1.4rem; font-weight: bold; color: var(--color-navy);">${tp("LEVEL {n}", { n: data.level })}</span>
         <br>
-        <span class="text-gold" style="font-family: var(--font-serif); font-weight: 600; font-size: 1.1rem;">Rank: ${data.rank}</span>
+        <span class="text-gold" style="font-family: var(--font-serif); font-weight: 600; font-size: 1.1rem;">${tp("Rank: {rank}", { rank: t(data.rank) })}</span>
       </div>
-      <button class="btn btn-primary btn-close-levelup" style="width: 120px;">Continue</button>
+      <button class="btn btn-primary btn-close-levelup" style="width: 120px;">${t("Continue")}</button>
     </div>
   `;
 
@@ -295,12 +330,12 @@ window.addEventListener("lifequest_levelup", (e) => {
 
 window.addEventListener("lifequest_quest_completed", (e) => {
   const data = e.detail;
-  showToast(`Mission Complete: "${data.title}" (+${data.xp} XP)`);
+  showToast(tp('Goal completed: "{title}" (+{xp} points)', { title: t(data.title), xp: data.xp }));
 });
 
 window.addEventListener("lifequest_commitment_completed", (e) => {
   const data = e.detail;
-  showToast(`Weekly Commitment honored! +${data.bonus} bonus XP`);
+  showToast(tp("Weekly commitment met — +{bonus} bonus points.", { bonus: data.bonus }));
 });
 
 // Re-render when the route changes (back/forward buttons, tab clicks)

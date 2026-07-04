@@ -7,6 +7,7 @@
 // fully testable in node.
 
 import { ASPECT_KEYS, getAspectDetail } from "./aspects.js";
+import { t } from "./i18n.js";
 
 // Components at or above this are considered healthy — no suggestion needed.
 const WEAK_COMPONENT_THRESHOLD = 70;
@@ -168,13 +169,16 @@ export function getAspectSuggestions(state, aspectKey) {
     .map(c => {
       const build = (RULES[aspectKey] || {})[c.key];
       if (!build) return null;
+      const built = build(state.profile || {});
       return {
         aspect: aspectKey,
         aspectLabel: detail.label,
         componentKey: c.key,
         componentLabel: c.label,
         componentValue: c.value,
-        ...build(state.profile || {})
+        ...built,
+        title: t(built.title),
+        text: t(built.text)
       };
     })
     .filter(Boolean);

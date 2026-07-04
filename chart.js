@@ -1,5 +1,7 @@
 // chart.js - LifeQuest Interactive SVG Radar Chart Renderer
 
+import { t } from "./i18n.js";
+
 const ASPECT_LABELS = {
   finance: "Finance",
   physical: "Physical",
@@ -29,7 +31,7 @@ export function renderTrendChart(containerId, trend) {
   container.innerHTML = "";
 
   if (!trend || trend.length === 0) {
-    container.innerHTML = `<p style="font-size: 0.85rem; color: var(--color-text-secondary);">No snapshots yet — trends appear after your first weekly sync.</p>`;
+    container.innerHTML = `<p style="font-size: 0.85rem; color: var(--color-text-secondary);">${t("No snapshots yet — trends appear after your first weekly sync.")}</p>`;
     return;
   }
 
@@ -174,7 +176,7 @@ export function renderRadarChart(containerId, aspects) {
     polygon.setAttribute("stroke", "rgba(32, 50, 76, 0.1)"); // Light slate grid lines
     polygon.setAttribute("stroke-width", "1");
     if (level === 100) {
-      polygon.setAttribute("stroke", "rgba(205, 161, 66, 0.4)"); // Gold outer rim
+      polygon.setAttribute("stroke", "rgba(36, 52, 77, 0.28)"); // Navy outer rim
       polygon.setAttribute("stroke-dasharray", "4,2");
     }
     svg.appendChild(polygon);
@@ -209,7 +211,7 @@ export function renderRadarChart(containerId, aspects) {
     text.style.fontFamily = "var(--font-serif)";
     text.style.fontSize = "11px";
     text.style.fontWeight = "bold";
-    text.textContent = ASPECT_LABELS[key];
+    text.textContent = t(ASPECT_LABELS[key]);
 
     // Adjust text alignments slightly depending on quadrant
     if (Math.cos(angle) > 0.1) text.setAttribute("text-anchor", "start");
@@ -230,10 +232,9 @@ export function renderRadarChart(containerId, aspects) {
 
   const scorePolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
   scorePolygon.setAttribute("points", scorePoints.join(" "));
-  scorePolygon.setAttribute("fill", "rgba(0, 225, 255, 0.15)"); // Astral Blue translucent fill
+  scorePolygon.setAttribute("fill", "rgba(36, 52, 77, 0.10)"); // Navy translucent fill
   scorePolygon.setAttribute("stroke", "var(--color-astral)");
-  scorePolygon.setAttribute("stroke-width", "2.5");
-  scorePolygon.setAttribute("filter", "url(#astral-glow)");
+  scorePolygon.setAttribute("stroke-width", "2");
   svg.appendChild(scorePolygon);
 
   // 4. Draw Score Points (dots at vertices)

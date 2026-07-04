@@ -6,6 +6,7 @@
 // that need a survey baseline are omitted for saves made before it existed.
 
 import { getAllBenchmarks } from "./benchmarks.js";
+import { t, tp } from "./i18n.js";
 
 export const ASPECT_KEYS = [
   "finance", "physical", "mental", "relationships",
@@ -72,16 +73,16 @@ function plasticScore(p) {
 function financeComponents(p, b, benchmark) {
   const items = [];
   if (benchmark) {
-    items.push({ key: "income", label: "Income standing", value: benchmark.percentile, detail: "Percentile vs Thai worker earnings (estimate)" });
+    items.push({ key: "income", label: t("Income standing"), value: benchmark.percentile, detail: t("Percentile vs Thai worker earnings (estimate)") });
   }
   if (b && Number.isFinite(b.cfpb)) {
-    items.push({ key: "cfpb", label: "Financial well-being (CFPB)", value: clamp100(b.cfpb * 5), detail: `Raw ${b.cfpb}/20 at baseline` });
+    items.push({ key: "cfpb", label: t("Financial well-being (CFPB)"), value: clamp100(b.cfpb * 5), detail: tp("Raw {n}/20 at baseline", { n: b.cfpb }) });
   }
   items.push({
     key: "savings",
-    label: "Savings habit",
+    label: t("Savings habit"),
     value: clamp100((parseFloat(p.savingsRate || 0) / 20) * 100),
-    detail: `Saving ${p.savingsRate || 0}% of income (20%+ maxes this)`
+    detail: tp("Saving {rate}% of income (20%+ maxes this)", { rate: p.savingsRate || 0 })
   });
   return items;
 }
@@ -89,20 +90,20 @@ function financeComponents(p, b, benchmark) {
 function physicalComponents(p, b) {
   const met = metMinutes(p);
   const items = [
-    { key: "activity", label: "Activity", value: clamp100(activityScore(met)), detail: `${Math.round(met)} MET-min/week (WHO guideline 600)` },
-    { key: "body", label: "Body composition", value: clamp100(bmiScore(p)), detail: "Asian BMI bands (18.5-22.9 ideal)" }
+    { key: "activity", label: t("Activity"), value: clamp100(activityScore(met)), detail: tp("{met} MET-min/week (WHO guideline 600)", { met: Math.round(met) }) },
+    { key: "body", label: t("Body composition"), value: clamp100(bmiScore(p)), detail: t("Asian BMI bands (18.5-22.9 ideal)") }
   ];
   const duration = parseFloat(p.sleepHours || 0);
   const durationScore = duration >= 7 && duration <= 9 ? 100 : duration >= 6 && duration < 7 ? 75 : 50;
   if (b && Number.isFinite(b.jss)) {
     const quality = 100 - b.jss * 5;
-    items.push({ key: "sleep", label: "Sleep", value: clamp100(0.5 * durationScore + 0.5 * quality), detail: `${duration}h/night + baseline quality ${b.jss}/20 issues` });
+    items.push({ key: "sleep", label: t("Sleep"), value: clamp100(0.5 * durationScore + 0.5 * quality), detail: tp("{h}h/night + baseline quality {jss}/20 issues", { h: duration, jss: b.jss }) });
   } else {
-    items.push({ key: "sleep", label: "Sleep duration", value: clamp100(durationScore), detail: `${duration}h/night (7-9h ideal)` });
+    items.push({ key: "sleep", label: t("Sleep duration"), value: clamp100(durationScore), detail: tp("{h}h/night (7-9h ideal)", { h: duration }) });
   }
   const veg = Math.min(100, (parseFloat(p.vegetablePortions || 0) / 5) * 100);
   const water = Math.min(100, (parseFloat(p.waterLiters || 0) / 2.5) * 100);
-  items.push({ key: "nutrition", label: "Nutrition", value: clamp100(0.5 * veg + 0.5 * water), detail: `${p.vegetablePortions || 0} veg portions, ${p.waterLiters || 0}L water/day` });
+  items.push({ key: "nutrition", label: t("Nutrition"), value: clamp100(0.5 * veg + 0.5 * water), detail: tp("{veg} veg portions, {water}L water/day", { veg: p.vegetablePortions || 0, water: p.waterLiters || 0 }) });
   return items;
 }
 
@@ -110,10 +111,10 @@ function mentalComponents(b) {
   if (!b) return [];
   const items = [];
   if (Number.isFinite(b.who5)) {
-    items.push({ key: "who5", label: "Well-being (WHO-5)", value: clamp100(b.who5 * 4), detail: `Raw ${b.who5}/25 at baseline (scores under 50/100 suggest low mood)` });
+    items.push({ key: "who5", label: t("Well-being (WHO-5)"), value: clamp100(b.who5 * 4), detail: tp("Raw {n}/25 at baseline (scores under 50/100 suggest low mood)", { n: b.who5 }) });
   }
   if (Number.isFinite(b.st5)) {
-    items.push({ key: "st5", label: "Stress resilience (ST-5)", value: clamp100(stressResilience(b.st5)), detail: `Stress ${b.st5}/15 — DMH bands: 0-4 fine, 5-6 watch, 7+ problem` });
+    items.push({ key: "st5", label: t("Stress resilience (ST-5)"), value: clamp100(stressResilience(b.st5)), detail: tp("Stress {n}/15 — DMH bands: 0-4 fine, 5-6 watch, 7+ problem", { n: b.st5 }) });
   }
   return items;
 }
@@ -122,13 +123,13 @@ function relationshipsComponents(p, b) {
   if (!b) return [];
   const items = [];
   if (Number.isFinite(b.lsns)) {
-    items.push({ key: "lsns", label: "Social network (LSNS-6)", value: clamp100((b.lsns / 30) * 100), detail: `Raw ${b.lsns}/30 (under 12 = isolation risk)` });
+    items.push({ key: "lsns", label: t("Social network (LSNS-6)"), value: clamp100((b.lsns / 30) * 100), detail: tp("Raw {n}/30 (under 12 = isolation risk)", { n: b.lsns }) });
   }
   if (Number.isFinite(b.ucla)) {
-    items.push({ key: "ucla", label: "Low loneliness (UCLA-3)", value: clamp100(100 - ((b.ucla - 3) / 6) * 100), detail: `Loneliness ${b.ucla}/9, inverted (higher bar = less lonely)` });
+    items.push({ key: "ucla", label: t("Low loneliness (UCLA-3)"), value: clamp100(100 - ((b.ucla - 3) / 6) * 100), detail: tp("Loneliness {n}/9, inverted (higher bar = less lonely)", { n: b.ucla }) });
   }
   if (p.relationshipStatus !== "Single" && Number.isFinite(b.ras) && b.ras !== null) {
-    items.push({ key: "ras", label: "Romantic satisfaction (RAS)", value: clamp100(((b.ras - 3) / 12) * 100), detail: `Raw ${b.ras}/15 at baseline` });
+    items.push({ key: "ras", label: t("Romantic satisfaction (RAS)"), value: clamp100(((b.ras - 3) / 12) * 100), detail: tp("Raw {n}/15 at baseline", { n: b.ras }) });
   }
   return items;
 }
@@ -136,46 +137,46 @@ function relationshipsComponents(p, b) {
 function personalGoalsComponents(p, b) {
   const items = [];
   if (b && Number.isFinite(b.gse)) {
-    items.push({ key: "gse", label: "Self-efficacy (GSE)", value: clamp100(((b.gse - 6) / 18) * 100), detail: `Raw ${b.gse}/24 at baseline` });
+    items.push({ key: "gse", label: t("Self-efficacy (GSE)"), value: clamp100(((b.gse - 6) / 18) * 100), detail: tp("Raw {n}/24 at baseline", { n: b.gse }) });
   }
   if (b && Number.isFinite(b.grit)) {
-    items.push({ key: "grit", label: "Grit", value: clamp100(((b.grit - 4) / 16) * 100), detail: `${(b.grit / 4).toFixed(1)}/5 vs the ~3.4 adult reference` });
+    items.push({ key: "grit", label: t("Grit"), value: clamp100(((b.grit - 4) / 16) * 100), detail: tp("{g}/5 vs the ~3.4 adult reference", { g: (b.grit / 4).toFixed(1) }) });
   }
   const study = Math.min(100, (parseFloat(p.weeklyLearningHours || 0) / 5) * 100);
   const digital = Math.max(0, Math.min(100, parseFloat(p.digitalLiteracy || 0)));
-  items.push({ key: "learning", label: "Active learning", value: clamp100(0.5 * study + 0.5 * digital), detail: `${p.weeklyLearningHours || 0}h/week study + digital skills ${digital}/100` });
+  items.push({ key: "learning", label: t("Active learning"), value: clamp100(0.5 * study + 0.5 * digital), detail: tp("{h}h/week study + digital skills {d}/100", { h: p.weeklyLearningHours || 0, d: digital }) });
   return items;
 }
 
 function socialContributionComponents(p, b) {
   const don = parseFloat(p.monthlyDonations || 0);
   const items = [
-    { key: "giving", label: "Giving", value: clamp100(Math.min(100, (don / 500) * 100)), detail: `${Math.round(don).toLocaleString()} THB/month (500+ maxes this)` },
-    { key: "volunteering", label: "Volunteering", value: clamp100(Math.min(100, (parseFloat(p.volunteeringHours || 0) / 4) * 100)), detail: `${p.volunteeringHours || 0}h/month (4h+ maxes this)` }
+    { key: "giving", label: t("Giving"), value: clamp100(Math.min(100, (don / 500) * 100)), detail: tp("{thb} THB/month (500+ maxes this)", { thb: Math.round(don).toLocaleString() }) },
+    { key: "volunteering", label: t("Volunteering"), value: clamp100(Math.min(100, (parseFloat(p.volunteeringHours || 0) / 4) * 100)), detail: tp("{h}h/month (4h+ maxes this)", { h: p.volunteeringHours || 0 }) }
   ];
   if (b && Number.isFinite(b.ptm)) {
-    items.push({ key: "ptm", label: "Prosocial habits (PTM)", value: clamp100((b.ptm / 20) * 100), detail: `Raw ${b.ptm}/20 at baseline` });
+    items.push({ key: "ptm", label: t("Prosocial habits (PTM)"), value: clamp100((b.ptm / 20) * 100), detail: tp("Raw {n}/20 at baseline", { n: b.ptm }) });
   }
   return items;
 }
 
 function environmentComponents(p, b) {
   const items = [
-    { key: "plastic", label: "Plastic reduction", value: clamp100(plasticScore(p)), detail: `${p.singleUsePlastics || 0} single-use pieces/day (Thai avg ~3)` }
+    { key: "plastic", label: t("Plastic reduction"), value: clamp100(plasticScore(p)), detail: tp("{n} single-use pieces/day (Thai avg ~3)", { n: p.singleUsePlastics || 0 }) }
   ];
   if (b && Number.isFinite(b.geb)) {
-    items.push({ key: "geb", label: "Green habits (GEB)", value: clamp100((b.geb / 24) * 100), detail: `Raw ${b.geb}/24 at baseline` });
+    items.push({ key: "geb", label: t("Green habits (GEB)"), value: clamp100((b.geb / 24) * 100), detail: tp("Raw {n}/24 at baseline", { n: b.geb }) });
   }
   return items;
 }
 
 function humanityFutureComponents(p, b) {
   const items = [
-    { key: "skills", label: "Future skills", value: clamp100(Math.min(100, (parseFloat(p.weeklyLearningHours || 0) / 4) * 100)), detail: `${p.weeklyLearningHours || 0}h/week toward future-proof skills` },
-    { key: "security", label: "Long-term security", value: p.longTermInvestments ? 100 : 0, detail: p.longTermInvestments ? "Holds retirement/long-term investments" : "No retirement/long-term investments yet" }
+    { key: "skills", label: t("Future skills"), value: clamp100(Math.min(100, (parseFloat(p.weeklyLearningHours || 0) / 4) * 100)), detail: tp("{h}h/week toward future-proof skills", { h: p.weeklyLearningHours || 0 }) },
+    { key: "security", label: t("Long-term security"), value: p.longTermInvestments ? 100 : 0, detail: p.longTermInvestments ? t("Holds retirement/long-term investments") : t("No retirement/long-term investments yet") }
   ];
   if (b && Number.isFinite(b.lfis)) {
-    items.push({ key: "lfis", label: "Future orientation (LFIS)", value: clamp100((b.lfis / 20) * 100), detail: `Raw ${b.lfis}/20 at baseline` });
+    items.push({ key: "lfis", label: t("Future orientation (LFIS)"), value: clamp100((b.lfis / 20) * 100), detail: tp("Raw {n}/20 at baseline", { n: b.lfis }) });
   }
   return items;
 }
@@ -200,8 +201,8 @@ export function getAspectDetail(state, aspectKey) {
 
   return {
     key: aspectKey,
-    label: ASPECT_META[aspectKey].label,
-    blurb: ASPECT_META[aspectKey].blurb,
+    label: t(ASPECT_META[aspectKey].label),
+    blurb: t(ASPECT_META[aspectKey].blurb),
     score: (state.aspects || {})[aspectKey] ?? 0,
     benchmark,
     components: componentsByAspect[aspectKey](),
