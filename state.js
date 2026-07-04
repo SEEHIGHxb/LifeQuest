@@ -23,6 +23,9 @@ const CHECKIN_LOGS_PER_BONUS_POINT = 3;
 const CHECKIN_XP = 40;
 const CHECKIN_LIMIT = 60; // ~5 years of monthly records
 
+// Real crewmates added via shared Crew Codes on the Rankings tab.
+const FRIEND_LIMIT = 50;
+
 const DEFAULT_STATE = {
   onboarded: false,
   schemaVersion: 3,
@@ -74,7 +77,8 @@ const DEFAULT_STATE = {
   snapshots: [], // weekly {date, aspects} records for trend charts
   baseline: null, // raw instrument sums from onboarding, for benchmark percentiles
   commitment: null, // active weekly aspect pledge {aspect, weeklyTarget, week, progress, completed}
-  checkins: [] // monthly mini re-assessment records {date, sums, shifts}
+  checkins: [], // monthly mini re-assessment records {date, sums, shifts}
+  friends: [] // crewmates imported from Crew Codes {id, name, level, totalPoints, aspects, addedAt}
 };
 
 function getStorage() {
@@ -126,6 +130,7 @@ export class GameStateManager {
       baseline: parsed.baseline && typeof parsed.baseline === "object" ? parsed.baseline : null,
       commitment: parsed.commitment && typeof parsed.commitment === "object" ? parsed.commitment : null,
       checkins: Array.isArray(parsed.checkins) ? parsed.checkins.slice(-CHECKIN_LIMIT) : [],
+      friends: Array.isArray(parsed.friends) ? parsed.friends.slice(0, FRIEND_LIMIT) : [],
       schemaVersion: DEFAULT_STATE.schemaVersion
     };
   }
@@ -295,6 +300,37 @@ export class GameStateManager {
       this.addXP(bonus);
       dispatchAppEvent("lifequest_commitment_completed", { aspect: c.aspect, bonus });
     }
+  }
+
+  // --- CREW ROSTER (real friends from shared Crew Codes) ---
+
+  // Re-importing a crewmate's newer code replaces their entry (matched by
+  // name, case-insensitive) instead of duplicating them.
+  addFriend(friend) {
+    const existing = this.state.friends.find(
+      f => f.name.toLowerCase() === friend.name.toLowerCase()
+    );
+    if (existing) {
+      Object.assign(existing, friend, { addedAt: new Date().toISOString() });
+      this.saveState();
+      return { ok: true, updated: true, friend: existing };
+    }
+    if (this.state.friends.length >= FRIEND_LIMIT) {
+      return { ok: false, reason: `Crew roster is full (max ${FRIEND_LIMIT}).` };
+    }
+    const entry = {
+      id: "crew_" + crypto.randomUUID().slice(0, 8),
+      addedAt: new Date().toISOString(),
+      ...friend
+    };
+    this.state.friends.push(entry);
+    this.saveState();
+    return { ok: true, updated: false, friend: entry };
+  }
+
+  removeFriend(friendId) {
+    this.state.friends = this.state.friends.filter(f => f.id !== friendId);
+    this.saveState();
   }
 
   // --- MONTHLY MINI RE-ASSESSMENT (hybrid model recalibration) ---

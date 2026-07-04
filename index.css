@@ -934,6 +934,34 @@ header {
   line-height: 1.4;
 }
 
+/* Rankings: crew codes */
+.npc-tag {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-card-border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  vertical-align: middle;
+  text-transform: uppercase;
+}
+
+.friend-remove {
+  background: none;
+  border: none;
+  color: var(--color-crimson);
+  font-size: 0.8rem;
+  cursor: pointer;
+  margin-left: 6px;
+  padding: 2px 4px;
+  vertical-align: middle;
+}
+
+.friend-remove:hover {
+  color: var(--color-crimson-light);
+}
+
 /* Helper styles */
 .text-gold { color: var(--color-gold); }
 .text-purple { color: var(--color-astral-dark); text-shadow: 0 0 2px rgba(10, 155, 181, 0.1); }

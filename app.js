@@ -10,7 +10,7 @@ import {
   renderAspectPage,
   renderCheckin,
   getLumiTip
-} from "./ui.js?v=11";
+} from "./ui.js?v=12";
 import { ASPECT_KEYS, ASPECT_META } from "./aspects.js";
 
 const TOAST_DURATION_MS = 1600;
@@ -118,7 +118,7 @@ function renderActiveTab() {
   } else if (activeTab === "quests") {
     renderQuests("main-view", state);
   } else if (activeTab === "leaderboard") {
-    renderLeaderboard("main-view", state);
+    renderLeaderboard("main-view", state, renderActiveTab);
   }
 
   updateAssistantBubble();
@@ -309,6 +309,15 @@ window.addEventListener("hashchange", () => {
     renderActiveTab();
   }
 });
+
+// PWA: offline support via the network-first service worker.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(err => {
+      console.error("Service worker registration failed:", err);
+    });
+  });
+}
 
 // Start the App
 window.addEventListener("DOMContentLoaded", initializeApp);

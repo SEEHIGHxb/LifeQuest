@@ -1,0 +1,25 @@
+{
+  "name": "LifeQuest: Astral Express Registry",
+  "short_name": "LifeQuest",
+  "description": "Gamified life tracker — grow eight life aspects with real, measured data.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f8fd",
+  "theme_color": "#1f2d44",
+  "icons": [
+    {
+      "src": "./assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

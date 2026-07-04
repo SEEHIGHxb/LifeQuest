@@ -43,7 +43,12 @@ no backend; all data lives in your browser's localStorage.
 - **Hash routing** (`#/dashboard`, `#/ledger`, `#/aspect/<key>`, `#/checkin`, ...) — browser back/forward work
 - **Missions**: progress automatically from matching logged routines; daily/weekly cycles reset; epic missions with milestones
 - **Radar chart**: dependency-free SVG rendering of the 8 aspects
-- **Rankings**: your score alongside the Express crew
+- **Rankings with real people (Crew Codes)**: share your `LQ1-...` code with
+  friends and paste theirs to rank against real users — codes carry only name,
+  level, points, and aspect scores; no backend, no accounts. NPCs pad the
+  board until you add crewmates
+- **PWA**: installable with offline support — a network-first service worker
+  always serves fresh files online and the cached shell offline
 - **Lumi assistant**: contextual tips targeting your weakest aspect
 
 ## Run locally
@@ -67,7 +72,13 @@ custom routines, and localStorage schema migration.
 
 ## Deploy
 
-Static-host friendly (GitHub Pages, Netlify, etc.) — publish the repo root as-is.
+CI (`.github/workflows/ci.yml`) runs the test suite on every push and PR, and
+deploys the repo root to GitHub Pages on every green push to `main` (the
+workflow enables Pages automatically on first run). Any other static host
+works too — publish the repo root as-is.
+
+When releasing, bump both cache busters together: the `?v=N` query on the
+entry points in `index.html`/`app.js` and `CACHE_NAME` in `sw.js`.
 
 ## Project layout
 
@@ -79,6 +90,8 @@ Static-host friendly (GitHub Pages, Netlify, etc.) — publish the repo root as-
 | `benchmarks.js` | Population percentile benchmarks with cited sources |
 | `aspects.js` | Per-aspect detail: component breakdowns and trend series |
 | `suggestions.js` | Rule-based, profile-aware suggestion engine |
+| `crewcode.js` | Shareable Crew Codes for real user-vs-user rankings |
+| `sw.js` / `manifest.webmanifest` | PWA: offline service worker and install manifest |
 | `surveys.js` | Survey instrument question banks and option scales |
 | `ui.js` | View rendering: onboarding, dashboard, ledger, missions, rankings |
 | `chart.js` | SVG radar chart renderer |

@@ -6,6 +6,7 @@ import { INSTRUMENTS } from "./surveys.js";
 import { getAllBenchmarks, collectSources, ordinal } from "./benchmarks.js";
 import { getAspectDetail } from "./aspects.js";
 import { getAspectSuggestions, getTopSuggestions } from "./suggestions.js";
+import { encodeCrewCode, decodeCrewCode, crewPoints } from "./crewcode.js";
 
 // Escape user-provided strings before inserting into innerHTML.
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, c => ({
@@ -963,55 +964,131 @@ export function renderQuests(containerId, state) {
 }
 
 // 5. RENDER LEADERBOARD
-export function renderLeaderboard(containerId, state) {
+export function renderLeaderboard(containerId, state, onRefresh) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  const userScore = state.history.reduce((sum, h) => sum + h.xpReward, 0) + (state.profile.level * 150);
+  const friends = state.friends || [];
   const userEntry = {
     name: `${state.profile.name} (You)`,
     level: state.profile.level,
-    totalPoints: userScore,
+    totalPoints: crewPoints(state),
     isUser: true
   };
+  const friendEntries = friends.map(f => ({ ...f, isFriend: true }));
+  // NPCs pad the board until real crewmates are added.
+  const npcEntries = MOCK_COMPETITORS.map(pl => ({ ...pl, isNpc: true }));
 
-  const allPlayers = [...MOCK_COMPETITORS, userEntry]
+  const allPlayers = [...npcEntries, ...friendEntries, userEntry]
     .map(pl => ({ ...pl, rankClass: stateManager.getRankClass(pl.level) }))
     .sort((a, b) => b.totalPoints - a.totalPoints);
 
-  container.innerHTML = `
-    <div class="card" style="max-width: 650px; margin: 0 auto;">
-      <h3 class="card-header">Astral Express - Rankings</h3>
-      <p style="font-size: 0.9rem; color: var(--color-text-secondary); margin-bottom: 15px;">
-        Synchronized rankings of Nameless crew members based on completed missions and baseline alignment.
-      </p>
+  const myCode = encodeCrewCode(state);
 
-      <table style="width: 100%; border-collapse: collapse; text-align: left;">
-        <thead>
-          <tr style="border-bottom: 2px solid var(--color-gold); font-family: var(--font-serif); font-size: 1.1rem; color: var(--color-navy);">
-            <th style="padding: 10px;">Rank</th>
-            <th style="padding: 10px;">Crew Member</th>
-            <th style="padding: 10px; text-align: center;">Level</th>
-            <th style="padding: 10px; text-align: right;">Total Points</th>
-            <th style="padding: 10px; text-align: center;">Clearance</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${allPlayers.map((player, idx) => {
-            const rowStyle = player.isUser ? `background: rgba(0,184,230,0.1); font-weight: bold; border: 1.5px solid var(--color-gold);` : `border-bottom: 1px solid rgba(195,154,60,0.15);`;
-            const badgeClass = idx === 0 ? `background: var(--color-gold); color: #fff;` : idx === 1 ? `background: silver; color: #fff;` : `background: var(--bg-primary); color: var(--color-text-secondary);`;
-            return `
-              <tr style="${rowStyle}">
-                <td style="padding: 12px 10px;"><span style="border-radius:50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; border: 1px solid var(--color-gold); ${badgeClass}">${idx + 1}</span></td>
-                <td style="padding: 12px 10px;">${escapeHtml(player.name)}</td>
-                <td style="padding: 12px 10px; text-align: center; font-family: var(--font-mono);">${player.level}</td>
-                <td style="padding: 12px 10px; text-align: right; font-family: var(--font-mono);">${player.totalPoints}</td>
-                <td style="padding: 12px 10px; text-align: center;"><span class="holo-badge">${player.rankClass}</span></td>
-              </tr>
-            `;
-          }).join("")}
-        </tbody>
-      </table>
+  container.innerHTML = `
+    <div style="max-width: 650px; margin: 0 auto;">
+      <div class="card">
+        <h3 class="card-header">Crew Codes</h3>
+        <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 12px;">
+          Rankings compare you with <strong>real people</strong>: share your code with
+          friends over LINE or Discord, and paste theirs below. Codes carry only your
+          crew name, level, points, and aspect scores — nothing private. Re-paste a
+          newer code any time to update a crewmate.
+        </p>
+        <div class="form-group">
+          <label for="my-crew-code">Your Crew Code</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="my-crew-code" class="form-control" value="${myCode}" readonly style="font-family: var(--font-mono); font-size: 0.75rem;">
+            <button type="button" id="btn-copy-code" class="btn btn-primary" style="white-space: nowrap;">Copy</button>
+          </div>
+        </div>
+        <form id="add-friend-form">
+          <div class="form-group">
+            <label for="friend-code">Add a crewmate's code</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="friend-code" class="form-control" placeholder="LQ1-..." style="font-family: var(--font-mono); font-size: 0.75rem;" required>
+              <button type="submit" class="btn btn-primary" style="white-space: nowrap;">Add Crew</button>
+            </div>
+          </div>
+        </form>
+        <p id="friend-error" class="d-none" style="color: var(--color-crimson); font-size: 0.85rem; font-weight: 600;"></p>
+      </div>
+
+      <div class="card">
+        <h3 class="card-header">Astral Express - Rankings</h3>
+        <p style="font-size: 0.9rem; color: var(--color-text-secondary); margin-bottom: 15px;">
+          ${friends.length === 0
+            ? "No real crewmates yet — the Express NPCs keep the board warm until you add codes."
+            : `${friends.length} real crewmate${friends.length === 1 ? "" : "s"} on board. NPC rows are marked.`}
+        </p>
+
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--color-gold); font-family: var(--font-serif); font-size: 1.1rem; color: var(--color-navy);">
+              <th style="padding: 10px;">Rank</th>
+              <th style="padding: 10px;">Crew Member</th>
+              <th style="padding: 10px; text-align: center;">Level</th>
+              <th style="padding: 10px; text-align: right;">Total Points</th>
+              <th style="padding: 10px; text-align: center;">Clearance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${allPlayers.map((player, idx) => {
+              const rowStyle = player.isUser ? `background: rgba(0,184,230,0.1); font-weight: bold; border: 1.5px solid var(--color-gold);` : `border-bottom: 1px solid rgba(195,154,60,0.15);`;
+              const badgeClass = idx === 0 ? `background: var(--color-gold); color: #fff;` : idx === 1 ? `background: silver; color: #fff;` : `background: var(--bg-primary); color: var(--color-text-secondary);`;
+              return `
+                <tr style="${rowStyle}">
+                  <td style="padding: 12px 10px;"><span style="border-radius:50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; border: 1px solid var(--color-gold); ${badgeClass}">${idx + 1}</span></td>
+                  <td style="padding: 12px 10px;">
+                    ${escapeHtml(player.name)}
+                    ${player.isNpc ? `<span class="npc-tag">NPC</span>` : ""}
+                    ${player.isFriend ? `<button type="button" class="friend-remove" data-friend-id="${player.id}" aria-label="Remove ${escapeHtml(player.name)}" title="Remove crewmate">✕</button>` : ""}
+                  </td>
+                  <td style="padding: 12px 10px; text-align: center; font-family: var(--font-mono);">${player.level}</td>
+                  <td style="padding: 12px 10px; text-align: right; font-family: var(--font-mono);">${player.totalPoints}</td>
+                  <td style="padding: 12px 10px; text-align: center;"><span class="holo-badge">${player.rankClass}</span></td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
     </div>
   `;
+
+  // Copy own code (clipboard API with select-fallback for older browsers).
+  document.getElementById("btn-copy-code").addEventListener("click", async () => {
+    const input = document.getElementById("my-crew-code");
+    input.select();
+    try {
+      await navigator.clipboard.writeText(myCode);
+    } catch {
+      document.execCommand("copy");
+    }
+    const btn = document.getElementById("btn-copy-code");
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = "Copy"; }, 1500);
+  });
+
+  document.getElementById("add-friend-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById("friend-error");
+    errorEl.classList.add("d-none");
+    try {
+      const friend = decodeCrewCode(document.getElementById("friend-code").value);
+      const result = stateManager.addFriend(friend);
+      if (!result.ok) throw new Error(result.reason);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.classList.remove("d-none");
+    }
+  });
+
+  container.querySelectorAll(".friend-remove").forEach(btn => {
+    btn.addEventListener("click", () => {
+      stateManager.removeFriend(btn.getAttribute("data-friend-id"));
+      if (onRefresh) onRefresh();
+    });
+  });
 }
