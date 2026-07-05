@@ -283,8 +283,12 @@ function environmentComponents(p, b) {
 }
 
 function humanityFutureComponents(p, b) {
+  // NOTE: `weeklyLearningHours` intentionally feeds both this "Future skills"
+  // component and Personal Growth's "Active learning" — learning time is
+  // genuinely evidence for both future-proofing and personal development. The
+  // reuse is surfaced to the user in the detail line below so it is not silent.
   const items = [
-    { key: "skills", label: t("Future skills"), value: clamp100(Math.min(100, (parseFloat(p.weeklyLearningHours || 0) / 4) * 100)), detail: tp("{h}h/week toward future-proof skills", { h: p.weeklyLearningHours || 0 }) },
+    { key: "skills", label: t("Future skills"), value: clamp100(Math.min(100, (parseFloat(p.weeklyLearningHours || 0) / 4) * 100)), detail: tp("{h}h/week toward future-proof skills — reuses your weekly learning hours", { h: p.weeklyLearningHours || 0 }) },
     { key: "security", label: t("Long-term security"), value: p.longTermInvestments ? 100 : 0, detail: p.longTermInvestments ? t("Holds retirement/long-term investments") : t("No retirement/long-term investments yet") }
   ];
   if (b && Number.isFinite(b.lfis)) {

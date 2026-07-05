@@ -563,6 +563,9 @@ export class GameStateManager {
     const S_grit = ((rawGrit - 4) / 16) * 100;
 
     // 3. Active Learning habits
+    // NOTE: `weeklyLearningHours` is intentionally shared with
+    // calculateHumanityFutureScore's S_skills — learning time counts toward both
+    // personal growth and future-proofing. Deliberate reuse, not a bug.
     const hours = parseFloat(profile.weeklyLearningHours || 0);
     const F_study = Math.min(100, (hours / 5) * 100);
     const F_digital = Math.min(100, Math.max(0, parseFloat(profile.digitalLiteracy || 0)));
@@ -623,6 +626,9 @@ export class GameStateManager {
     const qValues = lfisAnswers.map(v => parseInt(v || 0));
 
     // Future Skills
+    // NOTE: `weeklyLearningHours` is intentionally shared with
+    // calculatePersonalGoalsScore's S_learning (see note there). The UI surfaces
+    // the reuse on the "Future skills" component detail line.
     const hours = parseFloat(profile.weeklyLearningHours || 0);
     const studyHours = Math.min(100, (hours / 4) * 100);
     const Q1_val = qValues[0] * 25;

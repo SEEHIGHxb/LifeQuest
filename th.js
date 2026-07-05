@@ -524,7 +524,7 @@ export const TH = {
   "Green habits (GEB)": "นิสัยรักษ์โลก (GEB)",
   "Raw {n}/24 at baseline ": "คะแนนดิบ {n}/24 ณ จุดเริ่มต้น",
   "Future skills": "ทักษะแห่งอนาคต",
-  "{h}h/week toward future-proof skills": "{h} ชม./สัปดาห์กับทักษะที่พร้อมรับอนาคต",
+  "{h}h/week toward future-proof skills — reuses your weekly learning hours": "{h} ชม./สัปดาห์กับทักษะที่พร้อมรับอนาคต — ใช้ชั่วโมงการเรียนรู้รายสัปดาห์ร่วมกัน",
   "Long-term security": "ความมั่นคงระยะยาว",
   "Holds retirement/long-term investments": "มีการลงทุนเพื่อเกษียณ/ระยะยาว",
   "No retirement/long-term investments yet": "ยังไม่มีการลงทุนเพื่อเกษียณ/ระยะยาว",
@@ -535,6 +535,8 @@ export const TH = {
   "Income of {income} THB/mo vs Thai workers": "รายได้ {income} บาท/เดือน เทียบกับแรงงานไทย",
   "Lognormal curve calibrated to the Labour Force Survey average wage; NSO does not publish worker-level deciles openly.":
     "เส้นโค้ง lognormal ปรับเทียบกับค่าจ้างเฉลี่ยจากการสำรวจภาวะการทำงาน; สสช. ไม่เผยแพร่ข้อมูลเดไซล์รายบุคคล",
+  "The income spread (log-sigma 0.65) is an assumed wage dispersion, not published decile data — the rank is approximate.":
+    "การกระจายของรายได้ (log-sigma 0.65) เป็นค่าสมมติของการกระจายค่าจ้าง ไม่ใช่ข้อมูลเดไซล์ที่ตีพิมพ์ — อันดับจึงเป็นค่าโดยประมาณ",
   "{met} MET-min/week vs Thai adults (WHO guideline = 600)": "{met} MET-นาที/สัปดาห์ เทียบกับผู้ใหญ่ไทย (เกณฑ์ WHO = 600)",
   "BMI {bmi} — below the BMI-25 line that {share}% of Thai adults are over.": "BMI {bmi} — ต่ำกว่าเส้น BMI 25 ที่ผู้ใหญ่ไทย {share}% อยู่เหนือเส้นนี้",
   "BMI {bmi} — in the {share}% of Thai adults at BMI 25+.": "BMI {bmi} — อยู่ในกลุ่ม {share}% ของผู้ใหญ่ไทยที่ BMI 25 ขึ้นไป",
@@ -543,11 +545,15 @@ export const TH = {
   "possible stress problem": "อาจมีปัญหาความเครียด",
   "stress problem": "มีปัญหาความเครียด",
   "WHO-5 well-being {score}/100 vs general-population norms": "สุขภาวะ WHO-5 {score}/100 เทียบเกณฑ์ประชากรทั่วไป",
+  "Percentile is against a German WHO-5 community sample — no representative Thai WHO-5 norm is published, so read it as indicative.":
+    "เปอร์เซ็นไทล์เทียบกับกลุ่มตัวอย่างชุมชนเยอรมัน WHO-5 — ยังไม่มีเกณฑ์ WHO-5 ของไทยที่เป็นตัวแทน จึงควรถือเป็นค่าชี้แนวโน้มเท่านั้น",
   "LSNS-6 score {n}/30 is under the social-isolation cutoff of 12.": "คะแนน LSNS-6 {n}/30 ต่ำกว่าจุดตัดภาวะโดดเดี่ยวทางสังคมที่ 12",
   "LSNS-6 score {n}/30 is above the social-isolation cutoff of 12.": "คะแนน LSNS-6 {n}/30 สูงกว่าจุดตัดภาวะโดดเดี่ยวทางสังคมที่ 12",
   "Loneliness (UCLA-3) and social network (LSNS-6) vs published community samples": "ความเหงา (UCLA-3) และเครือข่ายสังคม (LSNS-6) เทียบกับกลุ่มตัวอย่างที่ตีพิมพ์",
   "Grit {g}/5 vs the ~3.4 adult reference point.": "ความมุ่งมั่น {g}/5 เทียบจุดอ้างอิงผู้ใหญ่ ~3.4",
   "Self-efficacy (GSE) vs 25-country norms, N=19,120": "การรับรู้ความสามารถตนเอง (GSE) เทียบเกณฑ์ 25 ประเทศ N=19,120",
+  "Your 6-item GSE is compared per-item against 10-item GSE norms — a short-form approximation, not an exact match.":
+    "GSE แบบ 6 ข้อของคุณถูกเทียบรายข้อกับเกณฑ์ GSE แบบ 10 ข้อ — เป็นการประมาณจากแบบสั้น ไม่ใช่การเทียบที่ตรงกันพอดี",
   "Giving participation: {band}": "การมีส่วนร่วมในการให้: {band}",
   "donates and volunteers — inside the 19% of Thais who volunteer": "ทั้งบริจาคและอาสา — อยู่ในกลุ่ม 19% ของคนไทยที่ทำงานอาสา",
   "volunteers — inside the 19% of Thais who volunteer": "ทำงานอาสา — อยู่ในกลุ่ม 19% ของคนไทยที่ทำงานอาสา",

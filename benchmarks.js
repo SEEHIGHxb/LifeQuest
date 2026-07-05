@@ -108,7 +108,8 @@ function financeBenchmark(profile) {
       ? "Income of {income} THB/mo vs Bangkok workers"
       : "Income of {income} THB/mo vs Thai workers", { income: Math.round(income).toLocaleString() }),
     notes: [
-      t("Lognormal curve calibrated to the Labour Force Survey average wage; NSO does not publish worker-level deciles openly.")
+      t("Lognormal curve calibrated to the Labour Force Survey average wage; NSO does not publish worker-level deciles openly."),
+      t("The income spread (log-sigma 0.65) is an assumed wage dispersion, not published decile data — the rank is approximate.")
     ],
     sources: [SOURCES.botWage, SOURCES.nsoIncome]
   };
@@ -167,6 +168,7 @@ function mentalBenchmark(baseline) {
     const band = baseline.st5 <= 4 ? "no stress problem" : baseline.st5 <= 6 ? "possible stress problem" : "stress problem";
     notes.push(tp('ST-5 stress score {n}/15 — "{band}" band on the Thai DMH scale.', { n: baseline.st5, band: t(band) }));
   }
+  notes.push(t("Percentile is against a German WHO-5 community sample — no representative Thai WHO-5 norm is published, so read it as indicative."));
   return {
     percentile: toPercentile(normalCdf(score100, 67.56, 22.96)),
     method: "distribution",
@@ -203,6 +205,7 @@ function personalGoalsBenchmark(baseline) {
   if (Number.isFinite(baseline.grit)) {
     notes.push(tp("Grit {g}/5 vs the ~3.4 adult reference point.", { g: (baseline.grit / 4).toFixed(1) }));
   }
+  notes.push(t("Your 6-item GSE is compared per-item against 10-item GSE norms — a short-form approximation, not an exact match."));
   return {
     // Per-item comparison against the GSE-10 norm (29.55/10 items = 2.96,
     // SD 5.32/10 = 0.53); our survey uses the 6-item short form, so this
