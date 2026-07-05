@@ -138,6 +138,8 @@ export function renderOnboarding(containerId, onComplete) {
   const pages = [
     {
       title: t("Step 1: Profile & Finance"),
+      optional: false,
+      why: t("We start with income and demographics so your scores can be compared against real population benchmarks."),
       body: `
         <div class="form-group">
           <label for="onb-name">${t("Name")}</label>
@@ -184,6 +186,8 @@ export function renderOnboarding(containerId, onComplete) {
     },
     {
       title: t("Step 2: Physical Baseline"),
+      optional: false,
+      why: t("A few body and activity numbers place your physical health against national norms."),
       body: `
         <div class="grid-2">
           ${numberField("onb-height", t("Height (cm)"), 170, 'min="100" max="250"')}
@@ -211,12 +215,16 @@ export function renderOnboarding(containerId, onComplete) {
     },
     {
       title: t("Step 3: Mental Well-Being"),
+      optional: false,
+      why: t("Two validated screens (ST-5, WHO-5) estimate stress and well-being. This is a self-check, not a diagnosis."),
       body: `
         ${instrumentBlock("st5")}
         ${instrumentBlock("who5")}`
     },
     {
       title: t("Step 4: Relationships"),
+      optional: true,
+      why: t("Optional — you can see your results now, or answer to score social connection and loneliness."),
       body: `
         ${instrumentBlock("lsns")}
         ${instrumentBlock("ucla")}
@@ -226,6 +234,8 @@ export function renderOnboarding(containerId, onComplete) {
     },
     {
       title: t("Step 5: Goals & Learning"),
+      optional: true,
+      why: t("Optional — self-efficacy and perseverance, plus your weekly learning habits."),
       body: `
         ${instrumentBlock("gse")}
         ${instrumentBlock("grit")}
@@ -236,6 +246,8 @@ export function renderOnboarding(containerId, onComplete) {
     },
     {
       title: t("Step 6: Contribution, Environment & Future"),
+      optional: true,
+      why: t("Optional — prosocial habits, everyday environmental behavior, and your long-term outlook."),
       body: `
         ${instrumentBlock("ptm")}
         <div class="grid-2">
@@ -255,22 +267,37 @@ export function renderOnboarding(containerId, onComplete) {
     }
   ];
 
+  const totalSteps = pages.length;
+  const EXPRESS_FROM = 2; // "See my results now" unlocks once the core aspects (steps 1-3) are done
+
   container.innerHTML = `
     <div class="onboarding-container card">
-      <div class="brand" style="text-align: center; margin-bottom: 25px;">
+      <div class="brand" style="text-align: center; margin-bottom: 18px;">
         <h1>${t("PERSONAL WELLBEING ASSESSMENT")}</h1>
         <p>${t("Baseline Assessment")}</p>
+      </div>
+      <div class="onb-progress">
+        <div class="onb-progress-head">
+          <span id="onb-step-label"></span>
+          <span id="onb-step-time"></span>
+        </div>
+        <div class="onb-progress-track"><div class="onb-progress-fill" id="onb-progress-fill"></div></div>
       </div>
       <form id="onboarding-form">
         ${pages.map((page, i) => `
           <div class="survey-page ${i === 0 ? "" : "d-none"}" id="onb-page-${i}">
-            <h3 class="card-header">${page.title}</h3>
+            <h3 class="card-header">${page.title}${page.optional ? ` <span class="onb-optional">${t("Optional")}</span>` : ""}</h3>
+            <p class="onb-why">${page.why}</p>
             ${page.body}
-            <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+            <div class="onb-nav">
               ${i > 0 ? `<button type="button" class="btn btn-onb-prev" data-page="${i}">${t("Back")}</button>` : `<span></span>`}
-              ${i < pages.length - 1
-                ? `<button type="button" class="btn btn-primary btn-onb-next" data-page="${i}">${t("Next")}</button>`
-                : `<button type="submit" class="btn btn-primary">${t("Complete Assessment")}</button>`}
+              <div class="onb-nav-right">
+                ${i >= EXPRESS_FROM && i < totalSteps - 1
+                  ? `<button type="button" class="btn btn-onb-express">${t("See my results now")}</button>` : ""}
+                ${i < totalSteps - 1
+                  ? `<button type="button" class="btn btn-primary btn-onb-next" data-page="${i}">${t("Next")}</button>`
+                  : `<button type="submit" class="btn btn-primary">${t("Complete Assessment")}</button>`}
+              </div>
             </div>
           </div>`).join("")}
       </form>
@@ -278,10 +305,22 @@ export function renderOnboarding(containerId, onComplete) {
     </div>
   `;
 
+  const updateProgress = (idx) => {
+    const fill = document.getElementById("onb-progress-fill");
+    const label = document.getElementById("onb-step-label");
+    const time = document.getElementById("onb-step-time");
+    if (fill) fill.style.width = `${Math.round(((idx + 1) / totalSteps) * 100)}%`;
+    if (label) label.textContent = tp("Step {n} of {total}", { n: idx + 1, total: totalSteps });
+    if (time) time.textContent = idx >= EXPRESS_FROM
+      ? t("You can finish here anytime")
+      : t("About 5 minutes total");
+  };
+
   const showPage = (idx) => {
     pages.forEach((_, i) => {
       document.getElementById(`onb-page-${i}`).classList.toggle("d-none", i !== idx);
     });
+    updateProgress(idx);
     container.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -298,8 +337,12 @@ export function renderOnboarding(containerId, onComplete) {
     document.getElementById("ras-block").classList.toggle("d-none", relationshipSelect.value === "Single");
   });
 
-  document.getElementById("onboarding-form").addEventListener("submit", (e) => {
-    e.preventDefault();
+  updateProgress(0);
+
+  // Build the survey payload from whatever is currently in the DOM. Unfilled
+  // sections keep their safe instrument/field defaults, so an early finish via
+  // "See my results now" (express=true) still yields a valid baseline.
+  const doSubmit = (express) => {
     const errorEl = document.getElementById("onboarding-error");
     errorEl.classList.add("d-none");
     try {
@@ -345,13 +388,21 @@ export function renderOnboarding(containerId, onComplete) {
         lfis: collectInstrument("lfis")
       };
 
-      stateManager.submitOnboarding(surveyData);
+      stateManager.submitOnboarding(surveyData, express);
       onComplete();
     } catch (err) {
       console.error("Onboarding submission failed:", err);
       errorEl.textContent = t("Assessment Error: ") + err.message;
       errorEl.classList.remove("d-none");
     }
+  };
+
+  container.querySelectorAll(".btn-onb-express").forEach(btn => {
+    btn.addEventListener("click", () => doSubmit(true));
+  });
+  document.getElementById("onboarding-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    doSubmit(false);
   });
 }
 
@@ -412,6 +463,10 @@ export function renderDashboard(containerId, state) {
       <div class="checkin-banner">
         <p><strong>${t("Monthly re-assessment due.")}</strong> ${t("Re-run the short well-being instruments so your scores track your real standing, not last month's.")}</p>
         <a href="#/checkin" class="btn btn-primary" style="white-space: nowrap;">${t("Start Re-assessment")}</a>
+      </div>` : ""}
+    ${state.profile.assessmentComplete === false ? `
+      <div class="quickstart-note">
+        <p><strong>${t("Quick-start results.")}</strong> ${t("Aspects beyond your first sections use baseline estimates. Log routines to shape them, and monthly re-assessments refine your survey scores over time.")}</p>
       </div>` : ""}
     <div class="dashboard-grid">
       <!-- LEFT COLUMN: STATUS & RADAR CHART -->

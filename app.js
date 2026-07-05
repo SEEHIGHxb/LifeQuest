@@ -10,11 +10,12 @@ import {
   renderAspectPage,
   renderCheckin,
   getLumiTip
-} from "./ui.js?v=14";
+} from "./ui.js?v=15";
 import { ASPECT_KEYS, ASPECT_META } from "./aspects.js";
 import { t, tp, getLang, setLang } from "./i18n.js";
 
 const TOAST_DURATION_MS = 1600;
+const REWARD_DURATION_MS = 1900;
 const TYPEWRITER_SPEED_MS = 15;
 const TABS = ["dashboard", "ledger", "quests", "leaderboard"];
 const DEFAULT_TAB = "dashboard";
@@ -174,7 +175,7 @@ function handleLogAction(id, title, impacts, xp, quantity = null) {
   const result = stateManager.logAction(id, title, impacts, xp, quantity);
   if (result.ok) {
     const detail = quantity ? ` (${quantity.value} ${t(quantity.unit)})` : "";
-    showToast(tp("Activity recorded: +{xp} points{detail}.", { xp, detail }));
+    showReward(xp, impacts, detail);
     renderActiveTab();
   } else {
     showToast(result.reason, "warning");
@@ -257,6 +258,47 @@ function showToast(text, variant = "success") {
   });
 
   setTimeout(() => popup.remove(), TOAST_DURATION_MS);
+}
+
+// Rewarding confirmation when a routine is logged: a card pops in with the
+// points earned and the aspects that improved, then rises and fades. Built
+// with textContent (no innerHTML) since it renders live user/session values.
+function showReward(xp, impacts, detail = "") {
+  const gains = Object.entries(impacts)
+    .filter(([, change]) => change > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([aspect, change]) => `${t(ASPECT_META[aspect]?.label || aspect)} +${change}`);
+
+  const card = document.createElement("div");
+  card.className = "reward-pop";
+  card.setAttribute("role", "status");
+  card.setAttribute("aria-live", "polite");
+
+  const check = document.createElement("span");
+  check.className = "reward-check";
+  check.setAttribute("aria-hidden", "true");
+  check.textContent = "✓";
+  card.appendChild(check);
+
+  const body = document.createElement("span");
+  body.className = "reward-body";
+
+  const xpLine = document.createElement("span");
+  xpLine.className = "reward-xp";
+  xpLine.textContent = `+${xp} ${t("points")}${detail}`;
+  body.appendChild(xpLine);
+
+  if (gains.length) {
+    const gainLine = document.createElement("span");
+    gainLine.className = "reward-gains";
+    gainLine.textContent = gains.join("  ·  ");
+    body.appendChild(gainLine);
+  }
+
+  card.appendChild(body);
+  document.body.appendChild(card);
+  setTimeout(() => card.remove(), REWARD_DURATION_MS);
 }
 
 // --- ASSISTANT MANAGEMENT ---

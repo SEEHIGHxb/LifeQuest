@@ -36,6 +36,8 @@ const DEFAULT_STATE = {
     level: 1,
     xp: 0,
     rank: "Foundational",
+    assessmentComplete: true, // false only after a quick-start (express) baseline
+
     age: 25,
     gender: "unspecified", // male, female, unspecified — for benchmark norm selection
     region: "Provinces", // Provinces or Bangkok
@@ -641,7 +643,7 @@ export class GameStateManager {
   }
 
   // Set the onboarding baseline
-  submitOnboarding(surveyData) {
+  submitOnboarding(surveyData, express = false) {
     const p = this.state.profile;
 
     p.name = (surveyData.name || "").trim() || "Guest";
@@ -700,6 +702,7 @@ export class GameStateManager {
     aspects.humanityFuture = this.calculateHumanityFutureScore(p, surveyData.lfis);
 
     this.state.onboarded = true;
+    p.assessmentComplete = !express;
     p.level = 1;
     p.xp = 0;
     p.rank = this.getRank(1);
