@@ -79,6 +79,22 @@ function toPercentile(p01) {
   return Math.min(99, Math.max(1, Math.round(p01 * 100)));
 }
 
+// Indicative percentile range — a margin reflecting each method's precision,
+// NOT a statistical confidence interval (we lack per-norm sample sizes, and a
+// fake CI would be the precision theater this module avoids). Widths:
+//   distribution = real published mean/SD  -> tightest
+//   estimate     = calibrated curve        -> medium
+//   threshold    = participation-band placement -> coarsest
+const PERCENTILE_MARGIN = { distribution: 6, estimate: 10, threshold: 12 };
+
+export function percentileRange(percentile, method) {
+  const margin = PERCENTILE_MARGIN[method] ?? 10;
+  return {
+    low: Math.max(1, percentile - margin),
+    high: Math.min(99, percentile + margin)
+  };
+}
+
 export function ordinal(n) {
   const rem100 = n % 100;
   if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
@@ -291,7 +307,7 @@ function humanityFutureBenchmark(profile) {
 export function getAllBenchmarks(state) {
   const profile = state.profile || {};
   const baseline = state.baseline || null;
-  return {
+  const set = {
     finance: financeBenchmark(profile),
     physical: physicalBenchmark(profile),
     mental: mentalBenchmark(baseline),
@@ -301,6 +317,13 @@ export function getAllBenchmarks(state) {
     environment: environmentBenchmark(profile),
     humanityFuture: humanityFutureBenchmark(profile)
   };
+  // Attach an indicative percentile range to every computable benchmark in one
+  // place (immutably) so each *Benchmark function stays focused on its score.
+  const withRanges = {};
+  for (const [key, b] of Object.entries(set)) {
+    withRanges[key] = b ? { ...b, range: percentileRange(b.percentile, b.method) } : null;
+  }
+  return withRanges;
 }
 
 // Unique source list across a benchmark set, for the citations card.

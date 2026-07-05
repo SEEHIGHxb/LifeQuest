@@ -1,7 +1,7 @@
 // Tests for population benchmark percentiles (node --test)
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { normalCdf, ordinal, getAllBenchmarks, collectSources } from "../benchmarks.js";
+import { normalCdf, ordinal, getAllBenchmarks, collectSources, percentileRange } from "../benchmarks.js";
 import { GameStateManager } from "../state.js";
 
 function installMockStorage(initial = {}) {
@@ -268,4 +268,33 @@ test("baseline survives save/reload and export/import", () => {
   const fresh = new GameStateManager();
   fresh.importState(exported);
   assert.equal(fresh.state.baseline.gse, 18, "baseline persists through export/import");
+});
+
+// --- PERCENTILE RANGES (Phase 3c) ---
+
+test("percentileRange widens by method and clamps to 1-99", () => {
+  // distribution (real mean/SD) is tightest; threshold (band placement) widest
+  assert.deepEqual(percentileRange(50, "distribution"), { low: 44, high: 56 });
+  assert.deepEqual(percentileRange(50, "estimate"), { low: 40, high: 60 });
+  assert.deepEqual(percentileRange(50, "threshold"), { low: 38, high: 62 });
+  // never leaves the 1-99 band at the extremes
+  assert.deepEqual(percentileRange(3, "estimate"), { low: 1, high: 13 });
+  assert.deepEqual(percentileRange(97, "estimate"), { low: 87, high: 99 });
+  // an unknown method falls back to the medium margin of 10
+  assert.deepEqual(percentileRange(50, "mystery"), { low: 40, high: 60 });
+});
+
+test("getAllBenchmarks attaches a range that brackets each percentile", () => {
+  const all = getAllBenchmarks(makeState());
+  for (const key of ALL_ASPECTS) {
+    const b = all[key];
+    assert.ok(b.range, `${key} carries a range`);
+    assert.ok(b.range.low >= 1 && b.range.high <= 99, `${key} range stays within 1-99`);
+    assert.ok(b.range.low <= b.percentile && b.percentile <= b.range.high, `${key} range brackets its percentile`);
+  }
+});
+
+test("null benchmarks carry no range (pre-baseline saves)", () => {
+  const all = getAllBenchmarks(makeState({}, null));
+  assert.equal(all.mental, null, "survey-only aspects stay null, not a ranged object");
 });

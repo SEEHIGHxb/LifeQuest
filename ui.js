@@ -626,7 +626,7 @@ export function renderDashboard(containerId, state) {
                   </div>
                   ${b ? `
                   <div class="benchmark-line" title="${escapeHtml(b.summary)}">
-                    ${tp("Society: ~{pct} percentile", { pct: percentileLabel(b.percentile) })} <span class="benchmark-method">(${METHOD_TAGS[b.method] || b.method})</span>
+                    ${tp("Society: ~{pct} percentile", { pct: percentileLabel(b.percentile) })} <span class="benchmark-method">(${METHOD_TAGS[b.method] || b.method})</span> <span class="benchmark-range">· ${tp("range ≈ {low}–{high}", { low: percentileLabel(b.range.low), high: percentileLabel(b.range.high) })}</span>
                   </div>` : ""}
                 </a>
               `;
@@ -767,8 +767,10 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction, onR
             <div class="gauge-caption">
               <span>${tp("~{pct} percentile", { pct: percentileLabel(b.percentile) })}</span>
               <span class="benchmark-method">(${METHOD_TAGS[b.method] || b.method})</span>
+              <span class="benchmark-range">${tp("range ≈ {low}–{high}", { low: percentileLabel(b.range.low), high: percentileLabel(b.range.high) })}</span>
             </div>
             <p class="gauge-summary">${escapeHtml(b.summary)}</p>
+            <p class="gauge-note gauge-range-note">${t("The range is an indicative band reflecting the method's precision, not a statistical confidence interval.")}</p>
             ${b.notes.map(n => `<p class="gauge-note">${escapeHtml(n)}</p>`).join("")}
             <div class="benchmark-sources">
               <details>
