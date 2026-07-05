@@ -39,11 +39,13 @@ function activityScore(met) {
   return 80 + Math.min(20, ((met - 3000) / 3000) * 20);
 }
 
-// Same bands as state.js S_bmi (Asian BMI standard).
+// Same bands as state.js S_bmi (Asian BMI standard). Returns null when weight
+// or height is missing so the caller can OMIT the component rather than show a
+// fabricated "average" 50 that looks like a real measurement.
 function bmiScore(p) {
   const w = parseFloat(p.weight || 0);
   const h = parseFloat(p.height || 0) / 100;
-  if (!(w > 0 && h > 0)) return 50;
+  if (!(w > 0 && h > 0)) return null;
   const bmi = w / (h * h);
   if (bmi >= 18.5 && bmi <= 22.9) return 100;
   if (bmi >= 23.0 && bmi <= 24.9) return 75;
@@ -90,9 +92,14 @@ function financeComponents(p, b, benchmark) {
 function physicalComponents(p, b) {
   const met = metMinutes(p);
   const items = [
-    { key: "activity", label: t("Activity"), value: clamp100(activityScore(met)), detail: tp("{met} MET-min/week (WHO guideline 600)", { met: Math.round(met) }) },
-    { key: "body", label: t("Body composition"), value: clamp100(bmiScore(p)), detail: t("Asian BMI bands (18.5-22.9 ideal)") }
+    { key: "activity", label: t("Activity"), value: clamp100(activityScore(met)), detail: tp("{met} MET-min/week (WHO guideline 600)", { met: Math.round(met) }) }
   ];
+  // Omit body composition entirely when weight/height are missing, rather than
+  // reporting a made-up average that reads like a genuine measurement.
+  const bmi = bmiScore(p);
+  if (bmi !== null) {
+    items.push({ key: "body", label: t("Body composition"), value: clamp100(bmi), detail: t("Asian BMI bands (18.5-22.9 ideal)") });
+  }
   const duration = parseFloat(p.sleepHours || 0);
   const durationScore = duration >= 7 && duration <= 9 ? 100 : duration >= 6 && duration < 7 ? 75 : 50;
   if (b && Number.isFinite(b.jss)) {

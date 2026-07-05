@@ -100,6 +100,15 @@ test("physical components mirror the state.js scoring formulas", () => {
   assert.equal(byLabel["Nutrition"], 100);
 });
 
+test("body composition is omitted (not faked at 50) when weight/height missing", () => {
+  const d = getAspectDetail(makeState({ profile: { weight: 0, height: 0 } }), "physical");
+  const labels = d.components.map(c => c.label);
+  assert.ok(!labels.includes("Body composition"), "no fabricated BMI row without measurements");
+  // The rest of the physical breakdown is unaffected and still valid.
+  assert.ok(d.components.length > 0);
+  d.components.forEach(c => assert.ok(c.value >= 0 && c.value <= 100));
+});
+
 test("mental components convert raw WHO-5 and ST-5 correctly", () => {
   const d = getAspectDetail(makeState(), "mental");
   const byLabel = Object.fromEntries(d.components.map(c => [c.label, c.value]));

@@ -642,8 +642,11 @@ export class GameStateManager {
     return Math.round((0.25 * S_skills) + (0.25 * S_legacy) + (0.25 * S_philanthropy) + (0.25 * S_security));
   }
 
-  // Set the onboarding baseline
-  submitOnboarding(surveyData, express = false) {
+  // Set the onboarding baseline. `coverage` (optional) carries the Phase 1
+  // input-coverage maps captured at input time: { provided: {field: bool},
+  // answered: {instrument: bool} }. When absent (e.g. older callers), the
+  // flags are simply not written — an absent flag reads as "unknown."
+  submitOnboarding(surveyData, express = false, coverage = null) {
     const p = this.state.profile;
 
     p.name = (surveyData.name || "").trim() || "Guest";
@@ -690,6 +693,15 @@ export class GameStateManager {
       geb: rawSum(surveyData.geb),
       lfis: rawSum(surveyData.lfis)
     };
+
+    // Coverage flags let later phases tell an answered instrument/field from a
+    // defaulted one. Stored only when captured, so older saves stay "unknown".
+    if (coverage && coverage.answered) {
+      this.state.baseline.answered = { ...coverage.answered };
+    }
+    if (coverage && coverage.provided) {
+      p.provided = { ...coverage.provided };
+    }
 
     const aspects = this.state.aspects;
     aspects.finance = this.calculateFinanceScore(p, surveyData.cfpb);

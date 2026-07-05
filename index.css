@@ -281,6 +281,15 @@ header {
   background: #ffffff;
 }
 
+/* Inline onboarding validation message (validation.js / doSubmit) */
+.field-error {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-crimson);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .survey-question {
   background: #faf9f6;
   border: 1px solid var(--color-card-border);

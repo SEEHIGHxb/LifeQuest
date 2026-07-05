@@ -635,5 +635,11 @@ export const TH = {
     "เปิด SSF/RMF หรือกองทุนดัชนีด้วยเงินเท่าไรก็ได้ — แรงงานไทยส่วนใหญ่ไม่มีเงินเก็บเกษียณ แค่เริ่มก็นำหน้าแล้ว",
   "Act with a longer horizon": "ลงมือโดยมองให้ไกลขึ้น",
   "Mentor someone or support one cause aimed at future generations this month.":
-    "เป็นพี่เลี้ยงให้ใครสักคน หรือสนับสนุนประเด็นเพื่อคนรุ่นหลังหนึ่งเรื่องในเดือนนี้"
+    "เป็นพี่เลี้ยงให้ใครสักคน หรือสนับสนุนประเด็นเพื่อคนรุ่นหลังหนึ่งเรื่องในเดือนนี้",
+
+  // --- Onboarding input validation (Phase 1) ---
+  "Enter a number.": "กรุณากรอกตัวเลข",
+  "Enter a value between {min} and {max}.": "กรุณากรอกค่าระหว่าง {min} ถึง {max}",
+  "Please fix the highlighted fields before continuing.":
+    "กรุณาแก้ไขช่องที่ไฮไลต์ก่อนดำเนินการต่อ"
 };

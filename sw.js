@@ -5,7 +5,7 @@
 // in index.html), and offline users get the last shell that loaded.
 // Bump CACHE_NAME together with the ?v=N version on each release.
 
-const CACHE_NAME = "lifequest-v15";
+const CACHE_NAME = "lifequest-v16";
 
 const APP_SHELL = [
   "./",
@@ -18,12 +18,13 @@ const APP_SHELL = [
   "./surveys.js",
   "./benchmarks.js",
   "./aspects.js",
+  "./validation.js",
   "./suggestions.js",
   "./crewcode.js",
   "./i18n.js",
   "./th.js",
   "./manifest.webmanifest",
-  "./assets/lumi.png?v=15",
+  "./assets/lumi.png?v=16",
   "./assets/icon-192.png",
   "./assets/icon-512.png"
 ];

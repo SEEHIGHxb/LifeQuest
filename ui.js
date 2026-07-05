@@ -7,6 +7,7 @@ import { getAllBenchmarks, collectSources } from "./benchmarks.js";
 import { getAspectDetail } from "./aspects.js";
 import { getAspectSuggestions, getTopSuggestions } from "./suggestions.js";
 import { encodeCrewCode, decodeCrewCode, crewPoints } from "./crewcode.js";
+import { validateProfile, buildProvidedFlags, buildAnsweredFlags } from "./validation.js";
 import { t, tp, percentileLabel, dateLocale } from "./i18n.js";
 
 // Escape user-provided strings before inserting into innerHTML.
@@ -97,6 +98,7 @@ function numberField(id, label, value, attrs = "") {
     <div class="form-group">
       <label for="${id}">${label}</label>
       <input type="number" id="${id}" class="form-control" value="${value}" ${attrs}>
+      <span class="field-error d-none" id="${id}-err" aria-live="polite"></span>
     </div>`;
 }
 
@@ -129,6 +131,20 @@ function collectInstrument(instrKey) {
     return el ? parseInt(el.value) : item.def;
   });
 }
+
+// Maps each validated numeric field (validation.js FIELD_CONSTRAINTS keys) to
+// its onboarding input id — used for reading, inline error placement, and
+// coverage tracking. Both directions are needed, so it is defined once here.
+const ONB_NUMERIC_IDS = {
+  income: "onb-income", savingsRate: "onb-savings", digitalLiteracy: "onb-digital",
+  weeklyLearningHours: "onb-learning", weeklyVigorousDays: "onb-vig-days",
+  weeklyVigorousMins: "onb-vig-mins", weeklyModerateDays: "onb-mod-days",
+  weeklyModerateMins: "onb-mod-mins", weeklyWalkingDays: "onb-walk-days",
+  weeklyWalkingMins: "onb-walk-mins", weight: "onb-weight", height: "onb-height",
+  sleepHours: "onb-sleep", vegetablePortions: "onb-veg", waterLiters: "onb-water",
+  singleUsePlastics: "onb-plastics", monthlyDonations: "onb-donations",
+  volunteeringHours: "onb-volunteer"
+};
 
 // 1. RENDER ONBOARDING SURVEY
 export function renderOnboarding(containerId, onComplete) {
@@ -339,12 +355,39 @@ export function renderOnboarding(containerId, onComplete) {
 
   updateProgress(0);
 
+  // Coverage capture (the linchpin): numeric inputs are pre-filled and
+  // instrument radios are pre-checked at their defaults, so the only reliable
+  // signal that the user actually answered is an interaction event. A change
+  // never fires for a pre-selected default, so these sets stay honest.
+  const touchedFields = new Set();
+  const touchedInstruments = new Set();
+  const idToField = Object.fromEntries(
+    Object.entries(ONB_NUMERIC_IDS).map(([field, id]) => [id, field])
+  );
+  const form = document.getElementById("onboarding-form");
+  form.addEventListener("input", (e) => {
+    const field = idToField[e.target.id];
+    if (field) touchedFields.add(field);
+  });
+  form.addEventListener("change", (e) => {
+    const match = (e.target.name || "").match(/^([a-z0-9]+)-q\d+$/i);
+    if (match) touchedInstruments.add(match[1]);
+  });
+
+  const clearFieldErrors = () => {
+    Object.values(ONB_NUMERIC_IDS).forEach(id => {
+      const errEl = document.getElementById(`${id}-err`);
+      if (errEl) { errEl.textContent = ""; errEl.classList.add("d-none"); }
+    });
+  };
+
   // Build the survey payload from whatever is currently in the DOM. Unfilled
   // sections keep their safe instrument/field defaults, so an early finish via
   // "See my results now" (express=true) still yields a valid baseline.
   const doSubmit = (express) => {
     const errorEl = document.getElementById("onboarding-error");
     errorEl.classList.add("d-none");
+    clearFieldErrors();
     try {
       const val = (id) => document.getElementById(id).value;
 
@@ -388,7 +431,24 @@ export function renderOnboarding(containerId, onComplete) {
         lfis: collectInstrument("lfis")
       };
 
-      stateManager.submitOnboarding(surveyData, express);
+      // Block on hard-invalid input before it degrades into a fake score.
+      // Blank optional fields still pass (they fall back to safe defaults).
+      const { ok, errors } = validateProfile(surveyData);
+      if (!ok) {
+        for (const [field, message] of Object.entries(errors)) {
+          const errEl = document.getElementById(`${ONB_NUMERIC_IDS[field]}-err`);
+          if (errEl) { errEl.textContent = message; errEl.classList.remove("d-none"); }
+        }
+        errorEl.textContent = t("Please fix the highlighted fields before continuing.");
+        errorEl.classList.remove("d-none");
+        return;
+      }
+
+      const coverage = {
+        provided: buildProvidedFlags(touchedFields),
+        answered: buildAnsweredFlags(touchedInstruments)
+      };
+      stateManager.submitOnboarding(surveyData, express, coverage);
       onComplete();
     } catch (err) {
       console.error("Onboarding submission failed:", err);

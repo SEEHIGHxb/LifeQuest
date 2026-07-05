@@ -250,6 +250,56 @@ test("submitOnboarding stores clamped age and validated gender", () => {
   assert.equal(m.state.snapshots.length, 1, "baseline snapshot taken at onboarding");
 });
 
+const MINIMAL_SURVEY = {
+  name: "Cov", age: "30", gender: "male", region: "Bangkok",
+  employment: "Student", relationshipStatus: "Single",
+  income: 20000, savingsRate: 10, height: 170, weight: 60, sleepHours: 7,
+  vegetablePortions: 2, waterLiters: 1.5, weeklyVigorousDays: 0, weeklyVigorousMins: 0,
+  weeklyModerateDays: 0, weeklyModerateMins: 0, weeklyWalkingDays: 3, weeklyWalkingMins: 20,
+  weeklyLearningHours: 2, digitalLiteracy: 50, monthlyDonations: 0, volunteeringHours: 0,
+  singleUsePlastics: 5, longTermInvestments: "false",
+  cfpb: [2, 2, 2, 2, 2], jss: [0, 0, 0, 0], st5: [0, 0, 0, 0, 0], who5: [3, 3, 3, 3, 3],
+  lsns: [3, 3, 3, 3, 3, 3], ucla: [1, 1, 1], ras: [3, 3, 3], gse: [3, 3, 3, 3, 3, 3],
+  grit: [4, 3, 4, 4], ptm: [2, 1, 2, 2, 3], geb: [2, 2, 3, 3, 2, 2], lfis: [3, 2, 2, 3, 2]
+};
+
+test("submitOnboarding persists coverage flags when provided", () => {
+  const m = new GameStateManager();
+  m.submitOnboarding(MINIMAL_SURVEY, false, {
+    provided: { income: true, weight: false },
+    answered: { who5: true, st5: false }
+  });
+  assert.equal(m.state.profile.provided.income, true);
+  assert.equal(m.state.profile.provided.weight, false);
+  assert.equal(m.state.baseline.answered.who5, true);
+  assert.equal(m.state.baseline.answered.st5, false);
+});
+
+test("submitOnboarding without coverage leaves flags absent (unknown)", () => {
+  const m = new GameStateManager();
+  m.submitOnboarding(MINIMAL_SURVEY);
+  assert.equal(m.state.profile.provided, undefined, "no provided map when uncaptured");
+  assert.equal("answered" in m.state.baseline, false, "no answered map when uncaptured");
+});
+
+test("coverage flags survive a save/load round-trip; absent stays absent", () => {
+  const m = new GameStateManager();
+  m.submitOnboarding(MINIMAL_SURVEY, false, {
+    provided: { income: true }, answered: { who5: true }
+  });
+  // Reload from the same mock storage — merge must preserve the flags.
+  const reloaded = new GameStateManager();
+  assert.equal(reloaded.state.profile.provided.income, true);
+  assert.equal(reloaded.state.baseline.answered.who5, true);
+
+  // A save made without coverage loads without the flags.
+  installMockStorage();
+  const bare = new GameStateManager();
+  bare.submitOnboarding(MINIMAL_SURVEY);
+  const bareReloaded = new GameStateManager();
+  assert.equal(bareReloaded.state.profile.provided, undefined);
+});
+
 test("corrupt saved state falls back to defaults", () => {
   installMockStorage({ lifequest_state: "{not json" });
   const m = new GameStateManager();

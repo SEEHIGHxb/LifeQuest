@@ -10,7 +10,7 @@ import {
   renderAspectPage,
   renderCheckin,
   getLumiTip
-} from "./ui.js?v=15";
+} from "./ui.js?v=16";
 import { ASPECT_KEYS, ASPECT_META } from "./aspects.js";
 import { t, tp, getLang, setLang } from "./i18n.js";
 
