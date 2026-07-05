@@ -1,7 +1,11 @@
 // Tests for aspect detail pages: components and trend series (node --test)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { getAspectDetail, ASPECT_KEYS, ASPECT_META } from "../aspects.js";
+import { getAspectDetail, getAspectConfidence, ASPECT_KEYS, ASPECT_META } from "../aspects.js";
+import { NUMERIC_FIELD_KEYS, INSTRUMENT_KEYS } from "../validation.js";
+
+const allProvided = v => Object.fromEntries(NUMERIC_FIELD_KEYS.map(k => [k, v]));
+const allAnswered = v => Object.fromEntries(INSTRUMENT_KEYS.map(k => [k, v]));
 
 const PROFILE = {
   income: 15000,
@@ -141,4 +145,74 @@ test("finance components include the benchmark-based income standing", () => {
   assert.ok(income && income.value >= 1 && income.value <= 99);
   const savings = d.components.find(c => c.label === "Savings habit");
   assert.equal(savings.value, 50); // 10% of the 20% target
+});
+
+// --- CONFIDENCE (Phase 2a) ---
+
+test("confidence is unknown (null tier) when coverage was never captured", () => {
+  // The default fixtures carry no profile.provided / baseline.answered.
+  const d = getAspectDetail(makeState(), "mental");
+  assert.equal(d.confidence.tier, null);
+  assert.equal(d.confidence.total, 0);
+  d.components.forEach(c => assert.equal(c.confidence, null, `${c.key} has no chip without coverage`));
+  assert.equal(getAspectConfidence(makeState(), "finance").tier, null);
+});
+
+test("confidence is 'high' when every input was answered/provided", () => {
+  const state = makeState({
+    profile: { provided: allProvided(true) },
+    baseline: { ...BASELINE, answered: allAnswered(true) }
+  });
+  const c = getAspectConfidence(state, "mental");
+  assert.equal(c.tier, "high");
+  assert.deepEqual([c.answered, c.total], [2, 2]); // who5 + st5
+  const d = getAspectDetail(state, "mental");
+  d.components.forEach(x => assert.equal(x.confidence, "high"));
+});
+
+test("confidence is 'estimated' when all inputs came from defaults", () => {
+  const state = makeState({
+    profile: { provided: allProvided(false) },
+    baseline: { ...BASELINE, answered: allAnswered(false) }
+  });
+  assert.equal(getAspectConfidence(state, "mental").tier, "estimated");
+  assert.equal(getAspectDetail(state, "finance").confidence.tier, "estimated");
+});
+
+test("confidence is 'partial' when some inputs answered and some defaulted", () => {
+  const state = makeState({
+    profile: { provided: allProvided(true) },
+    baseline: { ...BASELINE, answered: { ...allAnswered(true), st5: false } }
+  });
+  const c = getAspectConfidence(state, "mental");
+  assert.equal(c.tier, "partial");
+  assert.deepEqual([c.answered, c.total], [1, 2]);
+  const byKey = Object.fromEntries(getAspectDetail(state, "mental").components.map(x => [x.key, x.confidence]));
+  assert.equal(byKey.who5, "high");
+  assert.equal(byKey.st5, "estimated");
+});
+
+test("relationships confidence counts RAS only for coupled users", () => {
+  const answered = allAnswered(true);
+  const single = makeState({
+    profile: { relationshipStatus: "Single", provided: allProvided(true) },
+    baseline: { ...BASELINE, answered }
+  });
+  assert.equal(getAspectConfidence(single, "relationships").total, 2); // lsns + ucla
+  const coupled = makeState({
+    profile: { relationshipStatus: "Coupled", provided: allProvided(true) },
+    baseline: { ...BASELINE, ras: 12, answered }
+  });
+  assert.equal(getAspectConfidence(coupled, "relationships").total, 3); // + ras
+});
+
+test("untracked binary components (humanity 'security') never affect the tier", () => {
+  const state = makeState({
+    profile: { provided: allProvided(true) },
+    baseline: { ...BASELINE, answered: allAnswered(true) }
+  });
+  // Only weeklyLearningHours + lfis are tracked; longTermInvestments is not.
+  assert.equal(getAspectConfidence(state, "humanityFuture").total, 2);
+  const security = getAspectDetail(state, "humanityFuture").components.find(x => x.key === "security");
+  assert.equal(security.confidence, null);
 });

@@ -4,7 +4,7 @@ import { stateManager } from "./state.js";
 import { renderRadarChart, renderTrendChart } from "./chart.js";
 import { INSTRUMENTS } from "./surveys.js";
 import { getAllBenchmarks, collectSources } from "./benchmarks.js";
-import { getAspectDetail } from "./aspects.js";
+import { getAspectDetail, getAspectConfidence, ASPECT_KEYS } from "./aspects.js";
 import { getAspectSuggestions, getTopSuggestions } from "./suggestions.js";
 import { encodeCrewCode, decodeCrewCode, crewPoints } from "./crewcode.js";
 import { validateProfile, buildProvidedFlags, buildAnsweredFlags } from "./validation.js";
@@ -28,6 +28,34 @@ const ASPECT_LABELS = {
 
 // Localized aspect label (falls back to the raw key).
 const aspectLabel = key => t(ASPECT_LABELS[key] || key);
+
+// --- CONFIDENCE UI (Phase 2) ---
+
+const CONFIDENCE_LABELS = () => ({ high: t("High"), partial: t("Partial"), estimated: t("Estimated") });
+
+// Aspects whose survey inputs the monthly re-assessment (#/checkin) re-runs, so
+// an estimated one there gets an actionable link rather than text-only guidance.
+const CHECKIN_ASPECTS = ["mental", "relationships", "personalGoals"];
+
+// Small tier badge for an aspect (dashboard rows + aspect header). Empty string
+// when confidence is unknown (older saves with no captured coverage).
+function confidenceBadge(conf) {
+  if (!conf || !conf.tier) return "";
+  const title = tp("Score confidence: {answered} of {total} inputs answered", { answered: conf.answered, total: conf.total });
+  return `<span class="confidence-badge confidence-${conf.tier}" title="${escapeHtml(title)}">${CONFIDENCE_LABELS()[conf.tier]}</span>`;
+}
+
+// Component-row chip: shown only for partial/estimated to keep fully-answered
+// breakdowns uncluttered.
+function componentConfidenceChip(tier) {
+  if (tier !== "partial" && tier !== "estimated") return "";
+  return `<span class="component-confidence confidence-${tier}">${CONFIDENCE_LABELS()[tier]}</span>`;
+}
+
+// Aspect keys currently scored purely from defaults (tier === "estimated").
+function estimatedAspects(state) {
+  return ASPECT_KEYS.filter(k => getAspectConfidence(state, k).tier === "estimated");
+}
 
 // Sample profiles that populate the peer-comparison board until real codes are added
 const MOCK_COMPETITORS = [
@@ -528,6 +556,14 @@ export function renderDashboard(containerId, state) {
       <div class="quickstart-note">
         <p><strong>${t("Quick-start results.")}</strong> ${t("Aspects beyond your first sections use baseline estimates. Log routines to shape them, and monthly re-assessments refine your survey scores over time.")}</p>
       </div>` : ""}
+    ${(() => {
+      const estimated = estimatedAspects(state);
+      if (estimated.length === 0) return "";
+      return `
+      <div class="quickstart-note completeness-note">
+        <p><strong>${t("Some scores are estimates.")}</strong> ${tp("These are scored from default answers: {aspects}. Re-run your assessment or log related routines to confirm them.", { aspects: estimated.map(aspectLabel).join(", ") })}</p>
+      </div>`;
+    })()}
     <div class="dashboard-grid">
       <!-- LEFT COLUMN: STATUS & RADAR CHART -->
       <div>
@@ -582,7 +618,7 @@ export function renderDashboard(containerId, state) {
               return `
                 <a href="#/aspect/${key}" class="aspect-row" aria-label="${tp("Open {aspect} details", { aspect: aspectLabel(key) })}">
                   <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 500; margin-bottom: 2px;">
-                    <span>${aspectLabel(key)} <span class="aspect-row-arrow">&rsaquo;</span></span>
+                    <span>${aspectLabel(key)} ${confidenceBadge(getAspectConfidence(state, key))} <span class="aspect-row-arrow">&rsaquo;</span></span>
                     <span class="text-gold" style="font-family: var(--font-mono); font-weight: bold;">${val}%</span>
                   </div>
                   <div class="xp-bar-container" style="height: 5px; margin-top: 0;" role="progressbar" aria-label="${aspectLabel(key)}" aria-valuenow="${val}" aria-valuemin="0" aria-valuemax="100">
@@ -698,12 +734,26 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction, onR
       <div>
         <h2 class="aspect-title">${detail.label}</h2>
         <p class="aspect-blurb">${detail.blurb}</p>
+        ${detail.confidence && detail.confidence.tier ? `
+          <p class="aspect-confidence-line">
+            ${confidenceBadge(detail.confidence)}
+            <span class="confidence-caption">${tp("{answered}/{total} inputs answered", { answered: detail.confidence.answered, total: detail.confidence.total })}</span>
+          </p>` : ""}
       </div>
       <div class="aspect-score-badge">
         <span class="aspect-score-value">${detail.score}</span>
         <span class="aspect-score-max">/100</span>
       </div>
     </div>
+
+    ${detail.confidence && detail.confidence.tier === "estimated" ? `
+      <div class="quickstart-note completeness-note">
+        <p><strong>${t("Estimated score.")}</strong> ${tp("This score comes from default answers. Answer the {aspect} questions or log routines to confirm it.", { aspect: detail.label })}${
+          CHECKIN_ASPECTS.includes(aspectKey) && state.baseline
+            ? ` <a href="#/checkin">${t("Start Re-assessment")}</a>`
+            : ""
+        }</p>
+      </div>` : ""}
 
     <div class="dashboard-grid">
       <div>
@@ -742,7 +792,7 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction, onR
           ` : detail.components.map(c => `
             <div class="component-row">
               <div class="component-head">
-                <span>${escapeHtml(c.label)}</span>
+                <span>${escapeHtml(c.label)} ${componentConfidenceChip(c.confidence)}</span>
                 <span class="text-gold" style="font-family: var(--font-mono); font-weight: bold;">${c.value}</span>
               </div>
               <div class="xp-bar-container" style="height: 5px; margin-top: 0;" role="progressbar" aria-label="${escapeHtml(c.label)}" aria-valuenow="${c.value}" aria-valuemin="0" aria-valuemax="100">

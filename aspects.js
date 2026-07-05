@@ -26,6 +26,111 @@ export const ASPECT_META = {
 
 const clamp100 = v => Math.round(Math.max(0, Math.min(100, v)));
 
+// --- CONFIDENCE (Phase 2a) ---
+//
+// Each component maps to the Phase-1 coverage keys it depends on: `fields`
+// read profile.provided, `instruments` read baseline.answered. A component is
+// "high" when every input was answered, "estimated" when none were (pure
+// defaults), "partial" in between, and null when coverage was never captured
+// (older saves) or the input isn't tracked. Aspect confidence is the same
+// ratio over the union of its components' inputs — "answered / total".
+export const COMPONENT_COVERAGE = {
+  finance: {
+    income: { fields: ["income"] },
+    cfpb: { instruments: ["cfpb"] },
+    savings: { fields: ["savingsRate"] }
+  },
+  physical: {
+    activity: { fields: ["weeklyVigorousDays", "weeklyVigorousMins", "weeklyModerateDays", "weeklyModerateMins", "weeklyWalkingDays", "weeklyWalkingMins"] },
+    body: { fields: ["weight", "height"] },
+    sleep: { fields: ["sleepHours"], instruments: ["jss"] },
+    nutrition: { fields: ["vegetablePortions", "waterLiters"] }
+  },
+  mental: {
+    who5: { instruments: ["who5"] },
+    st5: { instruments: ["st5"] }
+  },
+  relationships: {
+    lsns: { instruments: ["lsns"] },
+    ucla: { instruments: ["ucla"] },
+    ras: { instruments: ["ras"] }
+  },
+  personalGoals: {
+    gse: { instruments: ["gse"] },
+    grit: { instruments: ["grit"] },
+    learning: { fields: ["weeklyLearningHours", "digitalLiteracy"] }
+  },
+  socialContribution: {
+    giving: { fields: ["monthlyDonations"] },
+    volunteering: { fields: ["volunteeringHours"] },
+    ptm: { instruments: ["ptm"] }
+  },
+  environment: {
+    plastic: { fields: ["singleUsePlastics"] },
+    geb: { instruments: ["geb"] }
+  },
+  humanityFuture: {
+    skills: { fields: ["weeklyLearningHours"] },
+    // "security" is a binary longTermInvestments toggle with no tracked
+    // provided-flag, so it is intentionally uncounted (no coverage entry).
+    lfis: { instruments: ["lfis"] }
+  }
+};
+
+// One input's coverage: true/false when known, null when the relevant map is
+// absent (a save that never captured coverage → "unknown").
+function inputAnswered(key, map) {
+  if (!map || typeof map !== "object") return null;
+  return map[key] === true;
+}
+
+function tierFrom(yes, total) {
+  if (total === 0) return null;
+  if (yes === total) return "high";
+  if (yes === 0) return "estimated";
+  return "partial";
+}
+
+// Known (non-null) coverage results for one component's inputs.
+function componentCoverageResults(cov, provided, answered) {
+  const results = [];
+  for (const f of cov.fields || []) results.push(inputAnswered(f, provided));
+  for (const i of cov.instruments || []) results.push(inputAnswered(i, answered));
+  return results.filter(r => r !== null);
+}
+
+function componentConfidence(aspectKey, compKey, provided, answered) {
+  const cov = (COMPONENT_COVERAGE[aspectKey] || {})[compKey];
+  if (!cov) return null;
+  const known = componentCoverageResults(cov, provided, answered);
+  if (known.length === 0) return null;
+  return tierFrom(known.filter(Boolean).length, known.length);
+}
+
+// Aspect-level tier: answered inputs / total inputs, deduped across components.
+// RAS is skipped for single users (its component is never rendered for them).
+export function getAspectConfidence(state, aspectKey) {
+  const p = (state && state.profile) || {};
+  const b = (state && state.baseline) || null;
+  const provided = p.provided;
+  const answered = b ? b.answered : null;
+  const cov = COMPONENT_COVERAGE[aspectKey] || {};
+  const seen = new Map(); // key -> answered? (dedupes inputs shared across components)
+  for (const [compKey, entry] of Object.entries(cov)) {
+    if (compKey === "ras" && p.relationshipStatus === "Single") continue;
+    for (const f of entry.fields || []) {
+      const r = inputAnswered(f, provided);
+      if (r !== null) seen.set("f:" + f, r);
+    }
+    for (const i of entry.instruments || []) {
+      const r = inputAnswered(i, answered);
+      if (r !== null) seen.set("i:" + i, r);
+    }
+  }
+  const yes = [...seen.values()].filter(Boolean).length;
+  return { tier: tierFrom(yes, seen.size), answered: yes, total: seen.size };
+}
+
 function metMinutes(p) {
   return (8.0 * (p.weeklyVigorousDays || 0) * (p.weeklyVigorousMins || 0))
     + (4.0 * (p.weeklyModerateDays || 0) * (p.weeklyModerateMins || 0))
@@ -193,6 +298,8 @@ export function getAspectDetail(state, aspectKey) {
   if (!ASPECT_KEYS.includes(aspectKey)) return null;
   const p = state.profile || {};
   const b = state.baseline || null;
+  const provided = p.provided;
+  const answered = b ? b.answered : null;
   const benchmark = getAllBenchmarks(state)[aspectKey];
 
   const componentsByAspect = {
@@ -206,13 +313,20 @@ export function getAspectDetail(state, aspectKey) {
     humanityFuture: () => humanityFutureComponents(p, b)
   };
 
+  // Annotate each component with its confidence tier (new object, no mutation).
+  const components = componentsByAspect[aspectKey]().map(c => ({
+    ...c,
+    confidence: componentConfidence(aspectKey, c.key, provided, answered)
+  }));
+
   return {
     key: aspectKey,
     label: t(ASPECT_META[aspectKey].label),
     blurb: t(ASPECT_META[aspectKey].blurb),
     score: (state.aspects || {})[aspectKey] ?? 0,
     benchmark,
-    components: componentsByAspect[aspectKey](),
+    confidence: getAspectConfidence(state, aspectKey),
+    components,
     trend: (state.snapshots || []).map(s => ({
       date: s.date,
       value: clamp100((s.aspects || {})[aspectKey] ?? 0)

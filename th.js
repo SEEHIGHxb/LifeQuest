@@ -382,6 +382,19 @@ export const TH = {
   "End this week's commitment? Progress will be discarded.": "ยกเลิกคำมั่นของสัปดาห์นี้? ความคืบหน้าจะถูกลบ",
   "No snapshots yet — trends appear after your first weekly sync.": "ยังไม่มีภาพรวม — แนวโน้มจะแสดงหลังซิงก์รายสัปดาห์ครั้งแรก",
 
+  // --- Confidence & completeness (Phase 2) ---
+  "High": "สูง",
+  "Partial": "บางส่วน",
+  "Estimated": "ประมาณการ",
+  "Score confidence: {answered} of {total} inputs answered": "ความเชื่อมั่นของคะแนน: ตอบแล้ว {answered} จาก {total} รายการ",
+  "{answered}/{total} inputs answered": "ตอบแล้ว {answered}/{total} รายการ",
+  "Some scores are estimates.": "บางคะแนนเป็นค่าประมาณ",
+  "These are scored from default answers: {aspects}. Re-run your assessment or log related routines to confirm them.":
+    "คะแนนเหล่านี้คิดจากคำตอบเริ่มต้น: {aspects} ทำแบบประเมินใหม่หรือบันทึกกิจวัตรที่เกี่ยวข้องเพื่อยืนยัน",
+  "Estimated score.": "คะแนนประมาณการ",
+  "This score comes from default answers. Answer the {aspect} questions or log routines to confirm it.":
+    "คะแนนนี้มาจากคำตอบเริ่มต้น ตอบคำถามด้าน{aspect}หรือบันทึกกิจวัตรเพื่อยืนยัน",
+
   // --- Monthly re-sync page ---
   "MONTHLY RE-ASSESSMENT": "การประเมินซ้ำประจำเดือน",
   "Short instruments only • recalibrates Mental, Relationships & Personal Goals": "แบบประเมินชุดสั้น • ปรับเทียบด้านจิตใจ ความสัมพันธ์ และเป้าหมายส่วนตัว",
