@@ -2,6 +2,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { GameStateManager } from "../state.js";
+import { getAspectConfidence } from "../aspects.js";
 
 // Minimal localStorage mock so the manager can be constructed in Node
 function installMockStorage(initial = {}) {
@@ -298,6 +299,27 @@ test("coverage flags survive a save/load round-trip; absent stays absent", () =>
   bare.submitOnboarding(MINIMAL_SURVEY);
   const bareReloaded = new GameStateManager();
   assert.equal(bareReloaded.state.profile.provided, undefined);
+});
+
+test("a re-assessment upgrades survey confidence from estimated to high (Phase 3c deepen)", () => {
+  const m = new GameStateManager();
+  // Express-style baseline: instruments captured but marked unanswered.
+  m.submitOnboarding(MINIMAL_SURVEY, true, {
+    provided: {},
+    answered: { who5: false, st5: false, ucla: false, gse: false }
+  });
+  assert.equal(getAspectConfidence(m.state, "mental").tier, "estimated", "starts estimated");
+
+  m.submitCheckin({
+    who5: [4, 4, 4, 4, 4], st5: [0, 0, 0, 0, 0], ucla: [1, 1, 1], ras: null, gse: [4, 4, 4, 4, 4, 4]
+  });
+
+  // The re-asked instruments are now answered, so confidence upgrades.
+  assert.equal(m.state.baseline.answered.who5, true);
+  assert.equal(m.state.baseline.answered.st5, true);
+  assert.equal(m.state.baseline.answered.ucla, true);
+  assert.equal(m.state.baseline.answered.gse, true);
+  assert.equal(getAspectConfidence(m.state, "mental").tier, "high", "who5 + st5 both answered");
 });
 
 test("corrupt saved state falls back to defaults", () => {

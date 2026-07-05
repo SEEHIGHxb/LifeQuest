@@ -559,9 +559,10 @@ export function renderDashboard(containerId, state) {
     ${(() => {
       const estimated = estimatedAspects(state);
       if (estimated.length === 0) return "";
+      const canDeepen = estimated.some(k => CHECKIN_ASPECTS.includes(k));
       return `
       <div class="quickstart-note completeness-note">
-        <p><strong>${t("Some scores are estimates.")}</strong> ${tp("These are scored from default answers: {aspects}. Re-run your assessment or log related routines to confirm them.", { aspects: estimated.map(aspectLabel).join(", ") })}</p>
+        <p><strong>${t("Some scores are estimates.")}</strong> ${tp("These are scored from default answers: {aspects}. Re-run your assessment or log related routines to confirm them.", { aspects: estimated.map(aspectLabel).join(", ") })}${canDeepen ? ` <a href="#/checkin">${t("Deepen my survey scores")}</a>` : ""}</p>
       </div>`;
     })()}
     <div class="dashboard-grid">

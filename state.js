@@ -409,8 +409,14 @@ export class GameStateManager {
       this.state.aspects[aspect] = Math.max(0, Math.min(100, current + shift));
     }
 
-    // Refresh the stored raw sums so benchmarks track the latest reading.
-    this.state.baseline = { ...b, who5: sums.who5, st5: sums.st5, ucla: sums.ucla, gse: sums.gse, ras: sums.ras ?? b.ras };
+    // Refresh the stored raw sums so benchmarks track the latest reading, and
+    // mark the re-asked instruments as answered so Phase 2 confidence upgrades:
+    // a deepened score should stop reading as "Estimated". Only who5/st5/ucla/gse
+    // (+ras when coupled) are re-asked here — lsns/grit keep their captured
+    // coverage, so relationships/personalGoals may honestly stay "Partial".
+    const answered = { ...(b.answered || {}), who5: true, st5: true, ucla: true, gse: true };
+    if (sums.ras !== null) answered.ras = true;
+    this.state.baseline = { ...b, who5: sums.who5, st5: sums.st5, ucla: sums.ucla, gse: sums.gse, ras: sums.ras ?? b.ras, answered };
 
     this.state.checkins.push({ date: new Date().toISOString(), sums, shifts });
     if (this.state.checkins.length > CHECKIN_LIMIT) {

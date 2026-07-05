@@ -548,6 +548,7 @@ export const TH = {
   "Percentile is against a German WHO-5 community sample — no representative Thai WHO-5 norm is published, so read it as indicative.":
     "เปอร์เซ็นไทล์เทียบกับกลุ่มตัวอย่างชุมชนเยอรมัน WHO-5 — ยังไม่มีเกณฑ์ WHO-5 ของไทยที่เป็นตัวแทน จึงควรถือเป็นค่าชี้แนวโน้มเท่านั้น",
   "range ≈ {low}–{high}": "ช่วงประมาณ {low}–{high}",
+  "Deepen my survey scores": "เพิ่มความแม่นยำของคะแนนแบบสอบถาม",
   "The range is an indicative band reflecting the method's precision, not a statistical confidence interval.":
     "ช่วงนี้เป็นแถบโดยประมาณที่สะท้อนความแม่นยำของวิธีคำนวณ ไม่ใช่ช่วงความเชื่อมั่นทางสถิติ",
   "LSNS-6 score {n}/30 is under the social-isolation cutoff of 12.": "คะแนน LSNS-6 {n}/30 ต่ำกว่าจุดตัดภาวะโดดเดี่ยวทางสังคมที่ 12",

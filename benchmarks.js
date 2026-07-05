@@ -175,6 +175,21 @@ function physicalBenchmark(profile) {
   };
 }
 
+// --- Thai norm sourcing (researched 2026-07) ---
+// The profile-based benchmarks above (income, activity, BMI, giving, plastics,
+// retirement) already use Thai sources. The survey-instrument benchmarks below
+// (WHO-5, UCLA-3/LSNS-6, GSE) keep foreign GENERAL-POPULATION norms on purpose:
+// no representative Thai general-population norm appears to be published for any
+// of them. The Thai studies that do exist are non-representative and would trade
+// a country mismatch for a worse sampling bias, so they are deliberately NOT used:
+//   - WHO-5: only Thai primary-care patients (mean 14.32/25, SD 5.26; Saipanish
+//     2009, PubMed 19335382) — a clinical, low-skewed sample, not the public.
+//   - GSE: only Thais with type-2 diabetes (PeerJ 2022, PMC9135036) — clinical.
+//   - UCLA-3 / LSNS-6: only older-adult regional samples (e.g. Thanakwang 2012,
+//     Nan Province, age 60+) — wrong age band, not general-population.
+// Keeping a representative foreign norm + the in-UI caveat is the honest choice;
+// revisit only if a representative Thai general-population dataset is published.
+
 // --- MENTAL: WHO-5 vs community norms ---
 function mentalBenchmark(baseline) {
   if (!baseline || !Number.isFinite(baseline.who5)) return null;

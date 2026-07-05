@@ -1,6 +1,6 @@
 # Aspect Validation & Confidence Plan
 
-Status: **planned, not started** · Drafted 2026-07-05 · Target release cache-bust: **v16**
+Status: **all phases shipped** (Phase 1 @ v15→v16, Phase 2 @ v17, Phase 3 @ v18–v20) · Drafted 2026-07-05 · Last updated 2026-07-05
 
 Improve the trustworthiness of each of the 8 aspect scores across five dimensions:
 input validation, data-confidence signalling, completeness validation, methodological
@@ -87,6 +87,31 @@ Audit findings already visible in the code:
   - Add optional *post-onboarding* "deepen this aspect" follow-up items that refine a
     score without lengthening initial onboarding (protects the progressive-onboarding
     flow already shipped).
+
+### Phase 3 outcome (shipped 2026-07-05)
+
+- **Double-count (3a):** kept intentional; `weeklyLearningHours` feeds both
+  `personalGoals` and `humanityFuture`. Now documented in code comments and surfaced
+  on the "Future skills" component detail so the reuse is not silent.
+- **Approximations (3b):** the GSE-6-vs-10, income log-sigma, and WHO-5-German-sample
+  caveats are now shown to users in each benchmark's `notes[]` (i18n'd).
+- **Percentile ranges (3c):** every benchmark carries an indicative `range {low,high}`
+  (`percentileRange` in `benchmarks.js`), rendered on the dashboard + aspect gauge and
+  labelled an indicative band, **not** a statistical CI (we lack per-norm sample sizes).
+- **Thai norms — researched, deliberately NOT swapped:** no representative Thai
+  *general-population* norm is published for WHO-5, GSE, UCLA-3, or LSNS-6. The only
+  Thai data are non-representative (primary-care, type-2-diabetes, older-adult regional
+  samples) and would trade a country mismatch for a worse sampling bias. Foreign
+  general-population norms are retained with the 3b caveat. See the "Thai norm sourcing"
+  comment block in `benchmarks.js`. Profile-based benchmarks (income, activity, BMI,
+  giving, plastics, retirement) were already Thai-sourced.
+- **"Deepen this aspect":** implemented by closing the confidence loop — completing a
+  re-assessment (`submitCheckin`) now marks the re-asked instruments `answered`, so a
+  deepened survey score upgrades from **Estimated → High/Partial** instead of staying
+  estimated forever. The `#/checkin` route is already ungated (on-demand), and the
+  completeness prompts link to it. Bespoke per-aspect forms for the *profile-based*
+  aspects were intentionally deferred — they would duplicate onboarding; those aspects'
+  completeness prompts already guide users to routine logging / re-onboarding.
 
 ## Cross-cutting (every phase)
 
