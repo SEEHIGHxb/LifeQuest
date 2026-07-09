@@ -2,9 +2,9 @@
 
 import { stateManager } from "./state.js";
 import { renderRadarChart, renderTrendChart } from "./chart.js";
-import { INSTRUMENTS } from "./surveys.js";
-import { getAllBenchmarks, collectSources } from "./benchmarks.js";
-import { getAspectDetail, getAspectConfidence, ASPECT_KEYS } from "./aspects.js";
+import { INSTRUMENTS, DEEP_INSTRUMENTS, DEEP_SECTIONS, deepSectionInstruments } from "./surveys.js";
+import { getAllBenchmarks, collectSources, percentileBand } from "./benchmarks.js";
+import { getAspectDetail, getAspectConfidence, ASPECT_KEYS, isAspectDeepVerified } from "./aspects.js";
 import { getAspectSuggestions, getTopSuggestions } from "./suggestions.js";
 import { encodeCrewCode, decodeCrewCode, crewPoints } from "./crewcode.js";
 import { validateProfile, buildProvidedFlags, buildAnsweredFlags } from "./validation.js";
@@ -31,7 +31,7 @@ const aspectLabel = key => t(ASPECT_LABELS[key] || key);
 
 // --- CONFIDENCE UI (Phase 2) ---
 
-const CONFIDENCE_LABELS = () => ({ high: t("High"), partial: t("Partial"), estimated: t("Estimated") });
+const CONFIDENCE_LABELS = () => ({ verified: t("In-depth"), high: t("High"), partial: t("Partial"), estimated: t("Estimated") });
 
 // Aspects whose survey inputs the monthly re-assessment (#/checkin) re-runs, so
 // an estimated one there gets an actionable link rather than text-only guidance.
@@ -41,15 +41,49 @@ const CHECKIN_ASPECTS = ["mental", "relationships", "personalGoals"];
 // when confidence is unknown (older saves with no captured coverage).
 function confidenceBadge(conf) {
   if (!conf || !conf.tier) return "";
-  const title = tp("Score confidence: {answered} of {total} inputs answered", { answered: conf.answered, total: conf.total });
+  const title = conf.tier === "verified"
+    ? t("Measured with the full long-form instruments (deep assessment complete)")
+    : tp("Score confidence: {answered} of {total} inputs answered", { answered: conf.answered, total: conf.total });
   return `<span class="confidence-badge confidence-${conf.tier}" title="${escapeHtml(title)}">${CONFIDENCE_LABELS()[conf.tier]}</span>`;
 }
 
-// Component-row chip: shown only for partial/estimated to keep fully-answered
-// breakdowns uncluttered.
+// Component-row chip: shown for partial/estimated (to flag low confidence) and
+// for verified (to credit deep-assessment rows); high stays uncluttered.
 function componentConfidenceChip(tier) {
-  if (tier !== "partial" && tier !== "estimated") return "";
+  if (tier !== "partial" && tier !== "estimated" && tier !== "verified") return "";
   return `<span class="component-confidence confidence-${tier}">${CONFIDENCE_LABELS()[tier]}</span>`;
+}
+
+// --- FRIENDLIER PERCENTILE PRESENTATION ---
+//
+// A percentile is jargon; most people read "ahead of ~62% of people like you"
+// far more easily. These helpers turn the raw percentile into a plain-language
+// phrase and a one-line definition; the coarse band label comes from
+// percentileBand() in benchmarks.js. The exact number and its indicative range
+// stay available as secondary detail.
+
+// The headline sentence a non-technical reader understands at a glance.
+function percentilePhrase(percentile) {
+  return tp("Ahead of about {pct}% of people like you", { pct: percentile });
+}
+
+// One shared "Standing vs society" block, used on the dashboard row and the
+// aspect gauge. `compact` trims it to a single line for the dashboard list.
+function benchmarkStanding(b, { compact = false } = {}) {
+  const band = percentileBand(b.percentile);
+  const chip = `<span class="percentile-band band-${band.key}">${t(band.label)}</span>`;
+  const detail = tp("{pct} percentile · typical range {low}–{high}", {
+    pct: percentileLabel(b.percentile),
+    low: percentileLabel(b.range.low),
+    high: percentileLabel(b.range.high)
+  });
+  if (compact) {
+    return `<span class="benchmark-plain">${percentilePhrase(b.percentile)}</span> ${chip} <span class="benchmark-detail">${detail}</span>`;
+  }
+  return `
+    <p class="benchmark-plain-lead">${percentilePhrase(b.percentile)} ${chip}</p>
+    <p class="benchmark-detail">${detail}${b.verified ? ` · <span class="benchmark-verified">${t("in-depth verified")}</span>` : ""}</p>
+    <p class="gauge-note percentile-definition">${t("“Percentile” = the share of people you're ahead of, so higher is better. The range shows how precise this estimate is, not a statistical confidence interval.")}</p>`;
 }
 
 // Aspect keys currently scored purely from defaults (tier === "estimated").
@@ -156,6 +190,24 @@ function instrumentBlock(instrKey) {
 function collectInstrument(instrKey) {
   return INSTRUMENTS[instrKey].items.map((item, i) => {
     const el = document.querySelector(`input[name="${instrKey}-q${i}"]:checked`);
+    return el ? parseInt(el.value) : item.def;
+  });
+}
+
+// Deep-assessment instruments live in DEEP_INSTRUMENTS and use a "deep-" name
+// prefix so their radios never collide with an onboarding form on the page.
+function deepInstrumentBlock(instrKey) {
+  const instr = DEEP_INSTRUMENTS[instrKey];
+  return `
+    <div class="instrument-block">
+      <p class="instrument-title">${t(instr.title)}</p>
+      ${instr.items.map((item, i) => radioQuestion(`deep-${instrKey}`, i, item)).join("")}
+    </div>`;
+}
+
+function collectDeepInstrument(instrKey) {
+  return DEEP_INSTRUMENTS[instrKey].items.map((item, i) => {
+    const el = document.querySelector(`input[name="deep-${instrKey}-q${i}"]:checked`);
     return el ? parseInt(el.value) : item.def;
   });
 }
@@ -565,6 +617,18 @@ export function renderDashboard(containerId, state) {
         <p><strong>${t("Some scores are estimates.")}</strong> ${tp("These are scored from default answers: {aspects}. Re-run your assessment or log related routines to confirm them.", { aspects: estimated.map(aspectLabel).join(", ") })}${canDeepen ? ` <a href="#/checkin">${t("Deepen my survey scores")}</a>` : ""}</p>
       </div>`;
     })()}
+    ${(() => {
+      const done = ASPECT_KEYS.filter(k => isAspectDeepVerified(state, k)).length;
+      if (done >= ASPECT_KEYS.length) return "";
+      return `
+      <div class="deep-banner">
+        <div>
+          <p><strong>${t("Go deeper for more accurate scores.")}</strong> ${t("An optional in-depth assessment uses the full-length validated questionnaires to sharpen your estimates and tighten each percentile band.")}</p>
+          ${done > 0 ? `<p class="deep-progress">${tp("In-depth sections completed: {done}/{total}", { done, total: ASPECT_KEYS.length })}</p>` : ""}
+        </div>
+        <a href="#/deep" class="btn btn-primary" style="white-space: nowrap;">${done > 0 ? t("Continue in-depth") : t("Start in-depth assessment")}</a>
+      </div>`;
+    })()}
     <div class="dashboard-grid">
       <!-- LEFT COLUMN: STATUS & RADAR CHART -->
       <div>
@@ -627,7 +691,7 @@ export function renderDashboard(containerId, state) {
                   </div>
                   ${b ? `
                   <div class="benchmark-line" title="${escapeHtml(b.summary)}">
-                    ${tp("Society: ~{pct} percentile", { pct: percentileLabel(b.percentile) })} <span class="benchmark-method">(${METHOD_TAGS[b.method] || b.method})</span> <span class="benchmark-range">· ${tp("range ≈ {low}–{high}", { low: percentileLabel(b.range.low), high: percentileLabel(b.range.high) })}</span>
+                    ${benchmarkStanding(b, { compact: true })} <span class="benchmark-method">(${METHOD_TAGS[b.method] || b.method})</span>
                   </div>` : ""}
                 </a>
               `;
@@ -766,12 +830,10 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction, onR
               <div class="gauge-marker" style="left: ${b.percentile}%;"></div>
             </div>
             <div class="gauge-caption">
-              <span>${tp("~{pct} percentile", { pct: percentileLabel(b.percentile) })}</span>
-              <span class="benchmark-method">(${METHOD_TAGS[b.method] || b.method})</span>
-              <span class="benchmark-range">${tp("range ≈ {low}–{high}", { low: percentileLabel(b.range.low), high: percentileLabel(b.range.high) })}</span>
+              ${benchmarkStanding(b)}
+              <p class="benchmark-method benchmark-method-line">(${METHOD_TAGS[b.method] || b.method})</p>
             </div>
             <p class="gauge-summary">${escapeHtml(b.summary)}</p>
-            <p class="gauge-note gauge-range-note">${t("The range is an indicative band reflecting the method's precision, not a statistical confidence interval.")}</p>
             ${b.notes.map(n => `<p class="gauge-note">${escapeHtml(n)}</p>`).join("")}
             <div class="benchmark-sources">
               <details>
@@ -935,6 +997,70 @@ export function renderCheckin(containerId, state, onComplete) {
       errorEl.textContent = t("Re-assessment Error: ") + err.message;
       errorEl.classList.remove("d-none");
     }
+  });
+}
+
+// 2d. RENDER THE OPTIONAL IN-DEPTH ASSESSMENT (#/deep)
+//
+// One card per aspect section, each saved independently so a user can progress
+// through the long-form instruments a section at a time. Completing a section
+// upgrades that aspect to the "verified" confidence tier and tightens its band.
+export function renderDeepAssessment(containerId, state, onComplete) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const isCoupled = state.profile.relationshipStatus !== "Single";
+
+  const sectionCard = (section) => {
+    const done = isAspectDeepVerified(state, section.aspect);
+    const keys = deepSectionInstruments(section, isCoupled);
+    return `
+      <div class="card deep-section ${done ? "deep-section-done" : ""}" id="deep-section-${section.aspect}">
+        <div class="deep-section-head">
+          <h3 class="card-header">${t(section.title)}</h3>
+          ${done ? `<span class="confidence-badge confidence-verified">${t("In-depth")}</span>` : ""}
+        </div>
+        <p class="onb-why">${t(section.blurb)}</p>
+        ${done ? `<p class="deep-done-note">${t("Completed — this aspect's score is verified. You can redo it to update.")}</p>` : ""}
+        <form class="deep-form" data-aspect="${section.aspect}" data-keys="${keys.join(",")}">
+          ${keys.map(deepInstrumentBlock).join("")}
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 12px;">${done ? t("Update this section") : t("Save this section")}</button>
+        </form>
+      </div>`;
+  };
+
+  container.innerHTML = `
+    <a href="#/dashboard" class="aspect-back">&larr; ${t("Overview")}</a>
+    <div class="onboarding-container card" style="margin-bottom: 16px;">
+      <div class="brand" style="text-align: center; margin-bottom: 18px;">
+        <h1>${t("IN-DEPTH ASSESSMENT")}</h1>
+        <p>${t("Optional • full-length validated questionnaires • one section at a time")}</p>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--color-text-secondary);">
+        ${t("These longer questionnaires make each aspect's estimate more reliable and tighten its percentile band. Save each section on its own — completed sections are kept as you go. Reward: +60 points per section.")}
+      </p>
+    </div>
+    ${DEEP_SECTIONS.map(sectionCard).join("")}
+    <p id="deep-error" class="d-none" style="color: var(--color-crimson); font-weight: 600;"></p>
+  `;
+
+  container.querySelectorAll(".deep-form").forEach(form => {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById("deep-error");
+      errorEl.classList.add("d-none");
+      try {
+        const aspect = form.dataset.aspect;
+        const keys = form.dataset.keys.split(",").filter(Boolean);
+        const deepData = {};
+        keys.forEach(k => { deepData[k] = collectDeepInstrument(k); });
+        const result = stateManager.submitDeepAssessment(aspect, deepData);
+        onComplete(aspect, result);
+      } catch (err) {
+        console.error("Deep assessment submission failed:", err);
+        errorEl.textContent = t("Assessment Error: ") + err.message;
+        errorEl.classList.remove("d-none");
+      }
+    });
   });
 }
 

@@ -2,7 +2,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { GameStateManager } from "../state.js";
-import { getAspectConfidence } from "../aspects.js";
+import { getAspectConfidence, isAspectDeepVerified } from "../aspects.js";
 
 // Minimal localStorage mock so the manager can be constructed in Node
 function installMockStorage(initial = {}) {
@@ -320,6 +320,50 @@ test("a re-assessment upgrades survey confidence from estimated to high (Phase 3
   assert.equal(m.state.baseline.answered.ucla, true);
   assert.equal(m.state.baseline.answered.gse, true);
   assert.equal(getAspectConfidence(m.state, "mental").tier, "high", "who5 + st5 both answered");
+});
+
+// --- DEEP ASSESSMENT (Phase 4) ---
+
+test("a deep-assessment section verifies an aspect and recalibrates its score", () => {
+  const m = new GameStateManager();
+  m.submitOnboarding(MINIMAL_SURVEY);
+  assert.ok(!isAspectDeepVerified(m.state, "personalGoals"));
+  const before = m.state.aspects.personalGoals;
+
+  // Full-length personal-goals section: max GSE-10, Grit-12, and self-esteem.
+  const result = m.submitDeepAssessment("personalGoals", {
+    gse10: [4, 4, 4, 4, 4, 4, 4, 4, 4, 4], // raw 40 -> efficacy 100
+    grit12: [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], // raw 60 -> grit 100
+    rses: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3] // raw 30 -> esteem 100
+  });
+
+  assert.ok(result && typeof result.score === "number");
+  assert.equal(m.state.baseline.deep.gse10, 40);
+  assert.equal(m.state.baseline.deep.grit12, 60);
+  assert.equal(m.state.baseline.deep.rses, 30);
+  assert.equal(m.state.baseline.deepDone.personalGoals, true);
+  assert.equal(m.state.baseline.deepAnswered.gse10, true);
+  assert.equal(getAspectConfidence(m.state, "personalGoals").tier, "verified", "aspect now verified");
+  assert.ok(isAspectDeepVerified(m.state, "personalGoals"));
+  assert.ok(m.state.aspects.personalGoals >= before, "strong deep answers raise (or hold) the score");
+  assert.ok(m.state.aspects.personalGoals <= 100);
+});
+
+test("deep assessment persists through reload and verifies only its own section", () => {
+  const m = new GameStateManager();
+  m.submitOnboarding(MINIMAL_SURVEY);
+  m.submitDeepAssessment("mental", { pss10: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }); // no stress
+  assert.equal(m.state.baseline.deep.pss10, 0);
+
+  const reloaded = new GameStateManager();
+  assert.equal(reloaded.state.baseline.deepDone.mental, true, "deep data survives localStorage reload");
+  assert.equal(getAspectConfidence(reloaded.state, "mental").tier, "verified");
+  assert.ok(!isAspectDeepVerified(reloaded.state, "finance"), "other aspects stay unverified");
+});
+
+test("submitDeepAssessment needs an onboarding baseline first", () => {
+  const m = new GameStateManager();
+  assert.equal(m.submitDeepAssessment("mental", { pss10: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }), null);
 });
 
 test("corrupt saved state falls back to defaults", () => {

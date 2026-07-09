@@ -25,6 +25,9 @@ const CHECKIN_LOGS_PER_BONUS_POINT = 3;
 const CHECKIN_XP = 40;
 const CHECKIN_LIMIT = 60; // ~5 years of monthly records
 
+// One-time reward for completing an aspect's optional deep (long-form) section.
+const DEEP_ASSESSMENT_XP = 60;
+
 // Real crewmates added via shared Crew Codes on the Rankings tab.
 const FRIEND_LIMIT = 50;
 
@@ -103,6 +106,15 @@ function isoWeekKey(date) {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   const weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
   return `${d.getUTCFullYear()}-W${weekNo}`;
+}
+
+// ST-5 raw (0-15) -> stress-resilience 0-100 (higher = calmer). Same DMH bands
+// as calculateMentalScore; shared so the deep recompute stays consistent.
+function stressResilienceFromSt5(st5) {
+  if (st5 <= 4) return 100 - st5 * 10;
+  if (st5 <= 7) return 60 - (st5 - 4) * 10;
+  if (st5 <= 9) return 30 - (st5 - 7) * 10;
+  return 0;
 }
 
 export class GameStateManager {
@@ -425,6 +437,112 @@ export class GameStateManager {
     this.addXP(CHECKIN_XP);
     this.saveState();
     return shifts;
+  }
+
+  // --- DEEP ASSESSMENT (optional long-form recalibration) ---
+
+  // Records the full-length instruments for one aspect section and recomputes
+  // that aspect from the richer signal. Non-destructive: raw deep sums live in
+  // baseline.deep, coverage in baseline.deepAnswered, and completed sections in
+  // baseline.deepDone. Requires an existing onboarding baseline.
+  submitDeepAssessment(aspectKey, deepData) {
+    const b = this.state.baseline;
+    if (!b) return null;
+
+    const rawSum = answers => (answers || []).reduce((sum, val) => sum + parseInt(val || 0), 0);
+    const deep = { ...(b.deep || {}) };
+    const deepAnswered = { ...(b.deepAnswered || {}) };
+    for (const [key, arr] of Object.entries(deepData)) {
+      if (!Array.isArray(arr)) continue;
+      deep[key] = rawSum(arr);
+      deepAnswered[key] = true;
+    }
+    const deepDone = { ...(b.deepDone || {}), [aspectKey]: true };
+    this.state.baseline = { ...b, deep, deepAnswered, deepDone };
+
+    const newScore = this.deepAspectScore(aspectKey);
+    if (newScore !== null) this.state.aspects[aspectKey] = newScore;
+
+    this.addXP(DEEP_ASSESSMENT_XP);
+    this.saveState();
+    return { score: this.state.aspects[aspectKey] };
+  }
+
+  // Recompute one aspect from the deep instruments. Uses delta/blend forms that
+  // adjust the CURRENT score by the change the fuller instrument implies, so any
+  // logged drift or check-in shift is preserved. Returns null if the aspect's
+  // deep instruments aren't captured yet.
+  deepAspectScore(aspectKey) {
+    const p = this.state.profile;
+    const b = this.state.baseline;
+    const d = (b && b.deep) || null;
+    if (!d) return null;
+    const base = this.state.aspects[aspectKey];
+    const clamp = v => Math.max(0, Math.min(100, Math.round(v)));
+    const has = k => Number.isFinite(d[k]);
+    const num = x => Number(x) || 0;
+
+    switch (aspectKey) {
+      case "finance": {
+        // Swap CFPB-5 for CFPB-10 in the 0.4-weighted well-being term.
+        if (!has("cfpb10")) return null;
+        const shortN = (num(b.cfpb) / 20) * 100;
+        const deepN = (d.cfpb10 / 40) * 100;
+        return clamp(base + 0.4 * (deepN - shortN));
+      }
+      case "physical": {
+        // Blend in sedentary/sleep-hygiene self-report at 15%.
+        if (!has("sedentary")) return null;
+        return clamp(0.85 * base + 0.15 * ((d.sedentary / 12) * 100));
+      }
+      case "mental": {
+        // Average the PSS-10 stress reading into the ST-5 stress half.
+        if (!has("pss10")) return null;
+        const st5f = stressResilienceFromSt5(num(b.st5));
+        const pssResilience = 100 - (d.pss10 / 40) * 100;
+        return clamp(base + 0.25 * (pssResilience - st5f));
+      }
+      case "relationships": {
+        // Swap LSNS-6 for LSNS-R, and (coupled) RAS-3 for RAS-7.
+        let score = base;
+        if (has("lsnsR")) {
+          const shortN = (num(b.lsns) / 30) * 100;
+          const deepN = (d.lsnsR / 60) * 100;
+          const w = p.relationshipStatus === "Single" ? 0.5 : 0.4;
+          score += w * (deepN - shortN);
+        }
+        if (has("ras7") && p.relationshipStatus !== "Single" && Number.isFinite(b.ras)) {
+          const shortN = ((num(b.ras) - 3) / 12) * 100;
+          const deepN = ((d.ras7 - 7) / 28) * 100;
+          score += 0.3 * (deepN - shortN);
+        }
+        return clamp(score);
+      }
+      case "personalGoals": {
+        // Swap GSE-6->GSE-10 (w=0.4) and Grit-S->Grit-12 (w=0.3), then blend in
+        // Rosenberg self-esteem at 15%.
+        let score = base;
+        if (has("gse10")) score += 0.4 * (((d.gse10 - 10) / 30) * 100 - ((num(b.gse) - 6) / 18) * 100);
+        if (has("grit12")) score += 0.3 * (((d.grit12 - 12) / 48) * 100 - ((num(b.grit) - 4) / 16) * 100);
+        if (has("rses")) score = 0.85 * score + 0.15 * ((d.rses / 30) * 100);
+        return clamp(score);
+      }
+      case "socialContribution": {
+        if (!has("civicplus")) return null;
+        return clamp(0.8 * base + 0.2 * ((d.civicplus / 16) * 100));
+      }
+      case "environment": {
+        if (!has("greenplus")) return null;
+        return clamp(0.8 * base + 0.2 * ((d.greenplus / 16) * 100));
+      }
+      case "humanityFuture": {
+        // Blend in Consideration of Future Consequences at 20%.
+        if (!has("cfc12")) return null;
+        return clamp(0.8 * base + 0.2 * (((d.cfc12 - 12) / 48) * 100));
+      }
+      default:
+        return null;
+    }
   }
 
   // --- SCIENTIFIC ASPECT SCORING CALCULATIONS ---

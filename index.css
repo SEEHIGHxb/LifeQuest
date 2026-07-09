@@ -718,11 +718,10 @@ header {
 
 .gauge-caption {
   display: flex;
-  gap: 6px;
-  align-items: baseline;
-  font-family: var(--font-mono);
-  font-size: 0.95rem;
-  font-weight: 700;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  font-family: var(--font-sans);
   color: var(--color-navy);
 }
 
@@ -1035,6 +1034,86 @@ header {
 .confidence-caption {
   font-size: 0.75rem;
   color: var(--color-text-secondary);
+}
+/* "In-depth" (deep-assessment) tier reads as the strongest — filled, not outlined. */
+.confidence-verified {
+  color: #fff;
+  background: var(--color-navy);
+  border-color: var(--color-navy);
+}
+
+/* --- Friendlier percentile presentation --- */
+.benchmark-plain,
+.benchmark-plain-lead {
+  font-weight: 600;
+  color: var(--color-navy);
+}
+.benchmark-plain-lead {
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.benchmark-detail {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+.benchmark-verified { color: var(--color-navy); font-weight: 700; }
+.percentile-definition {
+  margin-top: 6px;
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+.benchmark-method-line { margin-top: 4px; }
+
+/* Band chip: a coarse plain-language label next to the number. */
+.percentile-band {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  line-height: 1.5;
+}
+.band-top10, .band-top25 { color: var(--color-nectar); }
+.band-above { color: var(--color-gold); }
+.band-around { color: var(--color-text-secondary); }
+.band-below, .band-bottom { color: var(--color-gold-light); }
+
+/* --- Deep (in-depth) assessment --- */
+.deep-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--color-card-border);
+  border-left: 3px solid var(--color-navy);
+  background: #faf9f6;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+.deep-banner p { font-size: 0.85rem; color: var(--color-text-primary); line-height: 1.45; }
+.deep-progress { font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px; }
+.deep-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+}
+.deep-section-done { border-left: 3px solid var(--color-navy); }
+.deep-done-note {
+  font-size: 0.78rem;
+  color: var(--color-navy);
+  font-weight: 600;
+  margin-bottom: 8px;
 }
 
 /* --- Log feedback moment: reward pop --- */

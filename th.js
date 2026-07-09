@@ -664,5 +664,136 @@ export const TH = {
   "Enter a number.": "กรุณากรอกตัวเลข",
   "Enter a value between {min} and {max}.": "กรุณากรอกค่าระหว่าง {min} ถึง {max}",
   "Please fix the highlighted fields before continuing.":
-    "กรุณาแก้ไขช่องที่ไฮไลต์ก่อนดำเนินการต่อ"
+    "กรุณาแก้ไขช่องที่ไฮไลต์ก่อนดำเนินการต่อ",
+
+  // --- Friendlier percentiles + deep assessment (Phase 4) ---
+  // NOTE: the individual in-depth questionnaire ITEM texts (PSS-10, CFC-12,
+  // Rosenberg, GSE-10, Grit-12, LSNS-R, CFPB-10, RAS-7, etc.) intentionally
+  // fall through to English until official Thai instrument versions are used —
+  // an unofficial translation of a validated clinical scale would reduce, not
+  // improve, its reliability (same reasoning as the Thai-norm decision).
+  "In-depth": "เชิงลึก",
+  "Measured with the full long-form instruments (deep assessment complete)":
+    "วัดด้วยแบบประเมินฉบับเต็ม (ทำแบบประเมินเชิงลึกครบแล้ว)",
+  "Ahead of about {pct}% of people like you": "นำหน้าผู้คนที่คล้ายคุณราว {pct}%",
+  "{pct} percentile · typical range {low}–{high}": "เปอร์เซ็นไทล์ {pct} · ช่วงทั่วไป {low}–{high}",
+  "in-depth verified": "ยืนยันเชิงลึกแล้ว",
+  "“Percentile” = the share of people you're ahead of, so higher is better. The range shows how precise this estimate is, not a statistical confidence interval.":
+    "“เปอร์เซ็นไทล์” = สัดส่วนของคนที่คุณนำหน้า ยิ่งสูงยิ่งดี ส่วนช่วงบอกว่าค่าประมาณนี้แม่นแค่ไหน ไม่ใช่ช่วงความเชื่อมั่นทางสถิติ",
+
+  "Go deeper for more accurate scores.": "เจาะลึกเพื่อคะแนนที่แม่นยำขึ้น",
+  "An optional in-depth assessment uses the full-length validated questionnaires to sharpen your estimates and tighten each percentile band.":
+    "แบบประเมินเชิงลึก (ไม่บังคับ) ใช้แบบสอบถามฉบับเต็มที่ผ่านการตรวจสอบ เพื่อให้ค่าประมาณคมขึ้นและช่วงเปอร์เซ็นไทล์แคบลง",
+  "In-depth sections completed: {done}/{total}": "ทำแบบประเมินเชิงลึกแล้ว: {done}/{total} หมวด",
+  "Continue in-depth": "ทำเชิงลึกต่อ",
+  "Start in-depth assessment": "เริ่มแบบประเมินเชิงลึก",
+  "IN-DEPTH ASSESSMENT": "แบบประเมินเชิงลึก",
+  "Optional • full-length validated questionnaires • one section at a time":
+    "ไม่บังคับ • แบบสอบถามฉบับเต็มที่ผ่านการตรวจสอบ • ทำทีละหมวด",
+  "These longer questionnaires make each aspect's estimate more reliable and tighten its percentile band. Save each section on its own — completed sections are kept as you go. Reward: +60 points per section.":
+    "แบบสอบถามที่ยาวขึ้นเหล่านี้ทำให้ค่าประมาณของแต่ละด้านน่าเชื่อถือขึ้นและช่วงเปอร์เซ็นไทล์แคบลง บันทึกแต่ละหมวดแยกกันได้ — หมวดที่ทำเสร็จจะถูกเก็บไว้ รางวัล: +60 คะแนนต่อหมวด",
+  "Completed — this aspect's score is verified. You can redo it to update.":
+    "เสร็จแล้ว — คะแนนด้านนี้ได้รับการยืนยัน คุณทำซ้ำเพื่ออัปเดตได้",
+  "Update this section": "อัปเดตหมวดนี้",
+  "Save this section": "บันทึกหมวดนี้",
+  "{aspect} verified in depth — score now {score} (+60 points)":
+    "{aspect} ยืนยันเชิงลึกแล้ว — คะแนนตอนนี้ {score} (+60 คะแนน)",
+  "In-depth assessment needs a baseline — complete the initial assessment first.":
+    "แบบประเมินเชิงลึกต้องมีค่าพื้นฐานก่อน — กรุณาทำแบบประเมินเริ่มต้นให้เสร็จก่อน",
+
+  // Percentile band labels
+  "Top 10%": "10% แรก",
+  "Top 25%": "25% แรก",
+  "Above average": "สูงกว่าค่าเฉลี่ย",
+  "Around average": "ราวค่าเฉลี่ย",
+  "Below average": "ต่ำกว่าค่าเฉลี่ย",
+  "Bottom 25%": "25% ล่าง",
+
+  // Deep section titles & blurbs
+  "Finance — in depth": "การเงิน — เชิงลึก",
+  "Physical — in depth": "สุขภาพกาย — เชิงลึก",
+  "Mental — in depth": "สุขภาพใจ — เชิงลึก",
+  "Relationships — in depth": "ความสัมพันธ์ — เชิงลึก",
+  "Personal Goals — in depth": "เป้าหมายส่วนตัว — เชิงลึก",
+  "Social Contribution — in depth": "การมีส่วนร่วมต่อสังคม — เชิงลึก",
+  "Environment — in depth": "สิ่งแวดล้อม — เชิงลึก",
+  "Humanity's Future — in depth": "อนาคตของมนุษยชาติ — เชิงลึก",
+  "The full 10-item CFPB Financial Well-Being Scale (onboarding used 5).":
+    "แบบวัดสุขภาวะทางการเงิน CFPB ฉบับเต็ม 10 ข้อ (ตอนเริ่มต้นใช้ 5 ข้อ)",
+  "Sedentary time and sleep hygiene refine your activity and sleep scores.":
+    "เวลานั่งและสุขอนามัยการนอนช่วยปรับคะแนนการเคลื่อนไหวและการนอนให้แม่นขึ้น",
+  "The 10-item Perceived Stress Scale adds a validated stress reading.":
+    "แบบวัดความเครียด PSS-10 เพิ่มการวัดความเครียดที่ผ่านการตรวจสอบ",
+  "The full LSNS-R social-network scale, plus the full relationship scale for couples.":
+    "แบบวัดเครือข่ายสังคม LSNS-R ฉบับเต็ม พร้อมแบบวัดความสัมพันธ์ฉบับเต็มสำหรับผู้มีคู่",
+  "Full GSE-10 and Grit-12, plus the Rosenberg Self-Esteem Scale.":
+    "GSE-10 และ Grit-12 ฉบับเต็ม พร้อมแบบวัดความภาคภูมิใจในตนเองของ Rosenberg",
+  "Additional giving and civic-participation habits.": "พฤติกรรมการให้และการมีส่วนร่วมพลเมืองเพิ่มเติม",
+  "Additional everyday green habits.": "นิสัยรักษ์โลกในชีวิตประจำวันเพิ่มเติม",
+  "The 12-item Consideration of Future Consequences scale.": "แบบวัดการคำนึงถึงผลในอนาคต (CFC) 12 ข้อ",
+
+  // Deep instrument titles
+  "CFPB Financial Well-Being Scale (full 10-item)": "แบบวัดสุขภาวะทางการเงิน CFPB (ฉบับเต็ม 10 ข้อ)",
+  "Sedentary time & sleep hygiene": "เวลานั่งและสุขอนามัยการนอน",
+  "Perceived Stress Scale (PSS-10, past month)": "แบบวัดความเครียด (PSS-10, เดือนที่ผ่านมา)",
+  "Lubben Social Network Scale – Revised (LSNS-R)": "แบบวัดเครือข่ายสังคม Lubben ฉบับปรับปรุง (LSNS-R)",
+  "Relationship Assessment Scale (full 7-item)": "แบบวัดความสัมพันธ์ (ฉบับเต็ม 7 ข้อ)",
+  "General Self-Efficacy Scale (full 10-item)": "แบบวัดการรับรู้ความสามารถตนเอง (ฉบับเต็ม 10 ข้อ)",
+  "Grit Scale (full 12-item)": "แบบวัดความมุ่งมั่น (ฉบับเต็ม 12 ข้อ)",
+  "Rosenberg Self-Esteem Scale": "แบบวัดความภาคภูมิใจในตนเองของ Rosenberg",
+  "Giving & civic habits (self-report)": "นิสัยการให้และพลเมือง (รายงานตนเอง)",
+  "Everyday green habits (self-report)": "นิสัยรักษ์โลกประจำวัน (รายงานตนเอง)",
+  "Consideration of Future Consequences (CFC-12)": "การคำนึงถึงผลในอนาคต (CFC-12)",
+
+  // Deep component labels & details (aspects.js)
+  "Financial well-being (CFPB-10)": "สุขภาวะทางการเงิน (CFPB-10)",
+  "Perceived stress (PSS-10)": "ความเครียดที่รับรู้ (PSS-10)",
+  "Social network (LSNS-R)": "เครือข่ายสังคม (LSNS-R)",
+  "Relationship quality (RAS-7)": "คุณภาพความสัมพันธ์ (RAS-7)",
+  "Self-efficacy (GSE-10)": "การรับรู้ความสามารถตนเอง (GSE-10)",
+  "Grit (12-item)": "ความมุ่งมั่น (12 ข้อ)",
+  "Self-esteem (Rosenberg)": "ความภาคภูมิใจในตนเอง (Rosenberg)",
+  "Giving & civic habits": "นิสัยการให้และพลเมือง",
+  "Green habits (extended)": "นิสัยรักษ์โลก (ฉบับขยาย)",
+  "Future orientation (CFC-12)": "การมองการณ์ไกล (CFC-12)",
+  "Full 10-item scale — raw {n}/40": "แบบเต็ม 10 ข้อ — คะแนนดิบ {n}/40",
+  "Sitting time + sleep habits — raw {n}/12": "เวลานั่ง + นิสัยการนอน — คะแนนดิบ {n}/12",
+  "Stress {n}/40, inverted (lower stress scores higher)": "ความเครียด {n}/40 กลับด้าน (เครียดน้อยได้คะแนนสูงกว่า)",
+  "Full 12-item network scale — raw {n}/60": "แบบเครือข่ายเต็ม 12 ข้อ — คะแนนดิบ {n}/60",
+  "Full 7-item scale — raw {n}/35": "แบบเต็ม 7 ข้อ — คะแนนดิบ {n}/35",
+  "Full 12-item scale — raw {n}/60": "แบบเต็ม 12 ข้อ — คะแนนดิบ {n}/60",
+  "Rosenberg scale — raw {n}/30": "แบบ Rosenberg — คะแนนดิบ {n}/30",
+  "Additional habits — raw {n}/16": "นิสัยเพิ่มเติม — คะแนนดิบ {n}/16",
+  "Scored from your full 10-item GSE — a direct match to the 25-country norm, no short-form approximation.":
+    "คิดจาก GSE ฉบับเต็ม 10 ข้อของคุณ — ตรงกับเกณฑ์ 25 ประเทศพอดี ไม่ต้องประมาณจากแบบสั้น",
+
+  // New answer-option labels used by the deep instruments
+  "Almost never": "แทบไม่เคย",
+  "Fairly often": "ค่อนข้างบ่อย",
+  "Extremely characteristic of me": "ตรงกับฉันมากที่สุด",
+  "Somewhat characteristic of me": "ค่อนข้างตรงกับฉัน",
+  "Uncertain": "ไม่แน่ใจ",
+  "Somewhat uncharacteristic of me": "ค่อนข้างไม่ตรงกับฉัน",
+  "Extremely uncharacteristic of me": "ไม่ตรงกับฉันเลย",
+  "Strongly agree": "เห็นด้วยอย่างยิ่ง",
+  "Agree": "เห็นด้วย",
+  "Disagree": "ไม่เห็นด้วย",
+  "Strongly disagree": "ไม่เห็นด้วยอย่างยิ่ง",
+  "Less than monthly": "น้อยกว่าเดือนละครั้ง",
+  "Monthly": "เดือนละครั้ง",
+  "A few times a month": "เดือนละไม่กี่ครั้ง",
+  "Weekly": "ทุกสัปดาห์",
+  "A few times a week": "สัปดาห์ละไม่กี่ครั้ง",
+  "Daily": "ทุกวัน",
+  "Seldom": "นาน ๆ ครั้ง",
+  "None / very few": "ไม่มี / น้อยมาก",
+  "A few": "ไม่กี่อย่าง",
+  "Some": "บ้าง",
+  "Many": "มาก",
+  "Very many": "มากมาย",
+  "Less than 4 hours": "น้อยกว่า 4 ชั่วโมง",
+  "4–6 hours": "4–6 ชั่วโมง",
+  "6–8 hours": "6–8 ชั่วโมง",
+  "8–10 hours": "8–10 ชั่วโมง",
+  "More than 10 hours": "มากกว่า 10 ชั่วโมง"
 };

@@ -85,14 +85,34 @@ function toPercentile(p01) {
 //   distribution = real published mean/SD  -> tightest
 //   estimate     = calibrated curve        -> medium
 //   threshold    = participation-band placement -> coarsest
+// A completed deep (long-form) section raises reliability, so its band is
+// roughly half as wide as the short-form one.
 const PERCENTILE_MARGIN = { distribution: 6, estimate: 10, threshold: 12 };
+const PERCENTILE_MARGIN_VERIFIED = { distribution: 3, estimate: 5, threshold: 8 };
 
-export function percentileRange(percentile, method) {
-  const margin = PERCENTILE_MARGIN[method] ?? 10;
+export function percentileRange(percentile, method, verified = false) {
+  const table = verified ? PERCENTILE_MARGIN_VERIFIED : PERCENTILE_MARGIN;
+  const margin = table[method] ?? (verified ? 5 : 10);
   return {
     low: Math.max(1, percentile - margin),
     high: Math.min(99, percentile + margin)
   };
+}
+
+// Coarse plain-language band for a percentile, for a friendlier presentation
+// than a bare number. `label` is the canonical English string (the UI localizes
+// it with t()). Kept here (not in the UI) so it is unit-testable without a DOM.
+export const PERCENTILE_BANDS = [
+  { min: 90, key: "top10", label: "Top 10%" },
+  { min: 75, key: "top25", label: "Top 25%" },
+  { min: 60, key: "above", label: "Above average" },
+  { min: 40, key: "around", label: "Around average" },
+  { min: 25, key: "below", label: "Below average" },
+  { min: 0, key: "bottom", label: "Bottom 25%" }
+];
+
+export function percentileBand(percentile) {
+  return PERCENTILE_BANDS.find(b => percentile >= b.min) || PERCENTILE_BANDS[PERCENTILE_BANDS.length - 1];
 }
 
 export function ordinal(n) {
@@ -231,18 +251,23 @@ function relationshipsBenchmark(baseline) {
 // --- PERSONAL GOALS: self-efficacy vs 25-country norms ---
 function personalGoalsBenchmark(baseline) {
   if (!baseline || !Number.isFinite(baseline.gse)) return null;
-  const perItem = baseline.gse / 6; // GSE-6 raw 6-24 -> per-item 1-4
+  // The deep section captures the full GSE-10, which matches the 25-country
+  // norm exactly; without it we per-item-approximate from the GSE-6 short form.
+  const deepGse = baseline.deep && Number.isFinite(baseline.deep.gse10);
+  const perItem = deepGse ? baseline.deep.gse10 / 10 : baseline.gse / 6;
   const notes = [];
   if (Number.isFinite(baseline.grit)) {
     notes.push(tp("Grit {g}/5 vs the ~3.4 adult reference point.", { g: (baseline.grit / 4).toFixed(1) }));
   }
-  notes.push(t("Your 6-item GSE is compared per-item against 10-item GSE norms — a short-form approximation, not an exact match."));
+  notes.push(deepGse
+    ? t("Scored from your full 10-item GSE — a direct match to the 25-country norm, no short-form approximation.")
+    : t("Your 6-item GSE is compared per-item against 10-item GSE norms — a short-form approximation, not an exact match."));
   return {
     // Per-item comparison against the GSE-10 norm (29.55/10 items = 2.96,
-    // SD 5.32/10 = 0.53); our survey uses the 6-item short form, so this
-    // is an approximation.
+    // SD 5.32/10 = 0.53). With the deep GSE-10 this is exact; the GSE-6 short
+    // form is an approximation.
     percentile: toPercentile(normalCdf(perItem, 2.955, 0.532)),
-    method: "estimate",
+    method: deepGse ? "distribution" : "estimate",
     summary: t("Self-efficacy (GSE) vs 25-country norms, N=19,120"),
     notes,
     sources: [SOURCES.gseScholz, SOURCES.gritDuckworth]
@@ -334,9 +359,11 @@ export function getAllBenchmarks(state) {
   };
   // Attach an indicative percentile range to every computable benchmark in one
   // place (immutably) so each *Benchmark function stays focused on its score.
+  // Deep-verified aspects get the narrower band.
+  const deepDone = (baseline && baseline.deepDone) || {};
   const withRanges = {};
   for (const [key, b] of Object.entries(set)) {
-    withRanges[key] = b ? { ...b, range: percentileRange(b.percentile, b.method) } : null;
+    withRanges[key] = b ? { ...b, range: percentileRange(b.percentile, b.method, !!deepDone[key]), verified: !!deepDone[key] } : null;
   }
   return withRanges;
 }

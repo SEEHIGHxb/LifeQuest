@@ -128,7 +128,57 @@ export function getAspectConfidence(state, aspectKey) {
     }
   }
   const yes = [...seen.values()].filter(Boolean).length;
-  return { tier: tierFrom(yes, seen.size), answered: yes, total: seen.size };
+  const result = { tier: tierFrom(yes, seen.size), answered: yes, total: seen.size };
+  // A completed deep (long-form) section outranks every short-form tier: the
+  // aspect has been measured with full validated instruments.
+  if (isAspectDeepVerified(state, aspectKey)) {
+    return { ...result, tier: "verified", verified: true };
+  }
+  return result;
+}
+
+// True once the user has completed this aspect's optional deep section.
+export function isAspectDeepVerified(state, aspectKey) {
+  return Boolean(state && state.baseline && state.baseline.deepDone && state.baseline.deepDone[aspectKey]);
+}
+
+// Extra component rows sourced from the deep (long-form) instruments, shown only
+// once a deep section is completed. Each is flagged "verified" so the UI can
+// mark it. Values are the deep instrument's normalized 0-100 sub-score.
+function deepComponents(aspectKey, b) {
+  const d = (b && b.deep) || null;
+  if (!d) return [];
+  const has = k => Number.isFinite(d[k]);
+  const row = (key, label, value, detail) => ({ key, label, value: clamp100(value), detail, confidence: "verified" });
+  switch (aspectKey) {
+    case "finance":
+      return has("cfpb10") ? [row("cfpb10", t("Financial well-being (CFPB-10)"), (d.cfpb10 / 40) * 100, tp("Full 10-item scale — raw {n}/40", { n: d.cfpb10 }))] : [];
+    case "physical":
+      return has("sedentary") ? [row("sedentary", t("Sedentary & sleep hygiene"), (d.sedentary / 12) * 100, tp("Sitting time + sleep habits — raw {n}/12", { n: d.sedentary }))] : [];
+    case "mental":
+      return has("pss10") ? [row("pss10", t("Perceived stress (PSS-10)"), 100 - (d.pss10 / 40) * 100, tp("Stress {n}/40, inverted (lower stress scores higher)", { n: d.pss10 }))] : [];
+    case "relationships": {
+      const rows = [];
+      if (has("lsnsR")) rows.push(row("lsnsR", t("Social network (LSNS-R)"), (d.lsnsR / 60) * 100, tp("Full 12-item network scale — raw {n}/60", { n: d.lsnsR })));
+      if (has("ras7")) rows.push(row("ras7", t("Relationship quality (RAS-7)"), ((d.ras7 - 7) / 28) * 100, tp("Full 7-item scale — raw {n}/35", { n: d.ras7 })));
+      return rows;
+    }
+    case "personalGoals": {
+      const rows = [];
+      if (has("gse10")) rows.push(row("gse10", t("Self-efficacy (GSE-10)"), ((d.gse10 - 10) / 30) * 100, tp("Full 10-item scale — raw {n}/40", { n: d.gse10 })));
+      if (has("grit12")) rows.push(row("grit12", t("Grit (12-item)"), ((d.grit12 - 12) / 48) * 100, tp("Full 12-item scale — raw {n}/60", { n: d.grit12 })));
+      if (has("rses")) rows.push(row("rses", t("Self-esteem (Rosenberg)"), (d.rses / 30) * 100, tp("Rosenberg scale — raw {n}/30", { n: d.rses })));
+      return rows;
+    }
+    case "socialContribution":
+      return has("civicplus") ? [row("civicplus", t("Giving & civic habits"), (d.civicplus / 16) * 100, tp("Additional habits — raw {n}/16", { n: d.civicplus }))] : [];
+    case "environment":
+      return has("greenplus") ? [row("greenplus", t("Green habits (extended)"), (d.greenplus / 16) * 100, tp("Additional habits — raw {n}/16", { n: d.greenplus }))] : [];
+    case "humanityFuture":
+      return has("cfc12") ? [row("cfc12", t("Future orientation (CFC-12)"), ((d.cfc12 - 12) / 48) * 100, tp("Full 12-item scale — raw {n}/60", { n: d.cfc12 }))] : [];
+    default:
+      return [];
+  }
 }
 
 function metMinutes(p) {
@@ -318,10 +368,12 @@ export function getAspectDetail(state, aspectKey) {
   };
 
   // Annotate each component with its confidence tier (new object, no mutation).
-  const components = componentsByAspect[aspectKey]().map(c => ({
+  const shortComponents = componentsByAspect[aspectKey]().map(c => ({
     ...c,
     confidence: componentConfidence(aspectKey, c.key, provided, answered)
   }));
+  // Deep (long-form) rows already carry their own "verified" confidence.
+  const components = [...shortComponents, ...deepComponents(aspectKey, b)];
 
   return {
     key: aspectKey,

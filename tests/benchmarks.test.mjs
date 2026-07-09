@@ -1,7 +1,7 @@
 // Tests for population benchmark percentiles (node --test)
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { normalCdf, ordinal, getAllBenchmarks, collectSources, percentileRange } from "../benchmarks.js";
+import { normalCdf, ordinal, getAllBenchmarks, collectSources, percentileRange, percentileBand } from "../benchmarks.js";
 import { GameStateManager } from "../state.js";
 
 function installMockStorage(initial = {}) {
@@ -297,4 +297,43 @@ test("getAllBenchmarks attaches a range that brackets each percentile", () => {
 test("null benchmarks carry no range (pre-baseline saves)", () => {
   const all = getAllBenchmarks(makeState({}, null));
   assert.equal(all.mental, null, "survey-only aspects stay null, not a ranged object");
+});
+
+// --- DEEP ASSESSMENT + FRIENDLIER PERCENTILES ---
+
+test("percentileRange tightens (roughly halves) for deep-verified aspects", () => {
+  assert.deepEqual(percentileRange(50, "distribution", true), { low: 47, high: 53 });
+  assert.deepEqual(percentileRange(50, "estimate", true), { low: 45, high: 55 });
+  assert.deepEqual(percentileRange(50, "threshold", true), { low: 42, high: 58 });
+  const short = percentileRange(50, "estimate");
+  const deep = percentileRange(50, "estimate", true);
+  assert.ok((deep.high - deep.low) < (short.high - short.low), "verified band is narrower");
+});
+
+test("percentileBand maps a percentile to a plain-language band", () => {
+  assert.equal(percentileBand(95).key, "top10");
+  assert.equal(percentileBand(90).key, "top10");
+  assert.equal(percentileBand(80).key, "top25");
+  assert.equal(percentileBand(65).key, "above");
+  assert.equal(percentileBand(50).key, "around");
+  assert.equal(percentileBand(30).key, "below");
+  assert.equal(percentileBand(10).key, "bottom");
+});
+
+test("a deep-verified aspect gets a narrower band and a verified flag", () => {
+  const plain = getAllBenchmarks(makeState()).personalGoals;
+  const verifiedBaseline = { ...BASELINE, deep: { gse10: 30 }, deepDone: { personalGoals: true } };
+  const deep = getAllBenchmarks(makeState({}, verifiedBaseline)).personalGoals;
+  assert.equal(deep.verified, true);
+  assert.ok(!plain.verified);
+  assert.ok((deep.range.high - deep.range.low) < (plain.range.high - plain.range.low));
+});
+
+test("the full GSE-10 makes the personal-goals benchmark an exact distribution match", () => {
+  const shortForm = getAllBenchmarks(makeState({}, { ...BASELINE, gse: 18 })).personalGoals;
+  assert.equal(shortForm.method, "estimate");
+  // GSE-10 raw 30 -> per-item 3.0, same reading as the short form but now exact.
+  const deep = getAllBenchmarks(makeState({}, { ...BASELINE, deep: { gse10: 30 }, deepDone: { personalGoals: true } })).personalGoals;
+  assert.equal(deep.method, "distribution");
+  assert.ok(deep.notes.some(n => n.includes("direct match")));
 });

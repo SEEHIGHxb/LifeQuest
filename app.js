@@ -9,8 +9,9 @@ import {
   renderLeaderboard,
   renderAspectPage,
   renderCheckin,
+  renderDeepAssessment,
   getLumiTip
-} from "./ui.js?v=20";
+} from "./ui.js?v=21";
 import { ASPECT_KEYS, ASPECT_META } from "./aspects.js";
 import { t, tp, getLang, setLang } from "./i18n.js";
 
@@ -34,6 +35,9 @@ function routeFromHash() {
   }
   if (path === "checkin") {
     return { type: "checkin" };
+  }
+  if (path === "deep") {
+    return { type: "deep" };
   }
   return { type: "tab", tab: TABS.includes(path) ? path : DEFAULT_TAB };
 }
@@ -147,6 +151,8 @@ function renderActiveTab() {
     renderAspectPage("main-view", state, route.key, handleLogAction, renderActiveTab);
   } else if (route.type === "checkin") {
     renderCheckin("main-view", state, handleCheckinComplete);
+  } else if (route.type === "deep") {
+    renderDeepAssessment("main-view", state, handleDeepComplete);
   } else if (activeTab === "dashboard") {
     renderDashboard("main-view", state);
   } else if (activeTab === "ledger") {
@@ -169,6 +175,18 @@ function handleCheckinComplete(shifts) {
     showToast(t("Re-assessment needs a baseline — complete the initial assessment first."), "warning");
   }
   window.location.hash = "#/dashboard";
+}
+
+function handleDeepComplete(aspect, result) {
+  if (result && result.score !== undefined) {
+    showToast(tp("{aspect} verified in depth — score now {score} (+60 points)", {
+      aspect: t(ASPECT_META[aspect]?.label || aspect),
+      score: result.score
+    }));
+  } else {
+    showToast(t("In-depth assessment needs a baseline — complete the initial assessment first."), "warning");
+  }
+  renderActiveTab(); // stay on #/deep so the saved section shows as verified
 }
 
 function handleLogAction(id, title, impacts, xp, quantity = null) {
