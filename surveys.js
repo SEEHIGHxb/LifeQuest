@@ -108,13 +108,16 @@ export const INSTRUMENTS = {
     ]
   },
   st5: {
+    // `def` is the scale MIDPOINT (not the calmest option): a skipped ST-5
+    // yields a neutral ~50 stress-resilience reading rather than a fabricated
+    // "perfectly calm" 100. Confidence flagging still marks it as estimated.
     title: "ST-5 Stress Index (past 2-4 weeks)",
     items: [
-      { text: "How often did you have trouble sleeping because of worry?", options: ST5_FREQ, def: 0 },
-      { text: "How often did you have poor concentration?", options: ST5_FREQ, def: 0 },
-      { text: "How often did you feel irritable, restless, or agitated?", options: ST5_FREQ, def: 0 },
-      { text: "How often did you feel bored or discouraged?", options: ST5_FREQ, def: 0 },
-      { text: "How often did you not want to meet people?", options: ST5_FREQ, def: 0 }
+      { text: "How often did you have trouble sleeping because of worry?", options: ST5_FREQ, def: 1 },
+      { text: "How often did you have poor concentration?", options: ST5_FREQ, def: 1 },
+      { text: "How often did you feel irritable, restless, or agitated?", options: ST5_FREQ, def: 1 },
+      { text: "How often did you feel bored or discouraged?", options: ST5_FREQ, def: 1 },
+      { text: "How often did you not want to meet people?", options: ST5_FREQ, def: 1 }
     ]
   },
   who5: {
@@ -139,11 +142,13 @@ export const INSTRUMENTS = {
     ]
   },
   ucla: {
+    // `def` is the scale MIDPOINT ("Some of the time"): a skipped UCLA yields a
+    // neutral ~50 rather than a fabricated "never lonely" 100.
     title: "UCLA Loneliness Index",
     items: [
-      { text: "How often do you feel that you lack companionship?", options: UCLA_FREQ, def: 1 },
-      { text: "How often do you feel left out?", options: UCLA_FREQ, def: 1 },
-      { text: "How often do you feel isolated from others?", options: UCLA_FREQ, def: 1 }
+      { text: "How often do you feel that you lack companionship?", options: UCLA_FREQ, def: 2 },
+      { text: "How often do you feel left out?", options: UCLA_FREQ, def: 2 },
+      { text: "How often do you feel isolated from others?", options: UCLA_FREQ, def: 2 }
     ]
   },
   ras: {

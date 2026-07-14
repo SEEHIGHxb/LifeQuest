@@ -2,6 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Backstop for the innerHTML sinks: even if an unescaped value slipped
+       through, no inline/injected script can execute (script-src 'self', no
+       'unsafe-inline'). Inline STYLE attributes are used throughout the app, so
+       style-src keeps 'unsafe-inline'; Google Fonts are the only remote origins. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Life Balance Index — Personal Wellbeing Assessment</title>
   <meta name="theme-color" content="#24344d">

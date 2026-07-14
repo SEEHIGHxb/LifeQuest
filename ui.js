@@ -27,7 +27,9 @@ const ASPECT_LABELS = {
 };
 
 // Localized aspect label (falls back to the raw key).
-const aspectLabel = key => t(ASPECT_LABELS[key] || key);
+// Escaped: an unknown key (e.g. from an imported save) falls through to `key`
+// itself, which would otherwise be echoed raw into innerHTML.
+const aspectLabel = key => escapeHtml(t(ASPECT_LABELS[key] || key));
 
 // --- CONFIDENCE UI (Phase 2) ---
 
@@ -635,18 +637,18 @@ export function renderDashboard(containerId, state) {
         <div class="card" style="display: flex; gap: 20px; align-items: center; padding: 18px 24px;">
           <div style="position: relative;">
             <div class="seal">✦</div>
-            <div style="position: absolute; bottom: -5px; right: -5px;" class="level-badge">Lv.${p.level}</div>
+            <div style="position: absolute; bottom: -5px; right: -5px;" class="level-badge">Lv.${escapeHtml(p.level)}</div>
           </div>
           <div style="flex-grow: 1;">
             <h3 style="font-family: var(--font-serif); font-size: 1.4rem; font-weight: bold; color: var(--color-navy);">${escapeHtml(p.name)}</h3>
             <p style="font-family: var(--font-sans); font-size: 0.82rem; color: var(--color-gold); font-weight: 600;">
-              ${t(p.rank)} &bull; ${escapeHtml(t(p.employment))} (${escapeHtml(t(p.region))})
+              ${escapeHtml(t(p.rank))} &bull; ${escapeHtml(t(p.employment))} (${escapeHtml(t(p.region))})
             </p>
             <div class="xp-bar-container" role="progressbar" aria-label="${t("Experience progress")}" aria-valuenow="${xpPercent}" aria-valuemin="0" aria-valuemax="100">
               <div class="xp-bar-fill" style="width: ${xpPercent}%;"></div>
             </div>
             <div style="display: flex; justify-content: space-between; font-family: var(--font-serif); font-size: 0.75rem; margin-top: 4px; color: var(--color-text-secondary);">
-              <span>Points: ${p.xp} / ${xpNeeded}</span>
+              <span>Points: ${escapeHtml(p.xp)} / ${xpNeeded}</span>
               <span>${tp("Progress: {pct}%", { pct: xpPercent })}</span>
             </div>
           </div>
@@ -736,7 +738,7 @@ export function renderDashboard(containerId, state) {
 // Shared routine-card markup (ledger + aspect pages).
 function actionCard(action, removable) {
   return `
-    <div class="action-card" data-id="${action.id}" role="button" tabindex="0" aria-label="${tp("Log {title}", { title: escapeHtml(t(action.title)) })}">
+    <div class="action-card" data-id="${escapeHtml(action.id)}" role="button" tabindex="0" aria-label="${tp("Log {title}", { title: escapeHtml(t(action.title)) })}">
       ${removable ? `<button type="button" class="action-remove" data-remove-id="${action.id}" aria-label="${t("Remove routine")}" title="${t("Remove routine")}">✕</button>` : ""}
       <div class="action-title">${escapeHtml(t(action.title))}</div>
       <div class="action-impacts">+${action.xp} points</div>
@@ -1347,10 +1349,10 @@ export function renderLeaderboard(containerId, state, onRefresh) {
                   <td style="padding: 12px 10px;">
                     ${escapeHtml(player.isNpc ? t(player.name) : player.name)}
                     ${player.isNpc ? `<span class="npc-tag">${t("Sample")}</span>` : ""}
-                    ${player.isFriend ? `<button type="button" class="friend-remove" data-friend-id="${player.id}" aria-label="${tp("Remove {name}", { name: escapeHtml(player.name) })}" title="${t("Remove participant")}">✕</button>` : ""}
+                    ${player.isFriend ? `<button type="button" class="friend-remove" data-friend-id="${escapeHtml(player.id)}" aria-label="${tp("Remove {name}", { name: escapeHtml(player.name) })}" title="${t("Remove participant")}">✕</button>` : ""}
                   </td>
-                  <td style="padding: 12px 10px; text-align: center; font-family: var(--font-mono);">${player.level}</td>
-                  <td style="padding: 12px 10px; text-align: right; font-family: var(--font-mono);">${player.totalPoints}</td>
+                  <td style="padding: 12px 10px; text-align: center; font-family: var(--font-mono);">${escapeHtml(player.level)}</td>
+                  <td style="padding: 12px 10px; text-align: right; font-family: var(--font-mono);">${escapeHtml(player.totalPoints)}</td>
                   <td style="padding: 12px 10px; text-align: center;"><span class="holo-badge">${player.rankClass}</span></td>
                 </tr>
               `;

@@ -87,6 +87,7 @@ function initializeApp() {
   const state = stateManager.state;
   applyChromeTranslations();
   setupLanguageToggle();
+  maybeOfferRecovery();
 
   if (!state.onboarded) {
     // Show Onboarding Survey
@@ -192,8 +193,12 @@ function handleDeepComplete(aspect, result) {
 function handleLogAction(id, title, impacts, xp, quantity = null) {
   const result = stateManager.logAction(id, title, impacts, xp, quantity);
   if (result.ok) {
-    const detail = quantity ? ` (${quantity.value} ${t(quantity.unit)})` : "";
-    showReward(xp, impacts, detail);
+    // Only celebrate a write that actually persisted. When storage rejected it,
+    // the lifequest_storage_error listener below warns the user instead.
+    if (result.persisted !== false) {
+      const detail = quantity ? ` (${quantity.value} ${t(quantity.unit)})` : "";
+      showReward(xp, impacts, detail);
+    }
     renderActiveTab();
   } else {
     showToast(result.reason, "warning");
@@ -245,6 +250,61 @@ function setupBackupControls() {
       }
     });
   }
+}
+
+// --- UNREADABLE-SAVE RECOVERY OFFER ---
+// When a previous save couldn't be read after an update, state.loadState() kept
+// it (in RECOVERY_KEY) instead of letting the next write overwrite it. Offer a
+// one-time, non-destructive download so the user can rescue that data. Built
+// with textContent + element.style (no innerHTML) so nothing here is a sink.
+let recoveryOffered = false;
+function maybeOfferRecovery() {
+  if (recoveryOffered || !stateManager.hasRecoverableSave()) return;
+  recoveryOffered = true; // don't re-show on every re-render this session
+
+  const raw = stateManager.getRecoverableSave();
+  if (!raw) return;
+
+  const banner = document.createElement("div");
+  banner.className = "recovery-banner";
+  banner.setAttribute("role", "alert");
+  banner.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:1200;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;padding:12px 16px;background:var(--color-navy,#24344d);color:#fff;font-size:0.85rem;box-shadow:0 -2px 12px rgba(0,0,0,0.25);";
+
+  const msg = document.createElement("span");
+  msg.textContent = t("We found earlier data we couldn't open after an update. Download it before it's replaced.");
+  banner.appendChild(msg);
+
+  const download = document.createElement("button");
+  download.type = "button";
+  download.className = "btn btn-primary";
+  download.style.cssText = "font-size:0.8rem;padding:4px 12px;";
+  download.textContent = t("Download old data");
+  download.addEventListener("click", () => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([raw], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `lifequest_recovered_${stamp}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    stateManager.clearRecoverableSave(); // rescued — stop offering it
+    banner.remove();
+    showToast(t("Old data downloaded."));
+  });
+  banner.appendChild(download);
+
+  const dismiss = document.createElement("button");
+  dismiss.type = "button";
+  dismiss.className = "btn";
+  dismiss.style.cssText = "font-size:0.8rem;padding:4px 12px;";
+  dismiss.textContent = t("Dismiss");
+  // Dismiss only hides the banner for this session; the data is intentionally
+  // kept (not cleared) so it can't be lost by an accidental click.
+  dismiss.addEventListener("click", () => banner.remove());
+  banner.appendChild(dismiss);
+
+  document.body.appendChild(banner);
 }
 
 // --- FLOATING TEXT FEEDBACK ---
@@ -396,6 +456,16 @@ window.addEventListener("lifequest_quest_completed", (e) => {
 window.addEventListener("lifequest_commitment_completed", (e) => {
   const data = e.detail;
   showToast(tp("Weekly commitment met — +{bonus} bonus points.", { bonus: data.bonus }));
+});
+
+// A save was rejected (storage full, or Safari Private Mode). Surface it once
+// so progress isn't silently lost; debounced so rapid writes don't flood toasts.
+let storageErrorToastShown = false;
+window.addEventListener("lifequest_storage_error", () => {
+  if (storageErrorToastShown) return;
+  storageErrorToastShown = true;
+  showToast(t("Your device wouldn't save that change — storage may be full or you're in private mode. Export a backup to avoid losing progress."), "warning");
+  setTimeout(() => { storageErrorToastShown = false; }, 8000);
 });
 
 // Re-render when the route changes (back/forward buttons, tab clicks)
