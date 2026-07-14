@@ -111,13 +111,15 @@ function initializeApp() {
 }
 
 function setupNavigation() {
-  TABS.forEach(tab => {
+  TABS.forEach((tab, index) => {
     const btn = document.getElementById(`tab-${tab}`);
     if (btn) {
       // Remove old listeners by cloning node (clean re-binding)
       const newBtn = btn.cloneNode(true);
       btn.parentNode.replaceChild(newBtn, btn);
       newBtn.addEventListener("click", () => navigateTo(tab));
+      // Roving-tabindex arrow-key navigation (WCAG tablist pattern, finding #12)
+      newBtn.addEventListener("keydown", (e) => handleTabKeydown(e, index));
     }
   });
 
@@ -136,6 +138,23 @@ function setupNavigation() {
   }
 }
 
+// Roving-tabindex arrow-key handler for the tablist (finding #12): Left/Right
+// wrap around, Home/End jump to the ends, and moving focus also activates.
+function handleTabKeydown(e, index) {
+  const delta = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+  let target = null;
+  if (delta) target = (index + delta + TABS.length) % TABS.length;
+  else if (e.key === "Home") target = 0;
+  else if (e.key === "End") target = TABS.length - 1;
+  else return;
+  e.preventDefault();
+  const btn = document.getElementById(`tab-${TABS[target]}`);
+  if (btn) {
+    btn.focus();
+    navigateTo(TABS[target]);
+  }
+}
+
 function renderActiveTab() {
   const state = stateManager.state;
   const route = routeFromHash();
@@ -145,8 +164,12 @@ function renderActiveTab() {
   TABS.forEach(tab => {
     const btn = document.getElementById(`tab-${tab}`);
     if (btn) {
-      btn.classList.toggle("active", tab === activeTab);
-      btn.setAttribute("aria-selected", tab === activeTab ? "true" : "false");
+      const isActive = tab === activeTab;
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-selected", isActive ? "true" : "false");
+      // Roving tabindex: the selected tab (or the first tab on non-tab routes)
+      // is the single tab stop (finding #12).
+      btn.tabIndex = tab === (activeTab || TABS[0]) ? 0 : -1;
     }
   });
 
@@ -166,7 +189,21 @@ function renderActiveTab() {
     renderLeaderboard("main-view", state, renderActiveTab);
   }
 
+  announceRoute(route);
   updateAssistantBubble();
+}
+
+// Announce the current view to screen readers on navigation (finding #12).
+function announceRoute(route) {
+  const el = document.getElementById("route-announcer");
+  if (!el) return;
+  const tabNames = { dashboard: "Overview", ledger: "Activity Log", quests: "Goals", leaderboard: "Peer Comparison" };
+  let label;
+  if (route.type === "aspect") label = t(ASPECT_META[route.key]?.label || route.key);
+  else if (route.type === "checkin") label = t("Re-assessment");
+  else if (route.type === "deep") label = t("In-depth assessment");
+  else label = t(tabNames[route.tab] || "Overview");
+  el.textContent = tp("{view} view", { view: label });
 }
 
 function handleCheckinComplete(shifts) {
@@ -313,6 +350,10 @@ function maybeOfferRecovery() {
 function showToast(text, variant = "success") {
   const popup = document.createElement("div");
   popup.textContent = text;
+  // Announce to screen readers even though the toast is pointer-events:none
+  // and short-lived (finding #12).
+  popup.setAttribute("role", "status");
+  popup.setAttribute("aria-live", variant === "warning" ? "assertive" : "polite");
   popup.style.position = "fixed";
   popup.style.bottom = "80px";
   popup.style.right = "80px";
@@ -388,8 +429,14 @@ function setupAssistant() {
     const newAvatar = avatar.cloneNode(true);
     avatar.parentNode.replaceChild(newAvatar, avatar);
 
-    newAvatar.addEventListener("click", () => {
-      triggerLumiMessage(t("Here to help. Focus on logging your routines today to build momentum."));
+    const activate = () => triggerLumiMessage(t("Here to help. Focus on logging your routines today to build momentum."));
+    newAvatar.addEventListener("click", activate);
+    // Keyboard activation for the role="button" avatar (finding #12).
+    newAvatar.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        activate();
+      }
     });
   }
 }

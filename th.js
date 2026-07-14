@@ -36,6 +36,10 @@ export const TH = {
   "Old data downloaded.": "ดาวน์โหลดข้อมูลเก่าแล้ว",
   "Dismiss": "ปิด",
   "Your device wouldn't save that change — storage may be full or you're in private mode. Export a backup to avoid losing progress.": "อุปกรณ์ของคุณบันทึกการเปลี่ยนแปลงนั้นไม่ได้ — พื้นที่จัดเก็บอาจเต็มหรือคุณอยู่ในโหมดส่วนตัว ส่งออกข้อมูลสำรองเพื่อไม่ให้ความคืบหน้าสูญหาย",
+  // --- Accessibility route announcer (finding #12) ---
+  "Re-assessment": "การประเมินซ้ำ",
+  "In-depth assessment": "การประเมินเชิงลึก",
+  "{view} view": "หน้า {view}",
   // --- App chrome (header, tabs, dialogs) ---
   "Life Balance Index — Personal Wellbeing Assessment": "ดัชนีสมดุลชีวิต — แบบประเมินสุขภาวะส่วนบุคคล",
   "Personal Wellbeing Assessment": "แบบประเมินสุขภาวะส่วนบุคคล",
