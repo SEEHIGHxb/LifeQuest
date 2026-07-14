@@ -1,7 +1,7 @@
 // Tests for population benchmark percentiles (node --test)
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { normalCdf, ordinal, getAllBenchmarks, collectSources, percentileRange, percentileBand } from "../benchmarks.js";
+import { normalCdf, ordinal, getAllBenchmarks, collectSources, percentileRange, percentileBand, incomePercentile } from "../benchmarks.js";
 import { GameStateManager } from "../state.js";
 
 function installMockStorage(initial = {}) {
@@ -349,4 +349,17 @@ test("grit note discloses the perseverance-only short form and prefers the full 
     deep.notes.some(n => /full 12-item/i.test(n)),
     "with the deep Grit-12 present the note cites the full 12-item scale"
   );
+});
+
+test("income uses one shared cited model — the benchmark card matches incomePercentile (#9)", () => {
+  assert.equal(incomePercentile(0, "Provinces"), 1, "zero income floors at the 1st percentile");
+  assert.equal(incomePercentile(12900, "Provinces"), 50, "national median reads ~50th");
+  assert.equal(incomePercentile(17400, "Bangkok"), 50, "Bangkok median reads ~50th");
+  assert.ok(
+    incomePercentile(6000, "Provinces") < incomePercentile(40000, "Provinces"),
+    "percentile is monotonic in income"
+  );
+  // the on-page finance card is driven by the same function, not a second model
+  const card = getAllBenchmarks(makeState({ income: 25000, region: "Provinces" })).finance;
+  assert.equal(card.percentile, incomePercentile(25000, "Provinces"));
 });

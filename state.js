@@ -1,6 +1,7 @@
 // state.js - LifeQuest State Management & Scientific Scoring
 
 import { t, tp } from "./i18n.js";
+import { incomePercentile } from "./benchmarks.js";
 
 const STORAGE_KEY = "lifequest_state";
 // A save the running code cannot read (corrupt JSON or an incompatible schema)
@@ -704,26 +705,10 @@ export class GameStateManager {
     const rawCfpb = cfpbAnswers.reduce((sum, val) => sum + parseInt(val || 0), 0);
     const S_wellbeing = rawCfpb * 5; // standardize to 0-100
 
-    // 2. Objective NSO Thailand Income Percentile
-    const inc = parseFloat(profile.income || 0);
-    const reg = profile.region;
-    let S_income = 0;
-
-    if (reg === "Bangkok") {
-      // Bangkok-adjusted distribution thresholds (approx 45% higher)
-      if (inc <= 13000) S_income = (inc / 13000) * 20;
-      else if (inc <= 22000) S_income = 20 + ((inc - 13000) / 9000) * 20;
-      else if (inc <= 55000) S_income = 40 + ((inc - 22000) / 33000) * 40;
-      else if (inc <= 90000) S_income = 80 + ((inc - 55000) / 35000) * 15;
-      else S_income = 95 + Math.min(5, ((inc - 90000) / 20000) * 5);
-    } else {
-      // Provinces thresholds
-      if (inc <= 9500) S_income = (inc / 9500) * 20;
-      else if (inc <= 15700) S_income = 20 + ((inc - 9500) / 6200) * 20;
-      else if (inc <= 38000) S_income = 40 + ((inc - 15700) / 22300) * 40;
-      else if (inc <= 65000) S_income = 80 + ((inc - 38000) / 27000) * 15;
-      else S_income = 95 + Math.min(5, ((inc - 65000) / 15000) * 5);
-    }
+    // 2. Objective income standing — the SAME cited lognormal model as the
+    //    finance benchmark card (single source of truth, finding #9), so the
+    //    score and the on-page income percentile can no longer disagree.
+    const S_income = incomePercentile(profile.income, profile.region);
 
     // Savings rate modifier (max 10 bonus points)
     const savRate = parseFloat(profile.savingsRate || 0);

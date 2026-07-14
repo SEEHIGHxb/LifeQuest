@@ -131,12 +131,20 @@ const INCOME_MEDIAN_NATIONAL = 12900;
 const INCOME_MEDIAN_BANGKOK = 17400;
 const INCOME_LOG_SIGMA = 0.65;
 
+// Single source of truth for income -> population percentile (finding #9).
+// The finance SCORE (state.js) and this benchmark card both read this one
+// cited lognormal model, so a given income can no longer read two different
+// ways on the same screen.
+export function incomePercentile(income, region) {
+  const inc = parseFloat(income || 0);
+  if (!(inc > 0)) return 1;
+  const median = region === "Bangkok" ? INCOME_MEDIAN_BANGKOK : INCOME_MEDIAN_NATIONAL;
+  return toPercentile(normalCdf(Math.log(inc), Math.log(median), INCOME_LOG_SIGMA));
+}
+
 function financeBenchmark(profile) {
   const income = parseFloat(profile.income || 0);
-  const median = profile.region === "Bangkok" ? INCOME_MEDIAN_BANGKOK : INCOME_MEDIAN_NATIONAL;
-  const percentile = income > 0
-    ? toPercentile(normalCdf(Math.log(income), Math.log(median), INCOME_LOG_SIGMA))
-    : 1;
+  const percentile = incomePercentile(income, profile.region);
   return {
     percentile,
     method: "estimate",
