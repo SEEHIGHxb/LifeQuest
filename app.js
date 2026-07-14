@@ -55,6 +55,8 @@ function navigateTo(tab) {
 function applyChromeTranslations() {
   document.documentElement.lang = getLang();
   document.title = t("Life Balance Index — Personal Wellbeing Assessment");
+  const brandTitle = document.querySelector("header .brand h1");
+  if (brandTitle) brandTitle.textContent = t("Life Balance Index");
   const brandSub = document.querySelector("header .brand p");
   if (brandSub) brandSub.textContent = t("Personal Wellbeing Assessment");
   const setText = (id, text) => {

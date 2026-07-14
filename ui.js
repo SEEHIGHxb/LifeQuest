@@ -658,7 +658,7 @@ export function renderDashboard(containerId, state) {
         <div class="card" style="display: flex; gap: 20px; align-items: center; padding: 18px 24px;">
           <div style="position: relative;">
             <div class="seal">✦</div>
-            <div style="position: absolute; bottom: -5px; right: -5px;" class="level-badge">Lv.${escapeHtml(p.level)}</div>
+            <div style="position: absolute; bottom: -5px; right: -5px;" class="level-badge">${t("Lv.")}${escapeHtml(p.level)}</div>
           </div>
           <div style="flex-grow: 1;">
             <h3 style="font-family: var(--font-serif); font-size: 1.4rem; font-weight: bold; color: var(--color-navy);">${escapeHtml(p.name)}</h3>
@@ -669,7 +669,7 @@ export function renderDashboard(containerId, state) {
               <div class="xp-bar-fill" style="width: ${xpPercent}%;"></div>
             </div>
             <div style="display: flex; justify-content: space-between; font-family: var(--font-serif); font-size: 0.75rem; margin-top: 4px; color: var(--color-text-secondary);">
-              <span>Points: ${escapeHtml(p.xp)} / ${xpNeeded}</span>
+              <span>${tp("Points: {xp} / {needed}", { xp: escapeHtml(p.xp), needed: xpNeeded })}</span>
               <span>${tp("Progress: {pct}%", { pct: xpPercent })}</span>
             </div>
           </div>
@@ -762,7 +762,7 @@ function actionCard(action, removable) {
     <div class="action-card" data-id="${escapeHtml(action.id)}" role="button" tabindex="0" aria-label="${tp("Log {title}", { title: escapeHtml(t(action.title)) })}">
       ${removable ? `<button type="button" class="action-remove" data-remove-id="${action.id}" aria-label="${t("Remove routine")}" title="${t("Remove routine")}">✕</button>` : ""}
       <div class="action-title">${escapeHtml(t(action.title))}</div>
-      <div class="action-impacts">+${action.xp} points</div>
+      <div class="action-impacts">+${action.xp} ${t("points")}</div>
       <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHtml(t(action.desc))}</div>
     </div>`;
 }
@@ -1376,7 +1376,7 @@ export function renderLeaderboard(containerId, state, onRefresh) {
                   </td>
                   <td style="padding: 12px 10px; text-align: center; font-family: var(--font-mono);">${escapeHtml(player.level)}</td>
                   <td style="padding: 12px 10px; text-align: right; font-family: var(--font-mono);">${escapeHtml(player.totalPoints)}</td>
-                  <td style="padding: 12px 10px; text-align: center;"><span class="holo-badge">${player.rankClass}</span></td>
+                  <td style="padding: 12px 10px; text-align: center;"><span class="holo-badge">${escapeHtml(t(player.rankClass))}</span></td>
                 </tr>
               `;
             }).join("")}

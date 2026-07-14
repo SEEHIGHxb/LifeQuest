@@ -154,7 +154,7 @@ function deepComponents(aspectKey, b) {
     case "finance":
       return has("cfpb10") ? [row("cfpb10", t("Financial well-being (CFPB-10)"), (d.cfpb10 / 40) * 100, tp("Full 10-item scale — raw {n}/40, linear scoring (not the official CFPB table)", { n: d.cfpb10 }))] : [];
     case "physical":
-      return has("sedentary") ? [row("sedentary", t("Sedentary & sleep hygiene"), (d.sedentary / 12) * 100, tp("Sitting time + sleep habits — raw {n}/12", { n: d.sedentary }))] : [];
+      return has("sedentary") ? [row("sedentary", t("Sedentary time & sleep hygiene"), (d.sedentary / 12) * 100, tp("Sitting time + sleep habits — raw {n}/12", { n: d.sedentary }))] : [];
     case "mental":
       return has("pss10") ? [row("pss10", t("Perceived stress (PSS-10)"), 100 - (d.pss10 / 40) * 100, tp("Stress {n}/40, inverted (lower stress scores higher)", { n: d.pss10 }))] : [];
     case "relationships": {
