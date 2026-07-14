@@ -193,3 +193,41 @@ export function getTopSuggestions(state, limit = 3) {
     .sort((a, b) => a.componentValue - b.componentValue)
     .slice(0, limit);
 }
+
+// --- Duty of care (finding #4) ---
+// WHO-5 and ST-5 are validated clinical screeners. When either crosses its
+// established concern cutoff we surface professional-support resources — this
+// is a prompt to seek help, never a diagnosis, and it is deliberately NOT a
+// "suggestion" (it must show regardless of which components are weakest).
+//   WHO-5: raw <= 12 / 25 (<= 48/100) is the standard depression-screening
+//          cutoff for further assessment.
+//   ST-5 : raw >= 8 / 15 is the Thai DMH "high stress" band (8-9 high,
+//          10-15 severe).
+const WHO5_CONCERN_MAX = 12;
+const ST5_CONCERN_MIN = 8;
+
+// Returns a bilingual support notice when the baseline mental-health
+// screeners indicate concern, otherwise null. Reads only baseline raw sums,
+// which are refreshed by re-assessment, so the notice tracks the latest
+// reading. Phone numbers are Thailand-specific constants (not translated).
+export function getMentalHealthNotice(state) {
+  const b = (state && state.baseline) || null;
+  if (!b) return null;
+
+  const lowWellbeing = Number.isFinite(b.who5) && b.who5 <= WHO5_CONCERN_MAX;
+  const highStress = Number.isFinite(b.st5) && b.st5 >= ST5_CONCERN_MIN;
+  if (!lowWellbeing && !highStress) return null;
+
+  return {
+    level: "concern",
+    lowWellbeing,
+    highStress,
+    title: t("If things feel heavy, you don't have to face it alone"),
+    body: t("Your recent well-being and stress answers suggest you may be going through a difficult time. This is a self-check, not a diagnosis — talking to a professional can help."),
+    resources: [
+      { label: t("Dept. of Mental Health hotline (free, 24 hrs)"), tel: "1323" },
+      { label: t("Samaritans of Thailand"), tel: "02-113-6789" },
+      { label: t("Medical emergency"), tel: "1669" }
+    ]
+  };
+}

@@ -5,7 +5,7 @@ import { renderRadarChart, renderTrendChart } from "./chart.js";
 import { INSTRUMENTS, DEEP_INSTRUMENTS, DEEP_SECTIONS, deepSectionInstruments } from "./surveys.js";
 import { getAllBenchmarks, collectSources, percentileBand } from "./benchmarks.js";
 import { getAspectDetail, getAspectConfidence, ASPECT_KEYS, isAspectDeepVerified } from "./aspects.js";
-import { getAspectSuggestions, getTopSuggestions } from "./suggestions.js";
+import { getAspectSuggestions, getTopSuggestions, getMentalHealthNotice } from "./suggestions.js";
 import { encodeCrewCode, decodeCrewCode, crewPoints } from "./crewcode.js";
 import { validateProfile, buildProvidedFlags, buildAnsweredFlags } from "./validation.js";
 import { t, tp, percentileLabel, dateLocale } from "./i18n.js";
@@ -581,6 +581,26 @@ function commitmentPin(commitment) {
 }
 
 // 2. RENDER THE MAIN DASHBOARD
+// Duty-of-care banner (finding #4). Renders the mental-health support notice
+// from getMentalHealthNotice(): static app copy plus Thailand hotline numbers,
+// escaped defensively to match the other innerHTML sinks. Returns "" when
+// there is nothing to show.
+function mentalHealthNotice(notice) {
+  if (!notice) return "";
+  return `
+    <div class="care-banner" role="note" aria-label="${escapeHtml(t("Mental health support"))}">
+      <p class="care-banner-title">${escapeHtml(notice.title)}</p>
+      <p class="care-banner-text">${escapeHtml(notice.body)}</p>
+      <ul class="care-resources">
+        ${notice.resources.map(r => `
+          <li>
+            <span class="care-resource-label">${escapeHtml(r.label)}</span>
+            <a class="care-resource-tel" href="tel:${escapeHtml(String(r.tel).replace(/[^0-9+]/g, ""))}">${escapeHtml(r.tel)}</a>
+          </li>`).join("")}
+      </ul>
+    </div>`;
+}
+
 export function renderDashboard(containerId, state) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -601,6 +621,7 @@ export function renderDashboard(containerId, state) {
   };
 
   container.innerHTML = `
+    ${mentalHealthNotice(getMentalHealthNotice(state))}
     ${checkinDue ? `
       <div class="checkin-banner">
         <p><strong>${t("Monthly re-assessment due.")}</strong> ${t("Re-run the short well-being instruments so your scores track your real standing, not last month's.")}</p>
@@ -796,6 +817,8 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction, onR
 
   container.innerHTML = `
     <a href="#/dashboard" class="aspect-back">&larr; ${t("Overview")}</a>
+
+    ${aspectKey === "mental" ? mentalHealthNotice(getMentalHealthNotice(state)) : ""}
 
     <div class="card aspect-header-card">
       <div>

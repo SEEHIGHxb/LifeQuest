@@ -7,6 +7,13 @@
 // Benchmark SOURCE labels stay in English on purpose (literature citations).
 
 export const TH = {
+  // --- Duty-of-care mental-health support (finding #4) ---
+  "If things feel heavy, you don't have to face it alone": "ถ้ารู้สึกหนักใจ คุณไม่จำเป็นต้องเผชิญมันเพียงลำพัง",
+  "Your recent well-being and stress answers suggest you may be going through a difficult time. This is a self-check, not a diagnosis — talking to a professional can help.": "คำตอบเรื่องสุขภาวะและความเครียดล่าสุดของคุณ บ่งชี้ว่าคุณอาจกำลังเผชิญช่วงเวลาที่ยากลำบาก นี่เป็นเพียงการประเมินตนเอง ไม่ใช่การวินิจฉัย การพูดคุยกับผู้เชี่ยวชาญสามารถช่วยได้",
+  "Dept. of Mental Health hotline (free, 24 hrs)": "สายด่วนสุขภาพจิต กรมสุขภาพจิต (ฟรี ตลอด 24 ชม.)",
+  "Samaritans of Thailand": "สมาคมสะมาริตันส์แห่งประเทศไทย",
+  "Medical emergency": "เหตุฉุกเฉินทางการแพทย์",
+  "Mental health support": "การสนับสนุนด้านสุขภาพจิต",
   // --- App chrome (header, tabs, dialogs) ---
   "Life Balance Index — Personal Wellbeing Assessment": "ดัชนีสมดุลชีวิต — แบบประเมินสุขภาวะส่วนบุคคล",
   "Personal Wellbeing Assessment": "แบบประเมินสุขภาวะส่วนบุคคล",

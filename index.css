@@ -865,6 +865,52 @@ header {
   line-height: 1.45;
 }
 
+/* Duty-of-care mental-health support banner (finding #4) */
+.care-banner {
+  border: 1px solid #cdd9e4;
+  border-left: 3px solid var(--color-navy);
+  background: #eef3f8;
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+.care-banner-title {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  color: var(--color-navy);
+  margin-bottom: 4px;
+}
+.care-banner-text {
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+  line-height: 1.45;
+  margin-bottom: 10px;
+}
+.care-resources {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.care-resources li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+.care-resource-tel {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--color-navy);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.care-resource-tel:hover { text-decoration: underline; }
+
 /* Weekly commitment */
 .commit-head {
   display: flex;
