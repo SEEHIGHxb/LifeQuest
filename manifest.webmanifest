@@ -1,7 +1,7 @@
 {
-  "name": "LifeQuest: Astral Express Registry",
-  "short_name": "LifeQuest",
-  "description": "Gamified life tracker — grow eight life aspects with real, measured data.",
+  "name": "Life Balance Index — Personal Wellbeing Assessment",
+  "short_name": "Life Balance",
+  "description": "Personal wellbeing self-assessment across eight life aspects, with cited benchmarks. Local-first, no account.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

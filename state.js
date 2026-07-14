@@ -1,8 +1,12 @@
 // state.js - LifeQuest State Management & Scientific Scoring
 
 import { t, tp } from "./i18n.js";
+import { incomePercentile } from "./benchmarks.js";
 
 const STORAGE_KEY = "lifequest_state";
+// A save the running code cannot read (corrupt JSON or an incompatible schema)
+// is copied here instead of being silently overwritten, so it stays recoverable.
+const RECOVERY_KEY = "lifequest_state_recovery";
 const HISTORY_LIMIT = 500;
 const DAILY_LOG_LIMIT = 5;
 const SNAPSHOT_INTERVAL_DAYS = 7;
@@ -38,6 +42,7 @@ const DEFAULT_STATE = {
     name: "Guest",
     level: 1,
     xp: 0,
+    lifetimeXp: 0, // never-truncated total XP ever earned — drives shareable points (finding #11)
     rank: "Foundational",
     assessmentComplete: true, // false only after a quick-start (express) baseline
 
@@ -117,6 +122,80 @@ function stressResilienceFromSt5(st5) {
   return 0;
 }
 
+// --- IMPORT SANITIZERS (defence-in-depth for backup import / reload) ---
+//
+// A saved/imported state is untrusted input: a hand-edited backup can carry
+// hostile strings that reach innerHTML sinks. These coerce imported data back to
+// known shapes so nothing can smuggle markup through the header, leaderboard, or
+// aspect labels. Escaping still happens at each sink too — this is belt AND
+// suspenders, not a replacement for it.
+const ASPECT_SCORE_KEYS = Object.keys(DEFAULT_STATE.aspects);
+const SAFE_ID_RE = /[^A-Za-z0-9_-]/g;
+
+// Finite number clamped to [min, max]; `fallback` when the value isn't numeric.
+function clampNumber(value, min, max, fallback = 0) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+// Plain string, length-capped. Non-strings collapse to "".
+function safeString(value, maxLen = 200) {
+  return typeof value === "string" ? value.slice(0, maxLen) : "";
+}
+
+// Reduce an id to a safe [A-Za-z0-9_-] token so it can never break out of the
+// HTML attribute it is rendered into. Empty results get a fresh prefixed id.
+function safeId(value, prefix) {
+  const cleaned = safeString(value, 40).replace(SAFE_ID_RE, "");
+  return cleaned || `${prefix}_${crypto.randomUUID().slice(0, 8)}`;
+}
+
+// Keep ONLY the eight known aspect keys, each a clamped 0-100 number. Unknown
+// keys are dropped: they would otherwise be echoed verbatim as labels into
+// innerHTML (a stored-XSS sink) and corrupt the score math.
+function sanitizeAspectScores(raw) {
+  const src = raw && typeof raw === "object" ? raw : {};
+  const out = {};
+  for (const key of ASPECT_SCORE_KEYS) {
+    out[key] = clampNumber(src[key], 0, 100, 0);
+  }
+  return out;
+}
+
+// Rebuild an imported crewmate to a known, type-safe shape (its id/level/points
+// are rendered into the leaderboard without escaping upstream of here).
+function sanitizeImportedFriend(f) {
+  if (!f || typeof f !== "object") return null;
+  const name = safeString(f.name, 40).trim();
+  if (!name) return null;
+  return {
+    id: safeId(f.id, "crew"),
+    name,
+    level: Math.round(clampNumber(f.level, 1, 999, 1)),
+    totalPoints: Math.round(clampNumber(f.totalPoints, 0, 10000000, 0)),
+    aspects: sanitizeAspectScores(f.aspects),
+    addedAt: safeString(f.addedAt, 40) || new Date().toISOString()
+  };
+}
+
+// Rebuild an imported custom routine to a known shape. Title/desc are escaped at
+// the sink, but the id is an attribute sink and the aspect must be a real key.
+function sanitizeImportedCustomAction(a) {
+  if (!a || typeof a !== "object") return null;
+  const aspect = ASPECT_SCORE_KEYS.includes(a.aspect) ? a.aspect : null;
+  if (!aspect) return null;
+  const pts = Math.round(clampNumber((a.impacts || {})[aspect], 1, 15, 5));
+  return {
+    id: safeId(a.id, "custom"),
+    title: safeString(a.title, 60).trim() || "Custom Routine",
+    aspect,
+    impacts: { [aspect]: pts },
+    xp: Math.round(clampNumber(a.xp, 5, 50, 15)),
+    desc: safeString(a.desc, 160)
+  };
+}
+
 export class GameStateManager {
   constructor() {
     this.state = this.loadState();
@@ -130,45 +209,120 @@ export class GameStateManager {
   }
 
   // Merge parsed data over defaults so saves survive new same-schema fields.
+  // Untrusted fields that reach innerHTML are coerced back to known shapes here
+  // (see the sanitizers above) so an imported backup can't smuggle in markup.
   mergeSavedState(parsed) {
     const defaults = structuredClone(DEFAULT_STATE);
+
+    // Coerce the profile fields the UI prints unescaped (name/level/xp) and
+    // derive rank from level so it is always a known enum, never trusted input.
+    const profile = { ...defaults.profile, ...(parsed.profile || {}) };
+    profile.name = safeString(profile.name, 60).trim() || "Guest";
+    profile.level = Math.round(clampNumber(profile.level, 1, 999, 1));
+    profile.xp = Math.round(clampNumber(profile.xp, 0, 100000000, 0));
+    // Backfill the never-truncated lifetime-XP counter for saves that predate
+    // it (finding #11): reconstruct total XP earned from level + current xp
+    // (each level i costs i*100), since real history is capped. A genuine
+    // counter already on the save is kept as-is.
+    profile.lifetimeXp = (parsed.profile && Number.isFinite(parsed.profile.lifetimeXp))
+      ? Math.round(clampNumber(parsed.profile.lifetimeXp, 0, 100000000, 0))
+      : Math.round((100 * (profile.level - 1) * profile.level) / 2) + profile.xp;
+    profile.rank = this.getRank(profile.level);
+
     return {
       ...defaults,
       ...parsed,
-      profile: { ...defaults.profile, ...(parsed.profile || {}) },
-      aspects: { ...defaults.aspects, ...(parsed.aspects || {}) },
+      profile,
+      aspects: sanitizeAspectScores(parsed.aspects),
       history: Array.isArray(parsed.history) ? parsed.history.slice(0, HISTORY_LIMIT) : [],
       goals: Array.isArray(parsed.goals) ? parsed.goals : [],
-      customActions: Array.isArray(parsed.customActions) ? parsed.customActions : [],
+      customActions: Array.isArray(parsed.customActions)
+        ? parsed.customActions.map(sanitizeImportedCustomAction).filter(Boolean)
+        : [],
       dailyLimits: parsed.dailyLimits && typeof parsed.dailyLimits === "object" ? parsed.dailyLimits : {},
       questResets: { ...defaults.questResets, ...(parsed.questResets || {}) },
       snapshots: Array.isArray(parsed.snapshots) ? parsed.snapshots.slice(-SNAPSHOT_LIMIT) : [],
       baseline: parsed.baseline && typeof parsed.baseline === "object" ? parsed.baseline : null,
       commitment: parsed.commitment && typeof parsed.commitment === "object" ? parsed.commitment : null,
       checkins: Array.isArray(parsed.checkins) ? parsed.checkins.slice(-CHECKIN_LIMIT) : [],
-      friends: Array.isArray(parsed.friends) ? parsed.friends.slice(0, FRIEND_LIMIT) : [],
+      friends: Array.isArray(parsed.friends)
+        ? parsed.friends.slice(0, FRIEND_LIMIT).map(sanitizeImportedFriend).filter(Boolean)
+        : [],
       schemaVersion: DEFAULT_STATE.schemaVersion
     };
   }
 
   loadState() {
     const defaults = structuredClone(DEFAULT_STATE);
+    let saved = null;
     try {
-      const saved = getStorage()?.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // v3 changed the measurement model (quantified logs, demographics,
-        // snapshots) — older saves restart onboarding for a clean baseline.
-        if (parsed.schemaVersion !== DEFAULT_STATE.schemaVersion) {
-          console.info(`LifeQuest: schema v${parsed.schemaVersion || 1} save found; v${DEFAULT_STATE.schemaVersion} requires a fresh baseline.`);
-          return defaults;
-        }
-        return this.mergeSavedState(parsed);
+      saved = getStorage()?.getItem(STORAGE_KEY);
+    } catch (e) {
+      console.error("Failed to read state from localStorage:", e);
+      return defaults;
+    }
+    if (!saved) return defaults;
+
+    let parsed;
+    try {
+      parsed = JSON.parse(saved);
+    } catch (e) {
+      // Corrupt JSON. Older code discarded it and the next write clobbered it
+      // forever; instead keep the raw text so the user can still recover it.
+      console.error("Saved state is not valid JSON; kept for recovery:", e);
+      this.preserveUnreadableSave(saved);
+      return defaults;
+    }
+    // v3 changed the measurement model (quantified logs, demographics,
+    // snapshots) — older saves restart onboarding for a clean baseline. The raw
+    // save is kept so a future export/migrate can still reach the old data.
+    if (parsed.schemaVersion !== DEFAULT_STATE.schemaVersion) {
+      console.info(`LifeQuest: schema v${parsed.schemaVersion || 1} save found; v${DEFAULT_STATE.schemaVersion} requires a fresh baseline. Previous data kept for recovery.`);
+      this.preserveUnreadableSave(saved);
+      return defaults;
+    }
+    return this.mergeSavedState(parsed);
+  }
+
+  // --- UNREADABLE-SAVE RECOVERY (never silently overwrite the user's data) ---
+
+  // Copy a save the app couldn't load into RECOVERY_KEY so the next write to
+  // STORAGE_KEY doesn't destroy it. Only the FIRST failure is kept — a later
+  // good save won't clobber it, and a second failure won't overwrite the first.
+  preserveUnreadableSave(raw) {
+    const storage = getStorage();
+    if (!storage) return;
+    try {
+      if (storage.getItem(RECOVERY_KEY) == null) {
+        storage.setItem(RECOVERY_KEY, raw);
       }
     } catch (e) {
-      console.error("Failed to load state from localStorage:", e);
+      console.error("Failed to preserve unreadable save:", e);
     }
-    return defaults;
+  }
+
+  hasRecoverableSave() {
+    try {
+      return getStorage()?.getItem(RECOVERY_KEY) != null;
+    } catch {
+      return false;
+    }
+  }
+
+  getRecoverableSave() {
+    try {
+      return getStorage()?.getItem(RECOVERY_KEY) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  clearRecoverableSave() {
+    try {
+      getStorage()?.removeItem(RECOVERY_KEY);
+    } catch (e) {
+      console.error("Failed to clear recovery save:", e);
+    }
   }
 
   // --- SNAPSHOTS (weekly aspect history for trend charts) ---
@@ -216,11 +370,18 @@ export class GameStateManager {
     this.saveState();
   }
 
+  // Returns true when the write actually landed. On failure (storage full, or
+  // Safari Private Mode where setItem throws) it reports back instead of
+  // pretending success: a global listener warns the user and callers can
+  // suppress the "reward" UI so nothing is celebrated that wasn't persisted.
   saveState() {
     try {
       getStorage()?.setItem(STORAGE_KEY, JSON.stringify(this.state));
+      return true;
     } catch (e) {
       console.error("Failed to save state to localStorage:", e);
+      dispatchAppEvent("lifequest_storage_error", { message: String((e && e.message) || e) });
+      return false;
     }
   }
 
@@ -552,26 +713,10 @@ export class GameStateManager {
     const rawCfpb = cfpbAnswers.reduce((sum, val) => sum + parseInt(val || 0), 0);
     const S_wellbeing = rawCfpb * 5; // standardize to 0-100
 
-    // 2. Objective NSO Thailand Income Percentile
-    const inc = parseFloat(profile.income || 0);
-    const reg = profile.region;
-    let S_income = 0;
-
-    if (reg === "Bangkok") {
-      // Bangkok-adjusted distribution thresholds (approx 45% higher)
-      if (inc <= 13000) S_income = (inc / 13000) * 20;
-      else if (inc <= 22000) S_income = 20 + ((inc - 13000) / 9000) * 20;
-      else if (inc <= 55000) S_income = 40 + ((inc - 22000) / 33000) * 40;
-      else if (inc <= 90000) S_income = 80 + ((inc - 55000) / 35000) * 15;
-      else S_income = 95 + Math.min(5, ((inc - 90000) / 20000) * 5);
-    } else {
-      // Provinces thresholds
-      if (inc <= 9500) S_income = (inc / 9500) * 20;
-      else if (inc <= 15700) S_income = 20 + ((inc - 9500) / 6200) * 20;
-      else if (inc <= 38000) S_income = 40 + ((inc - 15700) / 22300) * 40;
-      else if (inc <= 65000) S_income = 80 + ((inc - 38000) / 27000) * 15;
-      else S_income = 95 + Math.min(5, ((inc - 65000) / 15000) * 5);
-    }
+    // 2. Objective income standing — the SAME cited lognormal model as the
+    //    finance benchmark card (single source of truth, finding #9), so the
+    //    score and the on-page income percentile can no longer disagree.
+    const S_income = incomePercentile(profile.income, profile.region);
 
     // Savings rate modifier (max 10 bonus points)
     const savRate = parseFloat(profile.savingsRate || 0);
@@ -600,10 +745,12 @@ export class GameStateManager {
       S_activity = 80 + Math.min(20, ((totalMET - 3000) / 3000) * 20);
     }
 
-    // 2. Asian BMI Standard
+    // 2. Asian BMI Standard — OMITTED (not faked at 50) when weight/height are
+    // missing. A fabricated "average" silently inflates or deflates the score;
+    // instead its 0.2 weight is redistributed across the measured components.
     const w = parseFloat(profile.weight || 0);
     const h = parseFloat(profile.height || 0) / 100; // in meters
-    let S_bmi = 50;
+    let S_bmi = null;
     if (w > 0 && h > 0) {
       const bmi = w / (h * h);
       if (bmi >= 18.5 && bmi <= 22.9) S_bmi = 100; // Ideal
@@ -617,12 +764,17 @@ export class GameStateManager {
     const rawJss = jssAnswers.reduce((sum, val) => sum + parseInt(val || 0), 0);
     const F_quality = 100 - (rawJss * 5); // 0 raw -> 100 pts, 20 raw -> 0 pts
 
+    // Duration folds in only when reported. A genuinely short night (< 6h) still
+    // scores low, but an ABSENT duration no longer fabricates a floor of 50 —
+    // sleep then reflects the measured quality alone.
     const duration = parseFloat(profile.sleepHours || 0);
-    let F_duration = 50;
-    if (duration >= 7 && duration <= 9) F_duration = 100;
-    else if (duration >= 6 && duration < 7) F_duration = 75;
-
-    const S_sleep = (0.5 * F_duration) + (0.5 * F_quality);
+    let S_sleep;
+    if (duration > 0) {
+      const F_duration = duration >= 7 && duration <= 9 ? 100 : (duration >= 6 && duration < 7 ? 75 : 50);
+      S_sleep = (0.5 * F_duration) + (0.5 * F_quality);
+    } else {
+      S_sleep = F_quality;
+    }
 
     // 4. Nutrition
     const portions = parseFloat(profile.vegetablePortions || 0);
@@ -631,7 +783,17 @@ export class GameStateManager {
     const F_water = Math.min(100, (liters / 2.5) * 100);
     const S_nutrition = (0.5 * F_veg) + (0.5 * F_water);
 
-    return Math.round((0.4 * S_activity) + (0.2 * S_bmi) + (0.2 * S_sleep) + (0.2 * S_nutrition));
+    // Weighted aggregate. A null component (BMI without measurements) drops out
+    // and the surviving weights are renormalized, so nothing is ever imputed.
+    const parts = [
+      [0.4, S_activity],
+      [0.2, S_bmi],
+      [0.2, S_sleep],
+      [0.2, S_nutrition]
+    ].filter(([, value]) => value !== null);
+    const totalWeight = parts.reduce((sum, [weight]) => sum + weight, 0);
+    const weighted = parts.reduce((sum, [weight, value]) => sum + (weight * value), 0);
+    return Math.round(weighted / totalWeight);
   }
 
   calculateMentalScore(profile, st5Answers, who5Answers) {
@@ -709,10 +871,12 @@ export class GameStateManager {
     const frequencyFactor = qValues[0] * 25; // max 100
     const S_donation = (0.5 * frequencyFactor) + (0.5 * volumeFactor);
 
-    // Volunteering & Prosocial
+    // Volunteering & Prosocial. Both PTM helping items count toward prosocial
+    // behavior: Q2 "help friends/family in need" (previously collected but never
+    // scored) and Q3 "help strangers".
     const volHours = parseFloat(profile.volunteeringHours || 0);
     const volunteerFactor = Math.min(100, (volHours / 4) * 100);
-    const prosocialFactor = qValues[2] * 25; // Q3
+    const prosocialFactor = ((qValues[1] + qValues[2]) / 8) * 100; // Q2 + Q3
     const S_action = (0.6 * volunteerFactor) + (0.4 * prosocialFactor);
 
     // Civic & Local (Q4 & Q5)
@@ -733,14 +897,16 @@ export class GameStateManager {
     else if (plastics <= 5) plasticFactor = 50;
     else if (plastics <= 7) plasticFactor = 25;
 
-    const Q1_val = qValues[0] * 25;
-    const S_waste = (0.5 * plasticFactor) + (0.5 * Q1_val);
+    // Waste: plastic footprint + recycling (Q1) + single-use avoidance (Q2).
+    // Q2 was previously collected but never scored.
+    const S_waste = (0.5 * plasticFactor) + (0.25 * (qValues[0] * 25)) + (0.25 * (qValues[1] * 25));
 
     // Transit (GEB Q3: public transit / walk / cycle frequency)
     const S_transit = qValues[2] * 25;
 
-    // Energy Conservation (Q4 & Q5)
-    const S_conservation = ((qValues[3] + qValues[4]) / 8) * 100;
+    // Conservation: energy habits (Q4 & Q5) + eco-product choices (Q6). Q6 was
+    // previously collected but never scored.
+    const S_conservation = ((qValues[3] + qValues[4] + qValues[5]) / 12) * 100;
 
     return Math.round((0.4 * S_waste) + (0.4 * S_transit) + (0.2 * S_conservation));
   }
@@ -1002,8 +1168,10 @@ export class GameStateManager {
     this.applyGoalProgress(actionId, impacts);
     this.applyCommitmentProgress(impacts);
 
-    this.saveState();
-    return { ok: true };
+    // `persisted` is false when the write was rejected — the caller should not
+    // show the reward animation for progress that didn't actually save.
+    const persisted = this.saveState();
+    return { ok: true, persisted };
   }
 
   // Quests progress from logged actions: by explicit actionIds when present,
@@ -1035,6 +1203,10 @@ export class GameStateManager {
   addXP(amount) {
     const p = this.state.profile;
     p.xp += amount;
+    // Never-truncated lifetime total (finding #11): the shareable "points" read
+    // from this, not the capped action history, so quest/commitment/check-in/
+    // deep-assessment XP all count and the number never shrinks.
+    p.lifetimeXp = (Number.isFinite(p.lifetimeXp) ? p.lifetimeXp : 0) + amount;
     let leveled = false;
     let xpNeeded = p.level * 100;
     while (p.xp >= xpNeeded) {

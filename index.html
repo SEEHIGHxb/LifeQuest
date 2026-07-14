@@ -2,6 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Backstop for the innerHTML sinks: even if an unescaped value slipped
+       through, no inline/injected script can execute (script-src 'self', no
+       'unsafe-inline'). Inline STYLE attributes are used throughout the app, so
+       style-src keeps 'unsafe-inline'; Google Fonts are the only remote origins. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Life Balance Index — Personal Wellbeing Assessment</title>
   <meta name="theme-color" content="#24344d">
@@ -33,16 +38,20 @@
 
     <!-- Navigation Tab container -->
     <div id="nav-container" class="nav-tabs d-none" role="tablist" aria-label="Main navigation">
-      <button class="tab-btn active" id="tab-dashboard" role="tab" aria-selected="true">Overview</button>
-      <button class="tab-btn" id="tab-ledger" role="tab" aria-selected="false">Activity Log</button>
-      <button class="tab-btn" id="tab-quests" role="tab" aria-selected="false">Goals</button>
-      <button class="tab-btn" id="tab-leaderboard" role="tab" aria-selected="false">Peer Comparison</button>
+      <button class="tab-btn active" id="tab-dashboard" role="tab" aria-selected="true" aria-controls="main-view" tabindex="0">Overview</button>
+      <button class="tab-btn" id="tab-ledger" role="tab" aria-selected="false" aria-controls="main-view" tabindex="-1">Activity Log</button>
+      <button class="tab-btn" id="tab-quests" role="tab" aria-selected="false" aria-controls="main-view" tabindex="-1">Goals</button>
+      <button class="tab-btn" id="tab-leaderboard" role="tab" aria-selected="false" aria-controls="main-view" tabindex="-1">Peer Comparison</button>
     </div>
 
     <!-- Main View Mount -->
-    <main id="main-view">
+    <main id="main-view" role="tabpanel" tabindex="-1" aria-label="Main content">
       <!-- Injected views go here -->
     </main>
+
+    <!-- Visually-hidden live region: announces the current view to screen
+         readers on navigation (finding #12). -->
+    <div id="route-announcer" class="sr-only" role="status" aria-live="polite"></div>
 
     <!-- Floating guidance assistant -->
     <div id="assistant-mount" class="assistant-wrapper d-none">

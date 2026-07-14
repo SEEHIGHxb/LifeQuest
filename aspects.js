@@ -152,9 +152,9 @@ function deepComponents(aspectKey, b) {
   const row = (key, label, value, detail) => ({ key, label, value: clamp100(value), detail, confidence: "verified" });
   switch (aspectKey) {
     case "finance":
-      return has("cfpb10") ? [row("cfpb10", t("Financial well-being (CFPB-10)"), (d.cfpb10 / 40) * 100, tp("Full 10-item scale — raw {n}/40", { n: d.cfpb10 }))] : [];
+      return has("cfpb10") ? [row("cfpb10", t("Financial well-being (CFPB-10)"), (d.cfpb10 / 40) * 100, tp("Full 10-item scale — raw {n}/40, linear scoring (not the official CFPB table)", { n: d.cfpb10 }))] : [];
     case "physical":
-      return has("sedentary") ? [row("sedentary", t("Sedentary & sleep hygiene"), (d.sedentary / 12) * 100, tp("Sitting time + sleep habits — raw {n}/12", { n: d.sedentary }))] : [];
+      return has("sedentary") ? [row("sedentary", t("Sedentary time & sleep hygiene"), (d.sedentary / 12) * 100, tp("Sitting time + sleep habits — raw {n}/12", { n: d.sedentary }))] : [];
     case "mental":
       return has("pss10") ? [row("pss10", t("Perceived stress (PSS-10)"), 100 - (d.pss10 / 40) * 100, tp("Stress {n}/40, inverted (lower stress scores higher)", { n: d.pss10 }))] : [];
     case "relationships": {
@@ -233,7 +233,7 @@ function financeComponents(p, b, benchmark) {
     items.push({ key: "income", label: t("Income standing"), value: benchmark.percentile, detail: t("Percentile vs Thai worker earnings (estimate)") });
   }
   if (b && Number.isFinite(b.cfpb)) {
-    items.push({ key: "cfpb", label: t("Financial well-being (CFPB)"), value: clamp100(b.cfpb * 5), detail: tp("Raw {n}/20 at baseline", { n: b.cfpb }) });
+    items.push({ key: "cfpb", label: t("Financial well-being (CFPB)"), value: clamp100(b.cfpb * 5), detail: tp("Raw {n}/20 — scored on a simple linear scale, not the CFPB's official score table", { n: b.cfpb }) });
   }
   items.push({
     key: "savings",
@@ -302,7 +302,7 @@ function personalGoalsComponents(p, b) {
     items.push({ key: "gse", label: t("Self-efficacy (GSE)"), value: clamp100(((b.gse - 6) / 18) * 100), detail: tp("Raw {n}/24 at baseline", { n: b.gse }) });
   }
   if (b && Number.isFinite(b.grit)) {
-    items.push({ key: "grit", label: t("Grit"), value: clamp100(((b.grit - 4) / 16) * 100), detail: tp("{g}/5 vs the ~3.4 adult reference", { g: (b.grit / 4).toFixed(1) }) });
+    items.push({ key: "grit", label: t("Grit (perseverance)"), value: clamp100(((b.grit - 4) / 16) * 100), detail: tp("Perseverance facet only — {g}/5 vs the ~3.4 full-scale reference", { g: (b.grit / 4).toFixed(1) }) });
   }
   const study = Math.min(100, (parseFloat(p.weeklyLearningHours || 0) / 5) * 100);
   const digital = Math.max(0, Math.min(100, parseFloat(p.digitalLiteracy || 0)));

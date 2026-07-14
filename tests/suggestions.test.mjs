@@ -1,7 +1,7 @@
 // Tests for the rule-based, profile-aware suggestion engine (node --test)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { getAspectSuggestions, getTopSuggestions } from "../suggestions.js";
+import { getAspectSuggestions, getTopSuggestions, getMentalHealthNotice } from "../suggestions.js";
 import { ASPECT_KEYS } from "../aspects.js";
 
 // A deliberately weak profile/baseline so every aspect has low components.
@@ -127,4 +127,64 @@ test("suggestion actionIds reference preset routine ids when present", () => {
       }
     }
   }
+});
+
+// --- Finding #4: duty-of-care mental-health notice ---
+// Fires on the established clinical cutoffs, silent otherwise:
+//   WHO-5 raw <= 12 / 25  (depression-screening cutoff)
+//   ST-5  raw >= 8  / 15  (Thai DMH high-stress band)
+
+test("mental-health notice: none without a baseline", () => {
+  assert.equal(getMentalHealthNotice(null), null);
+  assert.equal(getMentalHealthNotice({}), null);
+  assert.equal(getMentalHealthNotice({ baseline: null }), null);
+});
+
+test("mental-health notice: healthy screeners stay silent", () => {
+  assert.equal(getMentalHealthNotice({ baseline: { who5: 20, st5: 3 } }), null);
+});
+
+test("mental-health notice: low WHO-5 (raw 12, the cutoff) fires", () => {
+  const n = getMentalHealthNotice({ baseline: { who5: 12, st5: 3 } });
+  assert.ok(n, "expected a notice at WHO-5 raw 12");
+  assert.equal(n.lowWellbeing, true);
+  assert.equal(n.highStress, false);
+  assert.equal(n.resources[0].tel, "1323"); // DMH hotline first
+});
+
+test("mental-health notice: WHO-5 raw 13 is above the cutoff — silent", () => {
+  assert.equal(getMentalHealthNotice({ baseline: { who5: 13, st5: 3 } }), null);
+});
+
+test("mental-health notice: high ST-5 (raw 8, band floor) fires", () => {
+  const n = getMentalHealthNotice({ baseline: { who5: 20, st5: 8 } });
+  assert.ok(n, "expected a notice at ST-5 raw 8");
+  assert.equal(n.highStress, true);
+  assert.equal(n.lowWellbeing, false);
+});
+
+test("mental-health notice: ST-5 raw 7 is below the band — silent", () => {
+  assert.equal(getMentalHealthNotice({ baseline: { who5: 20, st5: 7 } }), null);
+});
+
+test("mental-health notice: both screeners flag together; each resource has a phone", () => {
+  const n = getMentalHealthNotice({ baseline: { who5: 4, st5: 12 } });
+  assert.ok(n);
+  assert.equal(n.lowWellbeing, true);
+  assert.equal(n.highStress, true);
+  assert.equal(n.resources.length, 3);
+  for (const r of n.resources) {
+    assert.ok(r.label, "resource has a label");
+    assert.ok(r.tel, "resource has a tel");
+  }
+  assert.deepEqual(n.resources.map(r => r.tel), ["1323", "02-113-6789", "1669"]);
+});
+
+test("mental-health notice: NaN/absent screener is ignored, not treated as concern", () => {
+  assert.equal(getMentalHealthNotice({ baseline: { who5: NaN, st5: undefined } }), null);
+  assert.ok(getMentalHealthNotice({ baseline: { st5: 10 } }), "a single high screener still fires");
+});
+
+test("mental-health notice: the weak default profile (who5 8 / st5 8) triggers", () => {
+  assert.ok(getMentalHealthNotice(makeState()), "weak baseline crosses both cutoffs");
 });

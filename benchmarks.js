@@ -131,12 +131,20 @@ const INCOME_MEDIAN_NATIONAL = 12900;
 const INCOME_MEDIAN_BANGKOK = 17400;
 const INCOME_LOG_SIGMA = 0.65;
 
+// Single source of truth for income -> population percentile (finding #9).
+// The finance SCORE (state.js) and this benchmark card both read this one
+// cited lognormal model, so a given income can no longer read two different
+// ways on the same screen.
+export function incomePercentile(income, region) {
+  const inc = parseFloat(income || 0);
+  if (!(inc > 0)) return 1;
+  const median = region === "Bangkok" ? INCOME_MEDIAN_BANGKOK : INCOME_MEDIAN_NATIONAL;
+  return toPercentile(normalCdf(Math.log(inc), Math.log(median), INCOME_LOG_SIGMA));
+}
+
 function financeBenchmark(profile) {
   const income = parseFloat(profile.income || 0);
-  const median = profile.region === "Bangkok" ? INCOME_MEDIAN_BANGKOK : INCOME_MEDIAN_NATIONAL;
-  const percentile = income > 0
-    ? toPercentile(normalCdf(Math.log(income), Math.log(median), INCOME_LOG_SIGMA))
-    : 1;
+  const percentile = incomePercentile(income, profile.region);
   return {
     percentile,
     method: "estimate",
@@ -257,7 +265,10 @@ function personalGoalsBenchmark(baseline) {
   const perItem = deepGse ? baseline.deep.gse10 / 10 : baseline.gse / 6;
   const notes = [];
   if (Number.isFinite(baseline.grit)) {
-    notes.push(tp("Grit {g}/5 vs the ~3.4 adult reference point.", { g: (baseline.grit / 4).toFixed(1) }));
+    const deepGrit = baseline.deep && Number.isFinite(baseline.deep.grit12);
+    notes.push(deepGrit
+      ? tp("Grit {g}/5 from your full 12-item scale vs the ~3.4 adult reference point.", { g: (baseline.deep.grit12 / 12).toFixed(1) })
+      : tp("Grit {g}/5 — the onboarding measure is the perseverance facet only (4 of the 8 Grit-S items), so this is indicative, not an exact match to the ~3.4 reference.", { g: (baseline.grit / 4).toFixed(1) }));
   }
   notes.push(deepGse
     ? t("Scored from your full 10-item GSE — a direct match to the 25-country norm, no short-form approximation.")
