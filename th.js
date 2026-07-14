@@ -14,6 +14,13 @@ export const TH = {
   "Samaritans of Thailand": "สมาคมสะมาริตันส์แห่งประเทศไทย",
   "Medical emergency": "เหตุฉุกเฉินทางการแพทย์",
   "Mental health support": "การสนับสนุนด้านสุขภาพจิต",
+  // --- Instrument-fidelity disclosures (finding #8) ---
+  "Grit (perseverance)": "Grit (ความเพียร)",
+  "Perseverance facet only — {g}/5 vs the ~3.4 full-scale reference": "เฉพาะด้านความเพียร — {g}/5 เทียบกับค่าอ้างอิงเต็มสเกล ~3.4",
+  "Raw {n}/20 — scored on a simple linear scale, not the CFPB's official score table": "คะแนนดิบ {n}/20 — คิดคะแนนแบบเชิงเส้นอย่างง่าย ไม่ใช่ตารางคะแนนทางการของ CFPB",
+  "Full 10-item scale — raw {n}/40, linear scoring (not the official CFPB table)": "สเกลเต็ม 10 ข้อ — คะแนนดิบ {n}/40 คิดแบบเชิงเส้น (ไม่ใช่ตารางทางการของ CFPB)",
+  "Grit {g}/5 from your full 12-item scale vs the ~3.4 adult reference point.": "Grit {g}/5 จากสเกลเต็ม 12 ข้อ เทียบกับค่าอ้างอิงผู้ใหญ่ ~3.4",
+  "Grit {g}/5 — the onboarding measure is the perseverance facet only (4 of the 8 Grit-S items), so this is indicative, not an exact match to the ~3.4 reference.": "Grit {g}/5 — แบบวัดตอนเริ่มต้นครอบคลุมเฉพาะด้านความเพียร (4 จาก 8 ข้อของ Grit-S) จึงเป็นเพียงค่าชี้บ่ง ไม่ใช่การเทียบตรงกับค่าอ้างอิง ~3.4",
   // --- App chrome (header, tabs, dialogs) ---
   "Life Balance Index — Personal Wellbeing Assessment": "ดัชนีสมดุลชีวิต — แบบประเมินสุขภาวะส่วนบุคคล",
   "Personal Wellbeing Assessment": "แบบประเมินสุขภาวะส่วนบุคคล",

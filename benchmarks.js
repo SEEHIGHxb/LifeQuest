@@ -257,7 +257,10 @@ function personalGoalsBenchmark(baseline) {
   const perItem = deepGse ? baseline.deep.gse10 / 10 : baseline.gse / 6;
   const notes = [];
   if (Number.isFinite(baseline.grit)) {
-    notes.push(tp("Grit {g}/5 vs the ~3.4 adult reference point.", { g: (baseline.grit / 4).toFixed(1) }));
+    const deepGrit = baseline.deep && Number.isFinite(baseline.deep.grit12);
+    notes.push(deepGrit
+      ? tp("Grit {g}/5 from your full 12-item scale vs the ~3.4 adult reference point.", { g: (baseline.deep.grit12 / 12).toFixed(1) })
+      : tp("Grit {g}/5 — the onboarding measure is the perseverance facet only (4 of the 8 Grit-S items), so this is indicative, not an exact match to the ~3.4 reference.", { g: (baseline.grit / 4).toFixed(1) }));
   }
   notes.push(deepGse
     ? t("Scored from your full 10-item GSE — a direct match to the 25-country norm, no short-form approximation.")

@@ -337,3 +337,16 @@ test("the full GSE-10 makes the personal-goals benchmark an exact distribution m
   assert.equal(deep.method, "distribution");
   assert.ok(deep.notes.some(n => n.includes("direct match")));
 });
+
+test("grit note discloses the perseverance-only short form and prefers the full 12-item scale (#8)", () => {
+  const shortForm = getAllBenchmarks(makeState({}, { ...BASELINE, gse: 18, grit: 14 })).personalGoals;
+  assert.ok(
+    shortForm.notes.some(n => /perseverance facet only/i.test(n)),
+    "onboarding grit is disclosed as the perseverance facet only"
+  );
+  const deep = getAllBenchmarks(makeState({}, { ...BASELINE, gse: 18, grit: 14, deep: { grit12: 48 } })).personalGoals;
+  assert.ok(
+    deep.notes.some(n => /full 12-item/i.test(n)),
+    "with the deep Grit-12 present the note cites the full 12-item scale"
+  );
+});
