@@ -19,10 +19,17 @@ const ASPECT_ORDER = [
   "personalGoals", "socialContribution", "environment", "humanityFuture"
 ];
 
-// Same points formula the Rankings table uses.
+// Same points formula the Rankings table uses. Prefers the never-truncated
+// lifetime-XP counter (finding #11) so quest/commitment/check-in/deep XP all
+// count and the number never shrinks as the capped action history rotates.
+// Saves predating the counter fall back to the history sum (undercounts, but
+// degrades gracefully).
 export function crewPoints(state) {
-  const historyXp = (state.history || []).reduce((sum, h) => sum + (h.xpReward || 0), 0);
-  return historyXp + (state.profile.level || 1) * 150;
+  const profile = state.profile || {};
+  const base = Number.isFinite(profile.lifetimeXp)
+    ? profile.lifetimeXp
+    : (state.history || []).reduce((sum, h) => sum + (h.xpReward || 0), 0);
+  return base + (profile.level || 1) * 150;
 }
 
 // TextEncoder-based base64url so Thai and other non-Latin names survive.

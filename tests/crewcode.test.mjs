@@ -106,3 +106,28 @@ test("removeFriend deletes by id and the roster caps at 50", () => {
   assert.equal(overflow.ok, false);
   assert.match(overflow.reason, /full/i);
 });
+
+test("crewPoints prefers lifetime XP over the capped history (#11)", () => {
+  // With a lifetime counter, points reflect the true total, not the (capped)
+  // action history — quest/check-in/deep XP that never hit history now count.
+  const withLifetime = makeState({ profile: { lifetimeXp: 5000 }, history: [{ xpReward: 30 }] });
+  assert.equal(crewPoints(withLifetime), 5000 + 7 * 150);
+  // Saves predating the counter fall back to the history sum.
+  const legacy = makeState({ history: [{ xpReward: 30 }, { xpReward: 20 }] });
+  assert.equal(crewPoints(legacy), 50 + 7 * 150);
+});
+
+test("addXP accumulates lifetimeXp; old saves backfill from level + xp (#11)", () => {
+  const m = new GameStateManager();
+  const before = m.state.profile.lifetimeXp;
+  m.addXP(40);
+  m.addXP(60);
+  assert.equal(m.state.profile.lifetimeXp, before + 100, "every award adds to the lifetime counter");
+  // Legacy save without the counter -> reconstruct from level (each i costs
+  // i*100 to clear) + current xp: 100*(4*5)/2 + 30 = 1030.
+  const merged = m.mergeSavedState({ schemaVersion: 3, profile: { name: "Old", level: 5, xp: 30 } });
+  assert.equal(merged.profile.lifetimeXp, 1030);
+  // A genuine counter already on the save is preserved untouched.
+  const kept = m.mergeSavedState({ schemaVersion: 3, profile: { name: "New", level: 5, xp: 30, lifetimeXp: 9999 } });
+  assert.equal(kept.profile.lifetimeXp, 9999);
+});

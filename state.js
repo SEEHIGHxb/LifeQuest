@@ -42,6 +42,7 @@ const DEFAULT_STATE = {
     name: "Guest",
     level: 1,
     xp: 0,
+    lifetimeXp: 0, // never-truncated total XP ever earned — drives shareable points (finding #11)
     rank: "Foundational",
     assessmentComplete: true, // false only after a quick-start (express) baseline
 
@@ -219,6 +220,13 @@ export class GameStateManager {
     profile.name = safeString(profile.name, 60).trim() || "Guest";
     profile.level = Math.round(clampNumber(profile.level, 1, 999, 1));
     profile.xp = Math.round(clampNumber(profile.xp, 0, 100000000, 0));
+    // Backfill the never-truncated lifetime-XP counter for saves that predate
+    // it (finding #11): reconstruct total XP earned from level + current xp
+    // (each level i costs i*100), since real history is capped. A genuine
+    // counter already on the save is kept as-is.
+    profile.lifetimeXp = (parsed.profile && Number.isFinite(parsed.profile.lifetimeXp))
+      ? Math.round(clampNumber(parsed.profile.lifetimeXp, 0, 100000000, 0))
+      : Math.round((100 * (profile.level - 1) * profile.level) / 2) + profile.xp;
     profile.rank = this.getRank(profile.level);
 
     return {
@@ -1195,6 +1203,10 @@ export class GameStateManager {
   addXP(amount) {
     const p = this.state.profile;
     p.xp += amount;
+    // Never-truncated lifetime total (finding #11): the shareable "points" read
+    // from this, not the capped action history, so quest/commitment/check-in/
+    // deep-assessment XP all count and the number never shrinks.
+    p.lifetimeXp = (Number.isFinite(p.lifetimeXp) ? p.lifetimeXp : 0) + amount;
     let leveled = false;
     let xpNeeded = p.level * 100;
     while (p.xp >= xpNeeded) {
