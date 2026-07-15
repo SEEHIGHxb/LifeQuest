@@ -36,6 +36,16 @@ export const TH = {
   "Old data downloaded.": "ดาวน์โหลดข้อมูลเก่าแล้ว",
   "Dismiss": "ปิด",
   "Your device wouldn't save that change — storage may be full or you're in private mode. Export a backup to avoid losing progress.": "อุปกรณ์ของคุณบันทึกการเปลี่ยนแปลงนั้นไม่ได้ — พื้นที่จัดเก็บอาจเต็มหรือคุณอยู่ในโหมดส่วนตัว ส่งออกข้อมูลสำรองเพื่อไม่ให้ความคืบหน้าสูญหาย",
+  // Age is collected but no benchmark norm uses it yet, so the label no
+  // longer implies it does (review LOW finding).
+  "Age": "อายุ",
+  // --- Chart accessible names (review finding: SVGs were silent to AT) ---
+  "Trend chart: {n} weekly snapshot(s), latest score {latest} of 100": "แผนภูมิแนวโน้ม: สแนปช็อตรายสัปดาห์ {n} รายการ คะแนนล่าสุด {latest} จาก 100",
+  "Radar chart of the eight aspect scores: {summary}": "แผนภูมิเรดาร์คะแนนทั้งแปดด้าน: {summary}",
+  // --- Footer (privacy/source/version reachable from the app) ---
+  "Privacy & Data": "ความเป็นส่วนตัวและข้อมูล",
+  "Source code & license": "ซอร์สโค้ดและสัญญาอนุญาต",
+  "Version {v}": "เวอร์ชัน {v}",
   // --- Accessibility route announcer (finding #12) ---
   "Re-assessment": "การประเมินซ้ำ",
   "In-depth assessment": "การประเมินเชิงลึก",
@@ -166,7 +176,7 @@ export const TH = {
   "Step 6: Contribution, Environment & Future": "ขั้นที่ 6: สังคม สิ่งแวดล้อม และอนาคต",
   "Monthly Donations (THB)": "เงินบริจาคต่อเดือน (บาท)",
   "Volunteering Hours per Month": "ชั่วโมงจิตอาสาต่อเดือน",
-  "Single-Use Plastic Items per Week": "พลาสติกใช้ครั้งเดียวต่อสัปดาห์ (ชิ้น)",
+  "Single-Use Plastic Items per Day": "พลาสติกใช้ครั้งเดียวต่อวัน (ชิ้น)",
   "Long-term pension / retirement products (SSF, RMF, stock portfolio)?": "มีผลิตภัณฑ์บำนาญ/เกษียณระยะยาว (SSF, RMF, พอร์ตหุ้น) หรือไม่?",
   "No, not yet planning pension": "ยังไม่มี ยังไม่ได้วางแผนเกษียณ",
   "Yes, retirement assets secured": "มีแล้ว มีสินทรัพย์เพื่อเกษียณ",
@@ -361,6 +371,15 @@ export const TH = {
   "Completed: +{xp} points": "สำเร็จ: +{xp} คะแนน",
 
   // --- Dashboard ---
+  "Erase all data": "ลบข้อมูลทั้งหมด",
+  "Erase all data?": "ลบข้อมูลทั้งหมดหรือไม่",
+  "This deletes every logged routine, your goals, and your baseline assessment.": "การดำเนินการนี้จะลบกิจวัตรที่บันทึกไว้ทั้งหมด เป้าหมาย และผลประเมินพื้นฐานของคุณ",
+  "It cannot be undone, and this browser holds the only copy.": "ไม่สามารถกู้คืนได้ และเบราว์เซอร์นี้เก็บข้อมูลสำเนาเดียวเท่านั้น",
+  "Download a backup, then erase": "ดาวน์โหลดไฟล์สำรอง แล้วจึงลบ",
+  "Erase without a backup": "ลบโดยไม่สำรองข้อมูล",
+  "Back up your data.": "สำรองข้อมูลของคุณ",
+  "Everything here is stored only in this browser. Clearing site data, or the browser reclaiming space, would erase it with no way back.": "ข้อมูลทั้งหมดถูกเก็บไว้ในเบราว์เซอร์นี้เท่านั้น หากล้างข้อมูลเว็บไซต์หรือเบราว์เซอร์เรียกคืนพื้นที่ ข้อมูลจะถูกลบโดยกู้คืนไม่ได้",
+  "Your last backup was {days} days ago. Everything here is stored only in this browser, so a cleared cache would erase it.": "คุณสำรองข้อมูลครั้งล่าสุดเมื่อ {days} วันที่แล้ว ข้อมูลทั้งหมดถูกเก็บไว้ในเบราว์เซอร์นี้เท่านั้น การล้างแคชจะลบข้อมูลทิ้ง",
   "Monthly re-assessment due.": "ถึงเวลาประเมินซ้ำประจำเดือนแล้ว",
   "Re-run the short well-being instruments so your scores track your real standing, not last month's.":
     "ทำแบบประเมินชุดสั้นอีกครั้ง เพื่อให้คะแนนสะท้อนสถานะจริงของคุณ ไม่ใช่ของเดือนที่แล้ว",

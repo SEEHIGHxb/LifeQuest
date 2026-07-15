@@ -35,6 +35,11 @@ const DEEP_ASSESSMENT_XP = 60;
 // Real crewmates added via shared Crew Codes on the Rankings tab.
 const FRIEND_LIMIT = 50;
 
+// Backup nudge: localStorage is evictable and a "clear site data" wipes it, so
+// remind the user to export once they have enough logged to actually miss.
+const BACKUP_NUDGE_DAYS = 30;
+const BACKUP_NUDGE_MIN_LOGS = 10;
+
 const DEFAULT_STATE = {
   onboarded: false,
   schemaVersion: 3,
@@ -66,7 +71,7 @@ const DEFAULT_STATE = {
     sleepHours: 7,
     vegetablePortions: 2,
     waterLiters: 1.5,
-    singleUsePlastics: 5,
+    singleUsePlastics: 3, // per DAY — scoring bands and the Thai-average benchmark are daily
     monthlyDonations: 0,
     volunteeringHours: 0,
     longTermInvestments: false
@@ -90,7 +95,8 @@ const DEFAULT_STATE = {
   baseline: null, // raw instrument sums from onboarding, for benchmark percentiles
   commitment: null, // active weekly aspect pledge {aspect, weeklyTarget, week, progress, completed}
   checkins: [], // monthly mini re-assessment records {date, sums, shifts}
-  friends: [] // crewmates imported from Crew Codes {id, name, level, totalPoints, aspects, addedAt}
+  friends: [], // crewmates imported from Crew Codes {id, name, level, totalPoints, aspects, addedAt}
+  lastExportAt: null // ISO date of the last backup export — drives the dashboard nudge
 };
 
 function getStorage() {
@@ -131,6 +137,43 @@ function stressResilienceFromSt5(st5) {
 // suspenders, not a replacement for it.
 const ASPECT_SCORE_KEYS = Object.keys(DEFAULT_STATE.aspects);
 const SAFE_ID_RE = /[^A-Za-z0-9_-]/g;
+const GOAL_TYPES = ["daily", "weekly", "epic"];
+const MILESTONE_LIMIT = 10;
+
+// The profile fields that select a benchmark norm. An unknown value here does
+// not just look wrong — it silently misses every lookup table in benchmarks.js
+// and would score the user against nothing, so imports snap back to a default.
+const PROFILE_ENUMS = {
+  gender: ["male", "female", "unspecified"],
+  region: ["Provinces", "Bangkok"],
+  employment: ["Office Worker", "Freelancer", "Business Owner", "Unemployed", "Student"],
+  relationshipStatus: ["Single", "Coupled"]
+};
+
+// Numeric profile fields: [min, max]. Bounds are generous — the point is to
+// reject NaN/Infinity/strings and absurd values that would poison the score
+// math or the benchmark percentiles, not to re-validate the onboarding form.
+const PROFILE_NUMERIC = {
+  age: [1, 120],
+  income: [0, 100000000],
+  savingsRate: [0, 100],
+  digitalLiteracy: [0, 100],
+  weeklyLearningHours: [0, 168],
+  weeklyVigorousDays: [0, 7],
+  weeklyVigorousMins: [0, 1440],
+  weeklyModerateDays: [0, 7],
+  weeklyModerateMins: [0, 1440],
+  weeklyWalkingDays: [0, 7],
+  weeklyWalkingMins: [0, 1440],
+  weight: [1, 500],
+  height: [50, 260],
+  sleepHours: [0, 24],
+  vegetablePortions: [0, 30],
+  waterLiters: [0, 20],
+  singleUsePlastics: [0, 100],
+  monthlyDonations: [0, 100000000],
+  volunteeringHours: [0, 168]
+};
 
 // Finite number clamped to [min, max]; `fallback` when the value isn't numeric.
 function clampNumber(value, min, max, fallback = 0) {
@@ -196,6 +239,67 @@ function sanitizeImportedCustomAction(a) {
   };
 }
 
+// Rebuild an imported goal to a known shape. This one matters more than it
+// looks: renderQuests prints `t(goal.type.toUpperCase())` and interpolates
+// `xpReward` through tp(), and neither t() nor tp() escapes — so a hand-edited
+// backup carrying markup in `type` would land straight in innerHTML. Coercing
+// `type` to an enum and the rewards to numbers closes that at the boundary.
+// Shape also has to hold up for the score math: updateQuestProgress calls
+// goal.actionIds.includes(...) and iterates milestones, both of which throw on
+// a non-array, and a NaN targetValue would make the progress bar NaN%.
+function sanitizeImportedGoal(g) {
+  if (!g || typeof g !== "object") return null;
+  const title = safeString(g.title, 60).trim();
+  if (!title) return null;
+
+  const targetValue = Math.round(clampNumber(g.targetValue, 1, 100000, 1));
+  const milestones = Array.isArray(g.milestones)
+    ? g.milestones.slice(0, MILESTONE_LIMIT).map(m => {
+        const text = safeString(m && m.text, 80).trim();
+        if (!text) return null;
+        return {
+          text,
+          at: Math.round(clampNumber(m.at, 0, targetValue, targetValue)),
+          completed: m.completed === true
+        };
+      }).filter(Boolean)
+    : null;
+
+  const goal = {
+    id: safeId(g.id, "goal"),
+    title,
+    description: safeString(g.description, 200),
+    aspect: ASPECT_SCORE_KEYS.includes(g.aspect) ? g.aspect : ASPECT_SCORE_KEYS[0],
+    type: GOAL_TYPES.includes(g.type) ? g.type : "daily",
+    actionIds: Array.isArray(g.actionIds)
+      ? g.actionIds.map(id => safeString(id, 40)).filter(Boolean).slice(0, 20)
+      : [],
+    targetValue,
+    currentValue: Math.round(clampNumber(g.currentValue, 0, targetValue, 0)),
+    xpReward: Math.round(clampNumber(g.xpReward, 0, 10000, 0)),
+    completed: g.completed === true
+  };
+  // Absent milestones and an empty list mean different things to renderQuests
+  // (it branches on `goal.milestones` being truthy), so keep the key off
+  // entirely rather than writing an empty array.
+  if (milestones && milestones.length) goal.milestones = milestones;
+  return goal;
+}
+
+// Coerce the profile's enum + numeric fields back to known values. Anything
+// unrecognised falls back to the DEFAULT_STATE value for that field.
+function sanitizeProfileFields(profile) {
+  for (const [key, allowed] of Object.entries(PROFILE_ENUMS)) {
+    if (!allowed.includes(profile[key])) profile[key] = DEFAULT_STATE.profile[key];
+  }
+  for (const [key, [min, max]] of Object.entries(PROFILE_NUMERIC)) {
+    profile[key] = clampNumber(profile[key], min, max, DEFAULT_STATE.profile[key]);
+  }
+  profile.longTermInvestments = profile.longTermInvestments === true;
+  profile.assessmentComplete = profile.assessmentComplete !== false;
+  return profile;
+}
+
 export class GameStateManager {
   constructor() {
     this.state = this.loadState();
@@ -228,6 +332,7 @@ export class GameStateManager {
       ? Math.round(clampNumber(parsed.profile.lifetimeXp, 0, 100000000, 0))
       : Math.round((100 * (profile.level - 1) * profile.level) / 2) + profile.xp;
     profile.rank = this.getRank(profile.level);
+    sanitizeProfileFields(profile);
 
     return {
       ...defaults,
@@ -235,7 +340,9 @@ export class GameStateManager {
       profile,
       aspects: sanitizeAspectScores(parsed.aspects),
       history: Array.isArray(parsed.history) ? parsed.history.slice(0, HISTORY_LIMIT) : [],
-      goals: Array.isArray(parsed.goals) ? parsed.goals : [],
+      goals: Array.isArray(parsed.goals)
+        ? parsed.goals.map(sanitizeImportedGoal).filter(Boolean)
+        : [],
       customActions: Array.isArray(parsed.customActions)
         ? parsed.customActions.map(sanitizeImportedCustomAction).filter(Boolean)
         : [],
@@ -248,6 +355,14 @@ export class GameStateManager {
       friends: Array.isArray(parsed.friends)
         ? parsed.friends.slice(0, FRIEND_LIMIT).map(sanitizeImportedFriend).filter(Boolean)
         : [],
+      // An ISO string or null. A garbage stamp must not read as "recently
+      // backed up" and silence the nudge, so anything unparseable becomes null.
+      // Tested as a string first: new Date(null) is the epoch, not NaN, and
+      // would otherwise sneak past a bare date check.
+      lastExportAt: (typeof parsed.lastExportAt === "string"
+        && Number.isFinite(new Date(parsed.lastExportAt).getTime()))
+        ? parsed.lastExportAt.slice(0, 40)
+        : null,
       schemaVersion: DEFAULT_STATE.schemaVersion
     };
   }
@@ -346,8 +461,49 @@ export class GameStateManager {
 
   // --- BACKUP EXPORT / IMPORT ---
 
+  // Stamping before serialising means the backup records its own export time,
+  // and the nudge below goes quiet as soon as the user actually backs up.
   exportState() {
+    this.state.lastExportAt = new Date().toISOString();
+    this.saveState();
     return JSON.stringify(this.state, null, 2);
+  }
+
+  // Whole days since the last export, or null if the user has never exported.
+  // A future-dated stamp (clock skew, hand-edited backup) clamps to 0 rather
+  // than reporting a negative age.
+  daysSinceLastExport() {
+    const stamp = this.state.lastExportAt;
+    if (!stamp) return null;
+    const ms = new Date(stamp).getTime();
+    if (!Number.isFinite(ms)) return null;
+    return Math.max(0, Math.floor((Date.now() - ms) / 86400000));
+  }
+
+  // True once there is real data worth losing and the last backup is stale
+  // (or never happened). Everything here lives in localStorage, which the
+  // browser may evict under pressure and which any "clear site data" wipes —
+  // so this is the only warning a user gets before the data is simply gone.
+  needsBackupNudge() {
+    if (!this.state.onboarded) return false;
+    if (this.state.history.length < BACKUP_NUDGE_MIN_LOGS) return false;
+    const days = this.daysSinceLastExport();
+    return days === null || days >= BACKUP_NUDGE_DAYS;
+  }
+
+  // Ask the browser to exempt our origin from storage eviction. Best-effort:
+  // Chrome grants it silently on an engaged/installed origin, Firefox may
+  // prompt, Safari has no such API — hence the guarded call and no UI on
+  // failure. Never throws; resolves to whether storage is now persistent.
+  async requestPersistentStorage() {
+    try {
+      if (!navigator.storage?.persist) return false;
+      if (await navigator.storage.persisted()) return true;
+      return await navigator.storage.persist();
+    } catch (e) {
+      console.error("Persistent storage request failed:", e);
+      return false;
+    }
   }
 
   importState(jsonText) {

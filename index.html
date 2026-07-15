@@ -5,19 +5,34 @@
   <!-- Backstop for the innerHTML sinks: even if an unescaped value slipped
        through, no inline/injected script can execute (script-src 'self', no
        'unsafe-inline'). Inline STYLE attributes are used throughout the app, so
-       style-src keeps 'unsafe-inline'; Google Fonts are the only remote origins. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
+       style-src keeps 'unsafe-inline'. Every other directive is 'self' or
+       'none': the fonts are vendored, so the app loads nothing off-origin and
+       privacy.html's "no third parties" claim is literally true. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Life Balance Index — Personal Wellbeing Assessment</title>
+  <meta name="description" content="Assess your wellbeing across eight life aspects against cited Thai and international benchmarks. Local-first: your answers never leave your device, and there is no account.">
   <meta name="theme-color" content="#24344d">
+  <link rel="canonical" href="https://seehighxb.github.io/LifeBalanceIndex/">
+  <!-- Link previews. og:image reuses the maskable app icon: it is the only
+       image we ship that reads at small sizes, and shipping a dedicated
+       1200x630 card would add weight the app itself never loads. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Life Balance Index">
+  <meta property="og:title" content="Life Balance Index — Personal Wellbeing Assessment">
+  <meta property="og:description" content="Assess your wellbeing across eight life aspects against cited benchmarks. Local-first, no account.">
+  <meta property="og:url" content="https://seehighxb.github.io/LifeBalanceIndex/">
+  <meta property="og:image" content="https://seehighxb.github.io/LifeBalanceIndex/assets/icon-512.png">
+  <meta name="twitter:card" content="summary">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/png" href="./assets/icon-192.png">
   <link rel="apple-touch-icon" href="./assets/icon-192.png">
-  <!-- Source Serif 4 (headings) + Inter (body) + Sarabun (Thai glyphs) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./index.css?v=21">
+  <!-- Source Serif 4 (headings) + Inter (body) + Sarabun (Thai glyphs),
+       vendored under assets/fonts. Self-hosting removes the round-trip to
+       Google on every cold load, makes the PWA genuinely offline-capable,
+       and means no visitor IP is disclosed to a third party. -->
+  <link rel="stylesheet" href="./assets/fonts/fonts.css?v=22">
+  <link rel="stylesheet" href="./index.css?v=22">
 </head>
 <body>
   <div class="app-container">
@@ -53,16 +68,31 @@
          readers on navigation (finding #12). -->
     <div id="route-announcer" class="sr-only" role="status" aria-live="polite"></div>
 
-    <!-- Floating guidance assistant -->
+    <!-- Floating guidance assistant. The visible bubble is NOT a live region:
+         the typewriter effect would stream partial sentences to screen readers
+         on every navigation (review finding). Announcements go through the
+         hidden #assistant-sr region instead, and only on explicit activation. -->
     <div id="assistant-mount" class="assistant-wrapper d-none">
-      <div class="speech-bubble" id="assistant-speech-bubble" aria-live="polite">
+      <div class="speech-bubble" id="assistant-speech-bubble">
         Loading your recommendations…
       </div>
-      <img class="assistant-avatar" id="assistant-lumi-avatar" src="./assets/lumi.png?v=21" role="button" tabindex="0" aria-label="Guidance assistant" title="Guidance assistant" alt="Guidance assistant" />
+      <div id="assistant-sr" class="sr-only" role="status" aria-live="polite"></div>
+      <img class="assistant-avatar" id="assistant-lumi-avatar" src="./assets/lumi.png?v=22" role="button" tabindex="0" aria-label="Guidance assistant" title="Guidance assistant" alt="Guidance assistant" />
     </div>
+
+    <!-- Footer: privacy/source/version must be reachable from the app itself,
+         not only from the GitHub repo (review: PDPA statement was invisible
+         to users of the live site). -->
+    <footer class="app-footer">
+      <a id="footer-privacy" href="./privacy.html">Privacy &amp; Data</a>
+      <span aria-hidden="true">·</span>
+      <a id="footer-source" href="https://github.com/SEEHIGHxb/LifeBalanceIndex" target="_blank" rel="noopener noreferrer">Source code &amp; license</a>
+      <span aria-hidden="true">·</span>
+      <span id="footer-version">Version 22</span>
+    </footer>
   </div>
 
   <!-- Core Scripts -->
-  <script type="module" src="./app.js?v=21"></script>
+  <script type="module" src="./app.js?v=22"></script>
 </body>
 </html>

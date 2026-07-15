@@ -1,0 +1,40 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "vcs": { "enabled": false, "clientKind": "git", "useIgnoreFile": false },
+  "files": {
+    "ignore": ["assets/**", "docs/**", ".claude/**"]
+  },
+  "formatter": { "enabled": false },
+  "organizeImports": { "enabled": false },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": false,
+      "correctness": {
+        "recommended": true,
+        "noNodejsModules": "off",
+        "noUndeclaredVariables": "error"
+      },
+      "suspicious": {
+        "noDoubleEquals": "error",
+        "noDuplicateObjectKeys": "error",
+        "noDuplicateParameters": "error",
+        "noRedeclare": "error",
+        "noSelfCompare": "error",
+        "noShadowRestrictedNames": "error",
+        "noUnsafeNegation": "error",
+        "useGetterReturn": "error"
+      }
+    }
+  },
+  "javascript": {
+    "globals": [
+      "window", "document", "localStorage", "navigator", "crypto", "fetch",
+      "caches", "self", "console", "URL", "Blob", "CustomEvent", "Request",
+      "Response", "structuredClone", "confirm", "alert", "HTMLAnchorElement",
+      "TextEncoder", "TextDecoder", "atob", "btoa",
+      "setTimeout", "clearTimeout", "setInterval", "clearInterval",
+      "requestAnimationFrame", "FileReader", "Event", "Node", "getComputedStyle"
+    ]
+  }
+}

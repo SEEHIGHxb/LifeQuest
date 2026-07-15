@@ -1,0 +1,83 @@
+# Changelog
+
+All notable changes to this project are documented here.
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## Two version numbers, on purpose
+
+- **`APP_VERSION`** (`version.js`, currently `22`) is a monotonic **cache-bust
+  counter**, not semver. It appears in the `?v=N` query on every versioned
+  asset and in the service worker's `CACHE_NAME`. Bump it on *any* release that
+  changes a shipped file. `tests/consistency.test.mjs` fails CI if the sites
+  disagree.
+- **`package.json` `version`** is semver for the project as a whole. The
+  package is `private` and never published, so this is documentation only.
+
+They are deliberately independent: a one-character CSS fix needs a cache bust
+but not a minor version.
+
+## [1.1.0] — 2026-07-15 (APP_VERSION 22)
+
+Hardening pass across correctness, privacy, accessibility, and release safety.
+
+### Fixed
+
+- **Single-use plastics were asked per *week* but scored and benchmarked per
+  *day*.** An honest weekly answer was read as a daily one, scoring roughly
+  7× worse than reality and dragging down the Environment aspect. The question
+  is now phrased per day, the default is 3/day, and
+  `tests/consistency.test.mjs` pins the unit so it cannot drift back.
+- **Stale `ui.js` served the pre-split monolith.** `ui.js` changed from a
+  1,400-line module into a barrel over `views/*.js` while its URL stayed at
+  `?v=21`, so any browser holding the old copy kept running the old code.
+  Bumped to `?v=22` and added a guard test.
+- **Torn deploys.** The service worker now fetches with `cache: "no-cache"`,
+  forcing revalidation. The `?v=N` scheme only ever tagged three URLs while the
+  module graph has ~66 relative imports, so a returning user could otherwise
+  run a fresh `app.js` against stale modules.
+- Charts (radar and trend) were invisible to screen readers; both now expose
+  `role="img"` and a localized `aria-label` describing the data.
+- The assistant's speech bubble was an `aria-live` region, so its typewriter
+  effect streamed partial words to screen readers on every navigation.
+  Announcements moved to a dedicated hidden region, fired only on activation.
+
+### Security
+
+- **Imported goals are now sanitized.** `renderQuests` prints
+  `t(goal.type.toUpperCase())` unescaped, and neither `t()` nor `tp()` escapes,
+  so a hand-edited backup could smuggle markup straight into `innerHTML`.
+  Goals are rebuilt to a known shape on import (enum `type`/`aspect`, numeric
+  rewards, bounded milestones) *and* escaped at the sink.
+- Profile enum and numeric fields are coerced on import. An unknown `region` or
+  `gender` silently missed every benchmark lookup table; out-of-range numbers
+  poisoned the score math.
+- Content-Security-Policy tightened to `'self'`/`'none'` throughout now that no
+  off-origin asset remains.
+
+### Changed
+
+- **Fonts are self-hosted** (`assets/fonts/`). The app no longer contacts
+  `fonts.googleapis.com` or `fonts.gstatic.com`, so no visitor IP reaches a
+  third party, `privacy.html`'s "no third parties" claim is literally true, and
+  the PWA is genuinely offline-capable. Only the weights actually used ship
+  (400/500/600/700 — the old `<link>` also pulled an unused 300).
+- `ui.js` split into focused modules under `views/`.
+- Manifest `theme_color`/`background_color` corrected to the real palette
+  (`#24344d` / `#f7f5f0`); they previously disagreed with the stylesheet and
+  flashed the wrong colour on PWA launch. Dropped `orientation` lock.
+- The Pages artifact now ships only what the app loads (~1.5 MB, was ~2.2 MB
+  of the entire repo including `tests/`, `docs/` and unreferenced design
+  images). CI verifies every `APP_SHELL` path is staged, because
+  `cache.addAll` is atomic and one 404 silently kills offline support.
+
+### Added
+
+- Privacy page (`privacy.html`) reachable from an in-app footer, alongside
+  source and version links. The PDPA statement previously existed only in the
+  repo, invisible to users of the live site.
+- Backup nudge on the dashboard once there is data worth losing and the last
+  export is stale (or never happened), plus `navigator.storage.persist()` after
+  onboarding. `localStorage` is evictable and a "clear site data" wipes it —
+  this is the only warning before the data is simply gone.
+- Modal dialogs now trap focus, close on Escape/backdrop, and restore focus to
+  the invoking element.

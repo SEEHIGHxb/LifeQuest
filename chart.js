@@ -1,6 +1,6 @@
 // chart.js - LifeQuest Interactive SVG Radar Chart Renderer
 
-import { t } from "./i18n.js";
+import { t, tp } from "./i18n.js";
 
 const ASPECT_LABELS = {
   finance: "Finance",
@@ -45,6 +45,12 @@ export function renderTrendChart(containerId, trend) {
   svg.setAttribute("width", "100%");
   svg.setAttribute("height", height);
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  // Accessible name for the chart (review finding: SVGs were silent to AT).
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", tp("Trend chart: {n} weekly snapshot(s), latest score {latest} of 100", {
+    n: trend.length,
+    latest: trend[trend.length - 1].value
+  }));
 
   const xFor = i => trend.length === 1
     ? pad.left + plotW / 2
@@ -74,10 +80,11 @@ export function renderTrendChart(containerId, trend) {
     svg.appendChild(label);
   });
 
-  // Score line
+  // Score line. NB: callback param is `pt` (a trend point) — `t` would shadow
+  // the imported translation function.
   if (trend.length > 1) {
     const path = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-    path.setAttribute("points", trend.map((t, i) => `${xFor(i)},${yFor(t.value)}`).join(" "));
+    path.setAttribute("points", trend.map((pt, i) => `${xFor(i)},${yFor(pt.value)}`).join(" "));
     path.setAttribute("fill", "none");
     path.setAttribute("stroke", "var(--color-astral)");
     path.setAttribute("stroke-width", "2.5");
@@ -86,16 +93,16 @@ export function renderTrendChart(containerId, trend) {
   }
 
   // Points + first/last date labels
-  trend.forEach((t, i) => {
+  trend.forEach((pt, i) => {
     const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     dot.setAttribute("cx", xFor(i));
-    dot.setAttribute("cy", yFor(t.value));
+    dot.setAttribute("cy", yFor(pt.value));
     dot.setAttribute("r", "3.5");
     dot.setAttribute("fill", "var(--color-gold)");
     dot.setAttribute("stroke", "#ffffff");
     dot.setAttribute("stroke-width", "1.5");
     const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
-    title.textContent = `${new Date(t.date).toLocaleDateString()}: ${t.value}`;
+    title.textContent = `${new Date(pt.date).toLocaleDateString()}: ${pt.value}`;
     dot.appendChild(title);
     svg.appendChild(dot);
 
@@ -108,7 +115,7 @@ export function renderTrendChart(containerId, trend) {
       label.setAttribute("fill", "var(--color-text-secondary)");
       label.style.fontFamily = "var(--font-mono)";
       label.style.fontSize = "9px";
-      label.textContent = new Date(t.date).toLocaleDateString();
+      label.textContent = new Date(pt.date).toLocaleDateString();
       svg.appendChild(label);
     }
   });
@@ -133,32 +140,12 @@ export function renderRadarChart(containerId, aspects) {
   svg.setAttribute("height", height);
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.style.overflow = "visible";
-
-  // Create Glow Filter Definition
-  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-  const filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
-  filter.setAttribute("id", "astral-glow");
-  filter.setAttribute("x", "-20%");
-  filter.setAttribute("y", "-20%");
-  filter.setAttribute("width", "140%");
-  filter.setAttribute("height", "140%");
-  
-  const blur = document.createElementNS("http://www.w3.org/2000/svg", "feGaussianBlur");
-  blur.setAttribute("stdDeviation", "4");
-  blur.setAttribute("result", "blur");
-  
-  const merge = document.createElementNS("http://www.w3.org/2000/svg", "feMerge");
-  const node1 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
-  node1.setAttribute("in", "blur");
-  const node2 = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
-  node2.setAttribute("in", "SourceGraphic");
-  
-  merge.appendChild(node1);
-  merge.appendChild(node2);
-  filter.appendChild(blur);
-  filter.appendChild(merge);
-  defs.appendChild(filter);
-  svg.appendChild(defs);
+  // Accessible name listing every score (review finding: the radar was
+  // silent to AT). The old "astral-glow" filter definition — a leftover from
+  // the game theme, defined but never applied — is gone.
+  const summary = ASPECT_KEYS.map(key => `${t(ASPECT_LABELS[key])} ${aspects[key] || 0}`).join(", ");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", tp("Radar chart of the eight aspect scores: {summary}", { summary }));
 
   // 1. Draw Concentric Grid Lines (concentric octagons for 8 axes)
   const gridLevels = [20, 40, 60, 80, 100];

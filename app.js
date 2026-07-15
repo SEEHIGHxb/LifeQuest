@@ -10,10 +10,12 @@ import {
   renderAspectPage,
   renderCheckin,
   renderDeepAssessment,
-  getLumiTip
-} from "./ui.js?v=21";
+  getLumiTip,
+  openDialog
+} from "./ui.js?v=22";
 import { ASPECT_KEYS, ASPECT_META } from "./aspects.js";
 import { t, tp, getLang, setLang } from "./i18n.js";
+import { APP_VERSION } from "./version.js";
 
 const TOAST_DURATION_MS = 1600;
 const REWARD_DURATION_MS = 1900;
@@ -70,6 +72,9 @@ function applyChromeTranslations() {
   setText("tab-ledger", t("Activity Log"));
   setText("tab-quests", t("Goals"));
   setText("tab-leaderboard", t("Peer Comparison"));
+  setText("footer-privacy", t("Privacy & Data"));
+  setText("footer-source", t("Source code & license"));
+  setText("footer-version", tp("Version {v}", { v: APP_VERSION }));
   // The toggle shows the language you would switch TO.
   setText("btn-lang", getLang() === "th" ? "EN" : "ไทย");
 }
@@ -98,6 +103,10 @@ function initializeApp() {
     document.getElementById("assistant-mount").classList.add("d-none");
 
     renderOnboarding("onboarding-mount", () => {
+      // Now that there is data worth keeping, ask the browser not to evict it.
+      // Fire-and-forget: the grant is silent where supported and absent where
+      // it isn't (Safari), so nothing in the UI waits on or reacts to it.
+      stateManager.requestPersistentStorage();
       initializeApp();
     });
   } else {
@@ -128,14 +137,45 @@ function setupNavigation() {
   if (resetBtn) {
     const newResetBtn = resetBtn.cloneNode(true);
     resetBtn.parentNode.replaceChild(newResetBtn, resetBtn);
-    newResetBtn.addEventListener("click", () => {
-      if (confirm(t("Are you sure you want to erase all records and your baseline assessment? This cannot be undone."))) {
-        stateManager.resetState();
-        window.location.hash = "";
-        initializeApp();
-      }
-    });
+    newResetBtn.addEventListener("click", confirmReset);
   }
+}
+
+// Reset is the only irreversible action in the app, and localStorage is the
+// only copy of the data — there is no server to restore from. A bare confirm()
+// made "erase everything" a single OK away, with the backup option living in a
+// different button the user had to know to press first. This offers the export
+// inside the same decision, and makes erasing the deliberate choice.
+function confirmReset() {
+  const { overlay, close } = openDialog({
+    label: t("Erase all data"),
+    html: `
+    <div class="popup-card">
+      <h2 class="popup-title" style="font-family: var(--font-serif); font-weight: bold;">${t("Erase all data?")}</h2>
+      <p style="font-size: 0.95rem; margin-bottom: 8px;">${t("This deletes every logged routine, your goals, and your baseline assessment.")}</p>
+      <p style="font-size: 0.95rem; margin-bottom: 20px;"><strong>${t("It cannot be undone, and this browser holds the only copy.")}</strong></p>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <button class="btn btn-primary btn-reset-export">${t("Download a backup, then erase")}</button>
+        <button class="btn btn-danger btn-reset-confirm">${t("Erase without a backup")}</button>
+        <button class="btn btn-reset-cancel">${t("Cancel")}</button>
+      </div>
+    </div>
+  `
+  });
+
+  const wipe = () => {
+    stateManager.resetState();
+    window.location.hash = "";
+    close();
+    initializeApp();
+  };
+
+  overlay.querySelector(".btn-reset-export").addEventListener("click", () => {
+    downloadBackup();
+    wipe();
+  });
+  overlay.querySelector(".btn-reset-confirm").addEventListener("click", wipe);
+  overlay.querySelector(".btn-reset-cancel").addEventListener("click", close);
 }
 
 // Roving-tabindex arrow-key handler for the tablist (finding #12): Left/Right
@@ -180,7 +220,7 @@ function renderActiveTab() {
   } else if (route.type === "deep") {
     renderDeepAssessment("main-view", state, handleDeepComplete);
   } else if (activeTab === "dashboard") {
-    renderDashboard("main-view", state);
+    renderDashboard("main-view", state, downloadBackup);
   } else if (activeTab === "ledger") {
     renderLedger("main-view", state, handleLogAction, renderActiveTab);
   } else if (activeTab === "quests") {
@@ -246,22 +286,27 @@ function handleLogAction(id, title, impacts, xp, quantity = null) {
 
 // --- BACKUP EXPORT / IMPORT ---
 
+// Shared by the header Export button and the dashboard's backup nudge, so both
+// stamp lastExportAt (exportState does it) and the nudge clears on either path.
+function downloadBackup() {
+  const stamp = new Date().toISOString().slice(0, 10);
+  const blob = new Blob([stateManager.exportState()], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `lifequest_backup_${stamp}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast(t("Data exported."));
+  renderActiveTab();
+}
+
 function setupBackupControls() {
   const exportBtn = document.getElementById("btn-export-data");
   if (exportBtn) {
     const newExportBtn = exportBtn.cloneNode(true);
     exportBtn.parentNode.replaceChild(newExportBtn, exportBtn);
-    newExportBtn.addEventListener("click", () => {
-      const stamp = new Date().toISOString().slice(0, 10);
-      const blob = new Blob([stateManager.exportState()], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `lifequest_backup_${stamp}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-      showToast(t("Data exported."));
-    });
+    newExportBtn.addEventListener("click", downloadBackup);
   }
 
   const importBtn = document.getElementById("btn-import-data");
@@ -429,7 +474,7 @@ function setupAssistant() {
     const newAvatar = avatar.cloneNode(true);
     avatar.parentNode.replaceChild(newAvatar, avatar);
 
-    const activate = () => triggerLumiMessage(t("Here to help. Focus on logging your routines today to build momentum."));
+    const activate = () => triggerLumiMessage(t("Here to help. Focus on logging your routines today to build momentum."), { announce: true });
     newAvatar.addEventListener("click", activate);
     // Keyboard activation for the role="button" avatar (finding #12).
     newAvatar.addEventListener("keydown", (e) => {
@@ -448,9 +493,17 @@ function updateAssistantBubble() {
   triggerLumiMessage(getLumiTip(state.aspects));
 }
 
-function triggerLumiMessage(message) {
+// The typewriter is purely visual. Screen readers hear the message only when
+// `announce` is set (explicit avatar activation) — the full text lands in the
+// hidden live region at once, never character by character (review finding).
+function triggerLumiMessage(message, { announce = false } = {}) {
   const bubble = document.getElementById("assistant-speech-bubble");
   if (!bubble) return;
+
+  if (announce) {
+    const sr = document.getElementById("assistant-sr");
+    if (sr) sr.textContent = message;
+  }
 
   if (lumiTypewriterInterval) {
     clearInterval(lumiTypewriterInterval);
@@ -470,13 +523,14 @@ function triggerLumiMessage(message) {
 }
 
 // --- EVENT LISTENERS (LEVEL UP MODAL) ---
+// openDialog supplies the WCAG dialog behavior (role/aria-modal, focus trap,
+// Escape, focus restore) that this overlay used to lack (review finding).
 window.addEventListener("lifequest_levelup", (e) => {
   const data = e.detail;
 
-  const overlay = document.createElement("div");
-  overlay.className = "popup-overlay";
-
-  overlay.innerHTML = `
+  const { overlay, close } = openDialog({
+    label: t("Level Up"),
+    html: `
     <div class="popup-card">
       <div style="font-size: 3rem; margin-bottom: 10px;">🏆</div>
       <h2 class="popup-title" style="font-family: var(--font-serif); font-weight: bold;">${t("Level Up")}</h2>
@@ -488,13 +542,10 @@ window.addEventListener("lifequest_levelup", (e) => {
       </div>
       <button class="btn btn-primary btn-close-levelup" style="width: 120px;">${t("Continue")}</button>
     </div>
-  `;
-
-  document.body.appendChild(overlay);
-
-  overlay.querySelector(".btn-close-levelup").addEventListener("click", () => {
-    overlay.remove();
+  `
   });
+
+  overlay.querySelector(".btn-close-levelup").addEventListener("click", close);
 });
 
 window.addEventListener("lifequest_quest_completed", (e) => {

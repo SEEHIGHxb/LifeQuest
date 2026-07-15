@@ -485,6 +485,147 @@ test("deep assessment persists through reload and verifies only its own section"
   assert.ok(!isAspectDeepVerified(reloaded.state, "finance"), "other aspects stay unverified");
 });
 
+// --- P7: imported goals, profile enums, and the backup nudge ---
+
+test("importing a hostile goal coerces it to a safe shape", () => {
+  const m = new GameStateManager();
+  m.importState(JSON.stringify({
+    schemaVersion: 3,
+    profile: {},
+    aspects: {},
+    goals: [{
+      id: '"><script>',
+      title: "Pwn",
+      // renderQuests prints t(goal.type.toUpperCase()) unescaped, so `type`
+      // reaching innerHTML verbatim would execute.
+      type: "<img src=x onerror=alert(1)>",
+      aspect: "evilKey",
+      actionIds: "not-an-array",
+      targetValue: "abc",
+      currentValue: 9999,
+      xpReward: "<b>1e9</b>",
+      completed: "yes"
+    }]
+  }));
+  const g = m.state.goals[0];
+  assert.equal(m.state.goals.length, 1);
+  assert.match(g.id, /^[A-Za-z0-9_-]+$/, "goal id stripped to a safe token");
+  assert.ok(["daily", "weekly", "epic"].includes(g.type), "unknown goal type snapped to an enum");
+  assert.ok(Object.keys(m.state.aspects).includes(g.aspect), "unknown aspect snapped to a real key");
+  assert.ok(Array.isArray(g.actionIds), "actionIds forced to an array");
+  assert.equal(g.targetValue, 1, "non-numeric targetValue falls back to 1");
+  assert.equal(g.currentValue, 1, "currentValue cannot exceed targetValue");
+  assert.equal(g.xpReward, 0, "non-numeric xpReward coerced to 0");
+  assert.equal(g.completed, false, "truthy-but-not-true completed coerced to false");
+});
+
+test("a goal with no usable title is dropped, and milestones are bounded", () => {
+  const m = new GameStateManager();
+  m.importState(JSON.stringify({
+    schemaVersion: 3,
+    profile: {},
+    aspects: {},
+    goals: [
+      { title: "   ", type: "daily" },
+      { title: 42, type: "daily" },
+      null,
+      {
+        title: "Keeper",
+        type: "epic",
+        targetValue: 5,
+        milestones: [
+          { text: "ok", at: 99, completed: "nope" },
+          { text: "", at: 1 },
+          ...Array.from({ length: 20 }, (_, i) => ({ text: `m${i}`, at: 1 }))
+        ]
+      }
+    ]
+  }));
+  assert.equal(m.state.goals.length, 1, "untitled/non-object goals dropped");
+  const g = m.state.goals[0];
+  assert.equal(g.title, "Keeper");
+  assert.ok(g.milestones.length <= 10, "milestone list capped");
+  assert.equal(g.milestones[0].at, 5, "milestone `at` clamped to targetValue");
+  assert.equal(g.milestones[0].completed, false);
+  assert.ok(g.milestones.every(msg => msg.text.length > 0), "empty milestone text dropped");
+});
+
+test("an imported goal with no milestones omits the key entirely", () => {
+  // renderQuests branches on `goal.milestones` being truthy — an empty array
+  // would render an empty <ul> where the original showed nothing.
+  const m = new GameStateManager();
+  m.importState(JSON.stringify({
+    schemaVersion: 3, profile: {}, aspects: {},
+    goals: [{ title: "Plain", type: "daily", milestones: [] }]
+  }));
+  assert.equal(Object.hasOwn(m.state.goals[0], "milestones"), false);
+});
+
+test("importing unknown profile enums falls back to benchmark-selectable values", () => {
+  const m = new GameStateManager();
+  m.importState(JSON.stringify({
+    schemaVersion: 3,
+    aspects: {},
+    profile: {
+      gender: "<script>", region: "Atlantis", employment: "Pirate",
+      relationshipStatus: "It's complicated",
+      age: 9999, sleepHours: "abc", income: -5, longTermInvestments: "yes"
+    }
+  }));
+  const p = m.state.profile;
+  assert.equal(p.gender, "unspecified");
+  assert.equal(p.region, "Provinces");
+  assert.equal(p.employment, "Office Worker");
+  assert.equal(p.relationshipStatus, "Single");
+  assert.equal(p.age, 120, "out-of-range age clamped, not defaulted");
+  assert.equal(p.sleepHours, 7, "non-numeric field falls back to the default");
+  assert.equal(p.income, 0, "negative income clamped to the floor");
+  assert.equal(p.longTermInvestments, false, "truthy string coerced to a real boolean");
+});
+
+test("backup nudge stays quiet until there is data worth losing", () => {
+  const m = new GameStateManager();
+  m.state.onboarded = true;
+  assert.equal(m.daysSinceLastExport(), null, "never exported reports null");
+  assert.equal(m.needsBackupNudge(), false, "no nudge with an empty history");
+
+  for (let i = 0; i < 10; i++) m.logAction(`a${i}`, "Act", { mental: 1 }, 1);
+  assert.equal(m.needsBackupNudge(), true, "nudges once enough is logged and never backed up");
+
+  m.exportState();
+  assert.equal(m.daysSinceLastExport(), 0);
+  assert.equal(m.needsBackupNudge(), false, "exporting silences the nudge");
+
+  // 31 days later the nudge returns.
+  m.state.lastExportAt = new Date(Date.now() - 31 * 86400000).toISOString();
+  assert.equal(m.daysSinceLastExport(), 31);
+  assert.equal(m.needsBackupNudge(), true, "a stale backup nudges again");
+});
+
+test("a garbage lastExportAt cannot masquerade as a recent backup", () => {
+  const m = new GameStateManager();
+  for (const bad of ["not-a-date", "", 12345, null, {}]) {
+    m.importState(JSON.stringify({
+      schemaVersion: 3, profile: {}, aspects: {}, lastExportAt: bad
+    }));
+    assert.equal(m.state.lastExportAt, null, `lastExportAt ${JSON.stringify(bad)} rejected`);
+    assert.equal(m.daysSinceLastExport(), null);
+  }
+  // A future stamp reports 0 rather than a negative age.
+  m.importState(JSON.stringify({
+    schemaVersion: 3, profile: {}, aspects: {},
+    lastExportAt: new Date(Date.now() + 86400000).toISOString()
+  }));
+  assert.equal(m.daysSinceLastExport(), 0, "future-dated stamp clamps to 0");
+});
+
+test("exportState stamps the backup with its own export time", () => {
+  const m = new GameStateManager();
+  const parsed = JSON.parse(m.exportState());
+  assert.ok(parsed.lastExportAt, "the exported file records when it was exported");
+  assert.equal(parsed.lastExportAt, m.state.lastExportAt, "stamp persisted, not just serialised");
+});
+
 test("submitDeepAssessment needs an onboarding baseline first", () => {
   const m = new GameStateManager();
   assert.equal(m.submitDeepAssessment("mental", { pss10: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }), null);
