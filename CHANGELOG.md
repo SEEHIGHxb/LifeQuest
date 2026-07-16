@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Two version numbers, on purpose
 
-- **`APP_VERSION`** (`version.js`, currently `23`) is a monotonic **cache-bust
+- **`APP_VERSION`** (`version.js`, currently `24`) is a monotonic **cache-bust
   counter**, not semver. It appears in the `?v=N` query on every versioned
   asset and in the service worker's `CACHE_NAME`. Bump it on *any* release that
   changes a shipped file. `tests/consistency.test.mjs` fails CI if the sites
@@ -15,6 +15,45 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 They are deliberately independent: a one-character CSS fix needs a cache bust
 but not a minor version.
+
+## [1.3.0] — 2026-07-16 (APP_VERSION 24)
+
+Assessment validity sprint: instrument fidelity, scoring-integrity guards,
+careless-response detection, and a public methodology page.
+
+### Changed
+
+- **CFPB financial well-being is now scored with the official CFPB conversion
+  tables** (self-administered, age-banded 18–61 / 62+) instead of the linear
+  approximation — both the onboarding 5-item scale and the in-depth 10-item
+  scale, so the deep recalibration delta stays metric-coherent. The in-UI
+  disclosure notes now describe the official table. Existing scores adjust on
+  the next re-assessment or deep section, not retroactively.
+- **The sleep instrument uses the standard 6-point Jenkins Sleep Scale
+  response set** ("Not at all (0 days)" … "22–31 days", past month) instead of
+  a compressed 4-option adaptation. Raw range is unchanged (0–20), so stored
+  baselines need no migration.
+- **CFPB item 5 ("My finances control my life") uses the official
+  frequency response set** (Always … Never) rather than "describes me",
+  matching the published worksheet.
+
+### Added
+
+- **Scoring-integrity test guards** (`tests/scoring-integrity.test.mjs`):
+  every normalizer's endpoints and direction are derived from the instrument
+  definitions and pinned — editing an option value or item count now fails CI
+  instead of silently misscaling scores. Composite calculators are
+  bounds-checked at both extremes.
+- **Straight-line (careless-response) detection**: a mixed-keyed questionnaire
+  answered with the same option position on every row is demoted to
+  "unanswered" at onboarding (flagged on the aspect page), and a straight-lined
+  in-depth instrument is rejected outright — it never enters scoring, cannot
+  mark an aspect Verified, and earns no points.
+- **Methodology page** (`#/methodology`, footer link, EN/TH): per-aspect
+  formulas and composite-weight rationale, instrument citations, an explicit
+  "app-authored items" disclosure for the three non-standardized aspects,
+  confidence-tier and benchmark explanations, and a measurement-stability
+  readout computed from re-assessment history.
 
 ## [1.2.0] — 2026-07-16 (APP_VERSION 23)
 

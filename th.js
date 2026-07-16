@@ -17,8 +17,8 @@ export const TH = {
   // --- Instrument-fidelity disclosures (finding #8) ---
   "Grit (perseverance)": "Grit (ความเพียร)",
   "Perseverance facet only — {g}/5 vs the ~3.4 full-scale reference": "เฉพาะด้านความเพียร — {g}/5 เทียบกับค่าอ้างอิงเต็มสเกล ~3.4",
-  "Raw {n}/20 — scored on a simple linear scale, not the CFPB's official score table": "คะแนนดิบ {n}/20 — คิดคะแนนแบบเชิงเส้นอย่างง่าย ไม่ใช่ตารางคะแนนทางการของ CFPB",
-  "Full 10-item scale — raw {n}/40, linear scoring (not the official CFPB table)": "สเกลเต็ม 10 ข้อ — คะแนนดิบ {n}/40 คิดแบบเชิงเส้น (ไม่ใช่ตารางทางการของ CFPB)",
+  "Raw {n}/20 — converted with the CFPB's official scoring table (self-administered)": "คะแนนดิบ {n}/20 — แปลงด้วยตารางคะแนนทางการของ CFPB (แบบตอบด้วยตนเอง)",
+  "Full 10-item scale — raw {n}/40, converted with the CFPB's official scoring table": "สเกลเต็ม 10 ข้อ — คะแนนดิบ {n}/40 แปลงด้วยตารางคะแนนทางการของ CFPB",
   "Grit {g}/5 from your full 12-item scale vs the ~3.4 adult reference point.": "Grit {g}/5 จากสเกลเต็ม 12 ข้อ เทียบกับค่าอ้างอิงผู้ใหญ่ ~3.4",
   "Grit {g}/5 — the onboarding measure is the perseverance facet only (4 of the 8 Grit-S items), so this is indicative, not an exact match to the ~3.4 reference.": "Grit {g}/5 — แบบวัดตอนเริ่มต้นครอบคลุมเฉพาะด้านความเพียร (4 จาก 8 ข้อของ Grit-S) จึงเป็นเพียงค่าชี้บ่ง ไม่ใช่การเทียบตรงกับค่าอ้างอิง ~3.4",
   // --- Core-surface i18n leaks fixed (finding #10) ---
@@ -198,9 +198,72 @@ export const TH = {
   "Never": "ไม่เคย",
   "Very often": "บ่อยมาก",
   "Rarely / Not at all": "แทบไม่มี / ไม่มีเลย",
+  "Not at all (0 days)": "ไม่มีเลย (0 วัน)",
+  "Uniform answers detected.": "ตรวจพบคำตอบแบบเดียวกันทั้งหมด",
+  "Some questionnaire answers all sat on the same option, so they are not counted as a confirmed measurement. Re-answer them honestly to confirm this score.":
+    "คำตอบบางชุดเลือกตัวเลือกเดียวกันทุกข้อ จึงยังไม่ถูกนับเป็นผลวัดที่ยืนยันแล้ว โปรดตอบใหม่ตามความเป็นจริงเพื่อยืนยันคะแนนนี้",
+  "Some answers all sat on the same option, so that questionnaire was not counted. Vary your answers to reflect your real experience and save again.":
+    "คำตอบทั้งหมดเลือกตัวเลือกเดียวกันทุกข้อ แบบสอบถามชุดนั้นจึงไม่ถูกนับ โปรดตอบให้ตรงกับประสบการณ์จริงแล้วบันทึกอีกครั้ง",
+
+  // --- Methodology page (#/methodology) ---
+  "Methodology": "ระเบียบวิธี",
+  "How scores are measured": "คะแนนวัดอย่างไร",
+  "Each aspect score (0-100) combines published, validated questionnaires with facts you report about your life. This page shows every instrument, how it is scored, how the parts are weighted, and the known limitations — so no number is a black box.":
+    "คะแนนแต่ละด้าน (0-100) มาจากแบบสอบถามมาตรฐานที่ตีพิมพ์แล้ว ร่วมกับข้อมูลจริงที่คุณรายงาน หน้านี้แสดงเครื่องมือทุกชิ้น วิธีคิดคะแนน น้ำหนักของแต่ละส่วน และข้อจำกัดที่ทราบ — เพื่อให้ไม่มีตัวเลขใดเป็นกล่องดำ",
+  "This is a self-reflection tool, not a medical or psychological diagnosis. If a score worries you, treat it as a prompt to talk to a professional, not as a verdict.":
+    "นี่คือเครื่องมือสำรวจตนเอง ไม่ใช่การวินิจฉัยทางการแพทย์หรือจิตวิทยา หากคะแนนใดทำให้กังวล โปรดถือเป็นสัญญาณให้ปรึกษาผู้เชี่ยวชาญ ไม่ใช่คำตัดสิน",
+  "The eight aspects": "แปดด้านของชีวิต",
+  "60% income percentile (lognormal model calibrated to Thai Labour Force Survey wages) + 40% CFPB Financial Well-Being score (official age-banded table) + a savings-rate bonus of up to 10 points.":
+    "60% เปอร์เซ็นไทล์รายได้ (แบบจำลอง lognormal เทียบค่าจ้างจากการสำรวจภาวะการทำงานของไทย) + 40% คะแนนสุขภาวะการเงิน CFPB (ตารางทางการแยกช่วงอายุ) + โบนัสอัตราการออมสูงสุด 10 คะแนน",
+  "Objective standing is weighted above sentiment; the savings bonus rewards a habit you fully control.":
+    "ให้น้ำหนักสถานะที่วัดได้จริงมากกว่าความรู้สึก และโบนัสการออมให้รางวัลกับนิสัยที่คุณควบคุมได้เอง",
+  "40% activity (IPAQ MET-minutes vs the WHO 600 guideline) + 20% Asian-BMI band + 20% sleep (Jenkins Sleep Scale + reported duration) + 20% nutrition (vegetables + water). Missing measurements are omitted and the weights renormalized — never faked.":
+    "40% การเคลื่อนไหว (MET-นาทีตาม IPAQ เทียบเกณฑ์ WHO 600) + 20% ช่วง BMI เอเชีย + 20% การนอน (Jenkins Sleep Scale + ชั่วโมงนอนที่รายงาน) + 20% โภชนาการ (ผัก + น้ำ) ค่าที่ไม่ได้กรอกจะถูกตัดออกและกระจายน้ำหนักใหม่ ไม่มีการแต่งตัวเลขแทน",
+  "Activity carries the most weight because it has the strongest evidence base and is the component daily logging can move.":
+    "การเคลื่อนไหวได้น้ำหนักมากที่สุดเพราะมีหลักฐานวิชาการแข็งแรงที่สุด และเป็นส่วนที่การบันทึกกิจวัตรรายวันขยับได้จริง",
+  "50% WHO-5 well-being + 50% ST-5 stress resilience (Thai DMH cutoffs, inverted so calmer scores higher). The in-depth PSS-10 refines the stress half when completed.":
+    "50% สุขภาวะ WHO-5 + 50% ความทนต่อความเครียด ST-5 (เกณฑ์กรมสุขภาพจิต กลับด้านให้ยิ่งสงบยิ่งคะแนนสูง) แบบเจาะลึก PSS-10 จะละเอียดขึ้นเมื่อทำครบ",
+  "An equal split of positive well-being and stress keeps one bad week from dominating the score.":
+    "การแบ่งครึ่งระหว่างสุขภาวะเชิงบวกกับความเครียด ทำให้สัปดาห์แย่ ๆ สัปดาห์เดียวไม่ครอบงำคะแนน",
+  "40% social network (LSNS-6) + 30% low loneliness (UCLA-3) + 30% relationship satisfaction (RAS, couples only). Singles reweight to 50/50 — being single is never penalized.":
+    "40% เครือข่ายสังคม (LSNS-6) + 30% ความเหงาต่ำ (UCLA-3) + 30% ความพึงพอใจในความสัมพันธ์ (RAS เฉพาะคู่รัก) คนโสดกระจายน้ำหนักเป็น 50/50 — ความโสดไม่ถูกหักคะแนน",
+  "Network size and felt loneliness measure different things; both matter, so neither dominates.":
+    "ขนาดเครือข่ายกับความเหงาที่รู้สึกวัดคนละสิ่ง ทั้งคู่สำคัญจึงไม่ให้ด้านใดครอบงำ",
+  "40% self-efficacy (GSE) + 30% grit (Grit-S perseverance facet) + 30% active learning (weekly study hours + self-rated digital literacy). The in-depth section adds the full GSE-10, Grit-12, and Rosenberg self-esteem.":
+    "40% การรับรู้ความสามารถของตน (GSE) + 30% ความมุ่งมั่น (Grit-S ด้านความเพียร) + 30% การเรียนรู้ (ชั่วโมงเรียนต่อสัปดาห์ + ทักษะดิจิทัลที่ประเมินเอง) แบบเจาะลึกเพิ่ม GSE-10, Grit-12 และความภาคภูมิใจในตนเองของ Rosenberg",
+  "Belief you can act, persistence, and actual learning time together approximate progress toward goals.":
+    "ความเชื่อว่าทำได้ ความเพียร และเวลาเรียนรู้จริง รวมกันสะท้อนความคืบหน้าสู่เป้าหมาย",
+  "40% donations (frequency + amount vs income) + 40% action (volunteering hours + helping behavior) + 20% civic participation.":
+    "40% การบริจาค (ความถี่ + จำนวนเทียบรายได้) + 40% การลงมือทำ (ชั่วโมงจิตอาสา + พฤติกรรมช่วยเหลือ) + 20% การมีส่วนร่วมทางสังคม",
+  "Giving money and giving time are weighted equally; civic habits count but are the hardest to self-report accurately.":
+    "การให้เงินกับการให้เวลาได้น้ำหนักเท่ากัน ส่วนกิจกรรมพลเมืองนับด้วยแต่รายงานเองได้แม่นยำยากที่สุด",
+  "40% waste (daily single-use plastics vs the ~3/day Thai average + recycling habits) + 40% transit choices + 20% conservation habits.":
+    "40% ขยะ (พลาสติกใช้ครั้งเดียวต่อวันเทียบค่าเฉลี่ยไทย ~3 ชิ้น/วัน + นิสัยแยกขยะ) + 40% การเลือกการเดินทาง + 20% นิสัยประหยัดพลังงาน",
+  "Plastics and transport dominate the part of an individual Thai footprint that daily habits can actually change.":
+    "พลาสติกกับการเดินทางคือส่วนใหญ่ของรอยเท้าสิ่งแวดล้อมรายบุคคลที่นิสัยประจำวันเปลี่ยนได้จริง",
+  "25% future skills + 25% legacy actions + 25% future-oriented giving + 25% long-term security (retirement investments). The in-depth CFC-12 adds a validated future-orientation reading.":
+    "25% ทักษะแห่งอนาคต + 25% การสร้างมรดกเชิงบวก + 25% การให้เพื่อคนรุ่นหลัง + 25% ความมั่นคงระยะยาว (การลงทุนเกษียณ) แบบเจาะลึก CFC-12 เพิ่มการวัดมุมมองต่ออนาคตที่ผ่านการตรวจสอบแล้ว",
+  "Four equal parts because there is no published evidence for ranking them — an honest uniform prior.":
+    "สี่ส่วนเท่ากันเพราะยังไม่มีหลักฐานตีพิมพ์ที่บอกว่าอะไรสำคัญกว่า — จึงให้น้ำหนักเท่ากันอย่างตรงไปตรงมา",
+  "App-authored behavioral items — not a standardized instrument. Read this aspect as a habits index, not a validated psychological measure.":
+    "ชุดคำถามพฤติกรรมที่แอปสร้างเอง — ไม่ใช่เครื่องมือมาตรฐาน โปรดอ่านด้านนี้เป็นดัชนีนิสัย ไม่ใช่การวัดทางจิตวิทยาที่ผ่านการตรวจสอบ",
+  "Confidence, benchmarks, and answer quality": "ความเชื่อมั่น เกณฑ์เปรียบเทียบ และคุณภาพคำตอบ",
+  "Every score carries a confidence tier: High (you answered everything), Partial, Estimated (defaults stood in), or Verified (you completed the full-length in-depth instruments).":
+    "ทุกคะแนนมีระดับความเชื่อมั่น: สูง (ตอบครบ), บางส่วน, ประมาณการ (ใช้ค่าเริ่มต้นแทน) หรือยืนยันแล้ว (ทำแบบเจาะลึกฉบับเต็มครบ)",
+  "Society percentiles are honest approximations against cited published statistics — each benchmark names its method and sources, and the band around it is an indicative range, not a statistical confidence interval.":
+    "เปอร์เซ็นไทล์เทียบสังคมเป็นการประมาณอย่างตรงไปตรงมาจากสถิติที่ตีพิมพ์และอ้างอิงได้ — แต่ละเกณฑ์ระบุวิธีและแหล่งที่มา และช่วงคะแนนเป็นช่วงบ่งชี้ ไม่ใช่ช่วงความเชื่อมั่นทางสถิติ",
+  "Answer quality is checked: a questionnaire answered with the same option on every row (despite reverse-worded questions) is not counted as a confirmed measurement until re-answered.":
+    "มีการตรวจคุณภาพคำตอบ: แบบสอบถามที่เลือกตัวเลือกเดียวกันทุกข้อ (ทั้งที่มีข้อกลับความหมาย) จะไม่ถูกนับเป็นผลวัดที่ยืนยัน จนกว่าจะตอบใหม่",
+  "Measurement stability": "ความเสถียรของการวัด",
+  "Across your {count} re-assessment(s), survey-based scores shifted by an average of {avg} points (each shift is capped at ±15). Smaller average shifts mean the measurement is stable for you.":
+    "จากการประเมินซ้ำ {count} ครั้ง คะแนนจากแบบสอบถามขยับเฉลี่ย {avg} คะแนน (แต่ละครั้งจำกัดที่ ±15) ยิ่งขยับเฉลี่ยน้อย แปลว่าการวัดเสถียรสำหรับคุณ",
+  "Complete a monthly re-assessment to start tracking how stable your scores are over time.":
+    "ทำการประเมินซ้ำรายเดือนเพื่อเริ่มติดตามว่าคะแนนของคุณเสถียรแค่ไหนเมื่อเวลาผ่านไป",
   "1-3 days": "1-3 วัน",
-  "4-14 days": "4-14 วัน",
-  "Almost every day": "เกือบทุกวัน",
+  "4-7 days": "4-7 วัน",
+  "8-14 days": "8-14 วัน",
+  "15-21 days": "15-21 วัน",
+  "22-31 days": "22-31 วัน",
   "Regularly": "เป็นประจำ",
   "All of the time": "ตลอดเวลา",
   "Most of the time": "เกือบตลอดเวลา",
@@ -232,7 +295,7 @@ export const TH = {
 
   // --- Instrument titles ---
   "CFPB Financial Well-Being Assessment": "แบบประเมินสุขภาวะทางการเงิน (CFPB)",
-  "Sleep Quality (past 2-4 weeks)": "คุณภาพการนอน (2-4 สัปดาห์ที่ผ่านมา)",
+  "Sleep Quality (past month)": "คุณภาพการนอน (1 เดือนที่ผ่านมา)",
   "ST-5 Stress Index (past 2-4 weeks)": "แบบประเมินความเครียด ST-5 (2-4 สัปดาห์ที่ผ่านมา)",
   "WHO-5 Well-Being Index (past 2 weeks)": "ดัชนีสุขภาวะ WHO-5 (2 สัปดาห์ที่ผ่านมา)",
   "LSNS-6 Social Network Scale": "แบบวัดเครือข่ายสังคม LSNS-6",

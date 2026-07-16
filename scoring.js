@@ -36,10 +36,36 @@ export function st5Resilience(raw) {
   return 0;
 }
 
-// CFPB-5 financial well-being (5 items, each 0-4, raw 0-20), linear scoring
-// (not the official CFPB score table — disclosed in the UI, finding #8).
-export function cfpbScore(raw) {
-  return raw * 5;
+// CFPB financial well-being, scored with the OFFICIAL conversion tables from
+// the CFPB scoring worksheets ("Measuring financial well-being: A guide to
+// using the CFPB Financial Well-Being Scale", Dec 2015, pp. 28 & 31):
+// raw total -> IRT-scaled score, self-administered mode, by age band
+// (18-61 vs 62+). Replaces the earlier linear approximation (finding #8).
+// The official score does not span 0-100: the 5-item self-administered range
+// is 19-82 (18-61) / 20-90 (62+), centred near the US mean of ~50.
+const CFPB5_SELF = {
+  younger: [19, 25, 29, 32, 36, 38, 41, 43, 46, 48, 50, 53, 55, 57, 60, 63, 65, 68, 72, 76, 82],
+  older: [20, 26, 31, 34, 37, 40, 43, 46, 48, 51, 53, 55, 58, 61, 63, 66, 69, 73, 76, 81, 90]
+};
+const CFPB10_SELF = {
+  younger: [14, 19, 22, 25, 27, 29, 31, 32, 34, 35, 37, 38, 40, 41, 42, 44, 45, 46, 47, 49, 50, 51, 52, 54, 55, 56, 58, 59, 60, 62, 63, 65, 66, 68, 69, 71, 73, 75, 78, 81, 86],
+  older: [14, 20, 24, 26, 29, 31, 33, 35, 36, 38, 39, 41, 42, 44, 45, 46, 48, 49, 50, 52, 53, 54, 56, 57, 58, 60, 61, 63, 64, 66, 67, 69, 71, 73, 75, 77, 79, 82, 84, 88, 95]
+};
+
+function cfpbLookup(table, raw, age) {
+  const band = parseFloat(age || 0) >= 62 ? table.older : table.younger;
+  const idx = Math.max(0, Math.min(band.length - 1, Math.round(raw || 0)));
+  return band[idx];
+}
+
+// CFPB-5 (5 items, each 0-4, raw 0-20) -> official Financial Well-Being score.
+export function cfpbScore(raw, age) {
+  return cfpbLookup(CFPB5_SELF, raw, age);
+}
+
+// CFPB-10 (10 items, each 0-4, raw 0-40) -> official Financial Well-Being score.
+export function cfpb10Score(raw, age) {
+  return cfpbLookup(CFPB10_SELF, raw, age);
 }
 
 // Sleep-quality issues (JSS, 4 items, each 0-5, raw 0-20), inverted.
@@ -157,8 +183,9 @@ export function personalGoalsComposite(profile, gseRaw, gritRaw) {
 // --- THE EIGHT ASPECT CALCULATORS (onboarding: answers -> 0-100 score) ---
 
 export function calculateFinanceScore(profile, cfpbAnswers) {
-  // 1. Subjective CFPB Well-Being Score (5 items, each 0-4, raw 0-20)
-  const S_wellbeing = cfpbScore(rawSum(cfpbAnswers));
+  // 1. Subjective CFPB Well-Being Score (5 items, each 0-4, raw 0-20),
+  //    converted with the official age-banded table.
+  const S_wellbeing = cfpbScore(rawSum(cfpbAnswers), profile.age);
 
   // 2. Objective income standing — the SAME cited lognormal model as the
   //    finance benchmark card (single source of truth, finding #9), so the
@@ -328,7 +355,7 @@ export function rankClassForLevel(level) {
 // rows in aspects.js, so the recalibration math and the bar on the page are
 // the same formula by construction.
 export const DEEP_NORM = {
-  cfpb10: v => (v / 40) * 100, // CFPB-10, raw 0-40, linear (disclosed)
+  cfpb10: (v, age) => cfpb10Score(v, age), // CFPB-10, raw 0-40, official table
   sedentary: v => (v / 12) * 100, // sitting time + sleep hygiene, raw 0-12
   pss10: v => 100 - (v / 40) * 100, // PSS-10 stress raw 0-40, inverted
   lsnsR: v => (v / 60) * 100, // LSNS-R 12 items, raw 0-60
@@ -353,9 +380,10 @@ export function deepAspectScore(aspectKey, profile, baseline, currentScore) {
 
   switch (aspectKey) {
     case "finance": {
-      // Swap CFPB-5 for CFPB-10 in the 0.4-weighted well-being term.
+      // Swap CFPB-5 for CFPB-10 in the 0.4-weighted well-being term. Both
+      // sides use the official tables so the delta is metric-coherent.
       if (!has("cfpb10")) return null;
-      return clamp100(currentScore + 0.4 * (DEEP_NORM.cfpb10(d.cfpb10) - cfpbScore(num(baseline.cfpb))));
+      return clamp100(currentScore + 0.4 * (DEEP_NORM.cfpb10(d.cfpb10, profile.age) - cfpbScore(num(baseline.cfpb), profile.age)));
     }
     case "physical": {
       // Blend in sedentary/sleep-hygiene self-report at 15%.

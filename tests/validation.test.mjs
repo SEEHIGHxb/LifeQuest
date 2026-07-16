@@ -84,3 +84,59 @@ test("empty coverage yields all-false flag maps", () => {
   assert.ok(Object.values(buildProvidedFlags(new Set())).every(v => v === false));
   assert.ok(Object.values(buildAnsweredFlags([])).every(v => v === false));
 });
+
+// --- RESPONSE QUALITY (G3): straight-line detection ---
+// Only mixed-keyed instruments (reverse-keyed items present) are judged: on
+// those, an honest respondent cannot sit at the same option POSITION for every
+// item without contradicting themselves.
+import { isStraightLined } from "../validation.js";
+import { INSTRUMENTS, DEEP_INSTRUMENTS } from "../surveys.js";
+
+// Answers that all sit at option position `pos` of each item.
+function samePosition(instrument, pos) {
+  return instrument.items.map(it => it.options[Math.min(pos, it.options.length - 1)].v);
+}
+
+test("all-same-position answers on the mixed-keyed CFPB are flagged", () => {
+  assert.equal(isStraightLined(INSTRUMENTS.cfpb, samePosition(INSTRUMENTS.cfpb, 0)), true);
+  assert.equal(isStraightLined(INSTRUMENTS.cfpb, samePosition(INSTRUMENTS.cfpb, 2)), true);
+});
+
+test("varied answers on the CFPB are never flagged", () => {
+  // A coherent "bad finances" pattern: describes-me items at the top, the
+  // positively-worded item 4 at the bottom — different positions, no flag.
+  assert.equal(isStraightLined(INSTRUMENTS.cfpb, [0, 0, 0, 0, 0]), false);
+  assert.equal(isStraightLined(INSTRUMENTS.cfpb, [4, 4, 4, 4, 4]), false);
+});
+
+test("uniformly-keyed instruments are never judged, even when identical", () => {
+  for (const key of ["who5", "st5", "lsns", "ucla", "gse", "grit", "ptm", "geb", "lfis", "jss"]) {
+    const instr = INSTRUMENTS[key];
+    assert.equal(isStraightLined(instr, samePosition(instr, 0)), false, `${key} must not be judged`);
+  }
+});
+
+test("mixed-keyed deep instruments are flagged on straight-lining, not on varied answers", () => {
+  for (const key of ["cfpb10", "pss10", "grit12", "rses", "cfc12", "ras7"]) {
+    const instr = DEEP_INSTRUMENTS[key];
+    assert.equal(isStraightLined(instr, samePosition(instr, 0)), true, `${key} straight-line must flag`);
+    // Alternate between two positions — any real variation clears the flag.
+    const varied = instr.items.map((it, i) => it.options[i % 2].v);
+    assert.equal(isStraightLined(instr, varied), false, `${key} varied answers must not flag`);
+  }
+});
+
+test("all-default deep answers are flagged: clicking through cannot verify an aspect", () => {
+  // Deep defaults are deliberate midpoints, which sit at the SAME option
+  // position across keyings — an untouched submission reads as careless.
+  for (const key of ["cfpb10", "pss10", "grit12", "rses", "cfc12", "ras7"]) {
+    const instr = DEEP_INSTRUMENTS[key];
+    assert.equal(isStraightLined(instr, instr.items.map(it => it.def)), true, `${key} all-defaults must flag`);
+  }
+});
+
+test("malformed answers are never flagged (wrong length, unknown values)", () => {
+  assert.equal(isStraightLined(INSTRUMENTS.cfpb, [0, 0, 0]), false);
+  assert.equal(isStraightLined(INSTRUMENTS.cfpb, [9, 9, 9, 9, 9]), false);
+  assert.equal(isStraightLined(INSTRUMENTS.cfpb, null), false);
+});

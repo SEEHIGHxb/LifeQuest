@@ -61,6 +61,11 @@ export function renderAspectPage(containerId, state, aspectKey, onLogAction, onR
         }</p>
       </div>` : ""}
 
+    ${detail.flaggedInstruments && detail.flaggedInstruments.length > 0 ? `
+      <div class="quickstart-note completeness-note">
+        <p><strong>${t("Uniform answers detected.")}</strong> ${t("Some questionnaire answers all sat on the same option, so they are not counted as a confirmed measurement. Re-answer them honestly to confirm this score.")}</p>
+      </div>` : ""}
+
     <div class="dashboard-grid">
       <div>
         <div class="card">

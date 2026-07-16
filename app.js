@@ -10,9 +10,10 @@ import {
   renderAspectPage,
   renderCheckin,
   renderDeepAssessment,
+  renderMethodology,
   getLumiTip,
   openDialog
-} from "./ui.js?v=23";
+} from "./ui.js?v=24";
 import { ASPECT_KEYS, ASPECT_META } from "./aspects.js";
 import { t, tp, getLang, setLang } from "./i18n.js";
 import { APP_VERSION } from "./version.js";
@@ -40,6 +41,9 @@ function routeFromHash() {
   }
   if (path === "deep") {
     return { type: "deep" };
+  }
+  if (path === "methodology") {
+    return { type: "methodology" };
   }
   return { type: "tab", tab: TABS.includes(path) ? path : DEFAULT_TAB };
 }
@@ -73,6 +77,7 @@ function applyChromeTranslations() {
   setText("tab-quests", t("Goals"));
   setText("tab-leaderboard", t("Peer Comparison"));
   setText("footer-privacy", t("Privacy & Data"));
+  setText("footer-methodology", t("Methodology"));
   setText("footer-source", t("Source code & license"));
   setText("footer-version", tp("Version {v}", { v: APP_VERSION }));
   // The toggle shows the language you would switch TO.
@@ -219,6 +224,8 @@ function renderActiveTab() {
     renderCheckin("main-view", state, handleCheckinComplete);
   } else if (route.type === "deep") {
     renderDeepAssessment("main-view", state, handleDeepComplete);
+  } else if (route.type === "methodology") {
+    renderMethodology("main-view", state);
   } else if (activeTab === "dashboard") {
     renderDashboard("main-view", state, downloadBackup);
   } else if (activeTab === "ledger") {
@@ -242,6 +249,7 @@ function announceRoute(route) {
   if (route.type === "aspect") label = t(ASPECT_META[route.key]?.label || route.key);
   else if (route.type === "checkin") label = t("Re-assessment");
   else if (route.type === "deep") label = t("In-depth assessment");
+  else if (route.type === "methodology") label = t("Methodology");
   else label = t(tabNames[route.tab] || "Overview");
   el.textContent = tp("{view} view", { view: label });
 }

@@ -26,6 +26,7 @@ import {
   futureStudyScore,
   DEEP_NORM
 } from "./scoring.js";
+import { DEEP_SECTIONS } from "./surveys.js";
 
 export const ASPECT_KEYS = [
   "finance", "physical", "mental", "relationships",
@@ -162,14 +163,14 @@ export function isAspectDeepVerified(state, aspectKey) {
 // Extra component rows sourced from the deep (long-form) instruments, shown only
 // once a deep section is completed. Each is flagged "verified" so the UI can
 // mark it. Values are the deep instrument's normalized 0-100 sub-score.
-function deepComponents(aspectKey, b) {
+function deepComponents(aspectKey, b, p) {
   const d = (b && b.deep) || null;
   if (!d) return [];
   const has = k => Number.isFinite(d[k]);
   const row = (key, label, value, detail) => ({ key, label, value: clamp100(value), detail, confidence: "verified" });
   switch (aspectKey) {
     case "finance":
-      return has("cfpb10") ? [row("cfpb10", t("Financial well-being (CFPB-10)"), DEEP_NORM.cfpb10(d.cfpb10), tp("Full 10-item scale — raw {n}/40, linear scoring (not the official CFPB table)", { n: d.cfpb10 }))] : [];
+      return has("cfpb10") ? [row("cfpb10", t("Financial well-being (CFPB-10)"), DEEP_NORM.cfpb10(d.cfpb10, p && p.age), tp("Full 10-item scale — raw {n}/40, converted with the CFPB's official scoring table", { n: d.cfpb10 }))] : [];
     case "physical":
       return has("sedentary") ? [row("sedentary", t("Sedentary time & sleep hygiene"), DEEP_NORM.sedentary(d.sedentary), tp("Sitting time + sleep habits — raw {n}/12", { n: d.sedentary }))] : [];
     case "mental":
@@ -204,7 +205,7 @@ function financeComponents(p, b, benchmark) {
     items.push({ key: "income", label: t("Income standing"), value: benchmark.percentile, detail: t("Percentile vs Thai worker earnings (estimate)") });
   }
   if (b && Number.isFinite(b.cfpb)) {
-    items.push({ key: "cfpb", label: t("Financial well-being (CFPB)"), value: clamp100(cfpbScore(b.cfpb)), detail: tp("Raw {n}/20 — scored on a simple linear scale, not the CFPB's official score table", { n: b.cfpb }) });
+    items.push({ key: "cfpb", label: t("Financial well-being (CFPB)"), value: clamp100(cfpbScore(b.cfpb, p.age)), detail: tp("Raw {n}/20 — converted with the CFPB's official scoring table (self-administered)", { n: b.cfpb }) });
   }
   items.push({
     key: "savings",
@@ -343,7 +344,24 @@ export function getAspectDetail(state, aspectKey) {
     confidence: componentConfidence(aspectKey, c.key, provided, answered)
   }));
   // Deep (long-form) rows already carry their own "verified" confidence.
-  const components = [...shortComponents, ...deepComponents(aspectKey, b)];
+  const components = [...shortComponents, ...deepComponents(aspectKey, b, p)];
+
+  // Response-quality flags (G3): instruments whose answers straight-lined at
+  // submit — short-form flags from onboarding plus this aspect's deep section.
+  const flaggedInstruments = [];
+  if (b && b.flagged) {
+    for (const entry of Object.values(COMPONENT_COVERAGE[aspectKey] || {})) {
+      for (const i of entry.instruments || []) {
+        if (b.flagged[i]) flaggedInstruments.push(i);
+      }
+    }
+  }
+  if (b && b.deepFlagged) {
+    const section = DEEP_SECTIONS.find(s => s.aspect === aspectKey);
+    for (const { key } of (section ? section.instruments : [])) {
+      if (b.deepFlagged[key]) flaggedInstruments.push(key);
+    }
+  }
 
   return {
     key: aspectKey,
@@ -353,6 +371,7 @@ export function getAspectDetail(state, aspectKey) {
     benchmark,
     confidence: getAspectConfidence(state, aspectKey),
     components,
+    flaggedInstruments,
     trend: (state.snapshots || []).map(s => ({
       date: s.date,
       value: clamp100((s.aspects || {})[aspectKey] ?? 0)

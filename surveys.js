@@ -18,11 +18,28 @@ const FREQ_POSITIVE = [
   { v: 0, l: "Never" }
 ];
 
+// CFPB frequency for NEGATIVELY-worded items (mirror of FREQ_POSITIVE). The
+// official worksheet asks "My finances control my life" as an applies-to-me
+// FREQUENCY item, not a describes-me item — used at onboarding and in the deep
+// CFPB-10.
+const FREQ_REVERSED = [
+  { v: 0, l: "Always" },
+  { v: 1, l: "Often" },
+  { v: 2, l: "Sometimes" },
+  { v: 3, l: "Rarely" },
+  { v: 4, l: "Never" }
+];
+
+// Standard 6-point Jenkins Sleep Scale frequency anchors (days in the past
+// month). The raw range stays 0-20 (4 items × 0-5), so sleepQualityScore and
+// stored baselines need no migration.
 const SLEEP_FREQ = [
-  { v: 0, l: "Rarely / Not at all" },
+  { v: 0, l: "Not at all (0 days)" },
   { v: 1, l: "1-3 days" },
-  { v: 3, l: "4-14 days" },
-  { v: 5, l: "Almost every day" }
+  { v: 2, l: "4-7 days" },
+  { v: 3, l: "8-14 days" },
+  { v: 4, l: "15-21 days" },
+  { v: 5, l: "22-31 days" }
 ];
 
 const ST5_FREQ = [
@@ -95,11 +112,11 @@ export const INSTRUMENTS = {
       { text: "I am just getting by financially.", options: DESCRIBES_REVERSED, def: 2 },
       { text: "I am concerned that the money I have or will save won't last.", options: DESCRIBES_REVERSED, def: 2 },
       { text: "I have money left over at the end of the month.", options: FREQ_POSITIVE, def: 2 },
-      { text: "My finances control my life.", options: DESCRIBES_REVERSED, def: 2 }
+      { text: "My finances control my life.", options: FREQ_REVERSED, def: 2 }
     ]
   },
   jss: {
-    title: "Sleep Quality (past 2-4 weeks)",
+    title: "Sleep Quality (past month)",
     items: [
       { text: "How often did you have difficulty falling asleep?", options: SLEEP_FREQ, def: 0 },
       { text: "How often did you wake up during the night?", options: SLEEP_FREQ, def: 0 },
@@ -238,15 +255,6 @@ const DESCRIBES_POSITIVE = [
   { v: 2, l: "Somewhat" },
   { v: 1, l: "Very little" },
   { v: 0, l: "Not at all" }
-];
-
-// CFPB frequency for NEGATIVELY-worded items (mirror of FREQ_POSITIVE).
-const FREQ_REVERSED = [
-  { v: 0, l: "Always" },
-  { v: 1, l: "Often" },
-  { v: 2, l: "Sometimes" },
-  { v: 3, l: "Rarely" },
-  { v: 4, l: "Never" }
 ];
 
 // PSS-10 (Cohen). Negatively-worded items count UP toward stress...

@@ -115,6 +115,11 @@ export function renderDeepAssessment(containerId, state, onComplete) {
         const deepData = {};
         keys.forEach(k => { deepData[k] = collectDeepInstrument(k); });
         const result = stateManager.submitDeepAssessment(aspect, deepData);
+        if (result && result.flagged) {
+          errorEl.textContent = t("Some answers all sat on the same option, so that questionnaire was not counted. Vary your answers to reflect your real experience and save again.");
+          errorEl.classList.remove("d-none");
+          return;
+        }
         onComplete(aspect, result);
       } catch (err) {
         console.error("Deep assessment submission failed:", err);
