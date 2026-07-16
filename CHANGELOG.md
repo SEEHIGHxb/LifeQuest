@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Two version numbers, on purpose
 
-- **`APP_VERSION`** (`version.js`, currently `22`) is a monotonic **cache-bust
+- **`APP_VERSION`** (`version.js`, currently `23`) is a monotonic **cache-bust
   counter**, not semver. It appears in the `?v=N` query on every versioned
   asset and in the service worker's `CACHE_NAME`. Bump it on *any* release that
   changes a shipped file. `tests/consistency.test.mjs` fails CI if the sites
@@ -15,6 +15,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 They are deliberately independent: a one-character CSS fix needs a cache bust
 but not a minor version.
+
+## [1.2.0] — 2026-07-16 (APP_VERSION 23)
+
+Architecture cleanup (review finding #13). No user-visible behavior change.
+
+### Changed
+
+- **`state.js` split along responsibility lines** to satisfy the 800-line file
+  rule: `defaults.js` (canonical empty state + starter quests), `sanitize.js`
+  (untrusted-import coercion), and `scoring.js` (pure instrument normalizers,
+  the eight aspect calculators, check-in composites, deep-assessment math, and
+  level ranks). `state.js` keeps only the stateful manager.
+- **Scoring formulas now have a single source of truth.** The same formulas
+  previously lived in three places — onboarding calculators, `submitCheckin`
+  targets, and the component breakdowns in `aspects.js` — and could silently
+  drift. All three now import from `scoring.js`.
+- **Importing `state.js` no longer mutates the save.** Constructing the
+  manager only *reads*; the boot maintenance (periodic quest resets, weekly
+  snapshot) moved to an explicit `stateManager.init()` called from `app.js`.
+
+### Added
+
+- **CI coverage gate**: the test job now fails if line coverage drops below
+  80% or function coverage below 70% (currently ~93% / ~88%). CI Node bumped
+  to 22 for the `--test-coverage-*` threshold flags.
+- **Three Playwright E2E flows** (`tests/e2e.mjs`, run in the CI smoke job):
+  express onboarding → dashboard, logging a routine → points/history update,
+  and the EN→TH language toggle persisting across a reload.
 
 ## [1.1.0] — 2026-07-15 (APP_VERSION 22)
 

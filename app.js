@@ -12,7 +12,7 @@ import {
   renderDeepAssessment,
   getLumiTip,
   openDialog
-} from "./ui.js?v=22";
+} from "./ui.js?v=23";
 import { ASPECT_KEYS, ASPECT_META } from "./aspects.js";
 import { t, tp, getLang, setLang } from "./i18n.js";
 import { APP_VERSION } from "./version.js";
@@ -584,6 +584,11 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-// Start the App
-window.addEventListener("DOMContentLoaded", initializeApp);
+// Start the App. init() runs the boot maintenance (periodic quest resets,
+// weekly snapshot) that deliberately no longer happens when state.js is merely
+// imported (finding #13) — construction reads, init() writes.
+window.addEventListener("DOMContentLoaded", () => {
+  stateManager.init();
+  initializeApp();
+});
 export { initializeApp };

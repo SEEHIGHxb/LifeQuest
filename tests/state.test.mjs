@@ -1,7 +1,15 @@
-// Tests for GameStateManager scoring and game logic (node --test)
+// Tests for GameStateManager game logic and the pure scoring module (node --test)
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { GameStateManager } from "../state.js";
+import {
+  calculateFinanceScore,
+  calculatePhysicalScore,
+  calculateMentalScore,
+  calculateRelationshipsScore,
+  calculateSocialContributionScore,
+  calculateEnvironmentScore
+} from "../scoring.js";
 import { getAspectConfidence, isAspectDeepVerified } from "../aspects.js";
 import { INSTRUMENTS } from "../surveys.js";
 
@@ -42,34 +50,30 @@ const NEUTRAL_PROFILE = {
 };
 
 test("finance score combines income percentile, CFPB, and savings bonus", () => {
-  const m = new GameStateManager();
-  const low = m.calculateFinanceScore({ ...NEUTRAL_PROFILE, income: 5000, savingsRate: 0 }, [0, 0, 0, 0, 0]);
-  const high = m.calculateFinanceScore({ ...NEUTRAL_PROFILE, income: 80000, savingsRate: 30 }, [4, 4, 4, 4, 4]);
+  const low = calculateFinanceScore({ ...NEUTRAL_PROFILE, income: 5000, savingsRate: 0 }, [0, 0, 0, 0, 0]);
+  const high = calculateFinanceScore({ ...NEUTRAL_PROFILE, income: 80000, savingsRate: 30 }, [4, 4, 4, 4, 4]);
   assert.ok(low < high, "higher income + well-being must score higher");
   assert.ok(high <= 100 && low >= 0, "score stays in 0-100");
 });
 
 test("physical score rewards activity (regression: activity data must not be zeroed)", () => {
-  const m = new GameStateManager();
-  const sedentary = m.calculatePhysicalScore(
+  const sedentary = calculatePhysicalScore(
     { ...NEUTRAL_PROFILE, weeklyWalkingDays: 0, weeklyWalkingMins: 0 }, [0, 0, 0, 0]);
-  const active = m.calculatePhysicalScore(
+  const active = calculatePhysicalScore(
     { ...NEUTRAL_PROFILE, weeklyVigorousDays: 4, weeklyVigorousMins: 45 }, [0, 0, 0, 0]);
   assert.ok(active > sedentary, "active profile must outscore sedentary");
 });
 
 test("environment transit component uses GEB Q3 instead of hardcoded 100", () => {
-  const m = new GameStateManager();
-  const noTransit = m.calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 0, 2, 2, 2]);
-  const fullTransit = m.calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 4, 2, 2, 2]);
+  const noTransit = calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 0, 2, 2, 2]);
+  const fullTransit = calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 4, 2, 2, 2]);
   assert.equal(fullTransit - noTransit, 40, "transit is 40% of the environment score");
 });
 
 test("relationships score includes RAS only when coupled", () => {
-  const m = new GameStateManager();
-  const single = m.calculateRelationshipsScore(
+  const single = calculateRelationshipsScore(
     { ...NEUTRAL_PROFILE, relationshipStatus: "Single" }, [3, 3, 3, 3, 3, 3], [1, 1, 1], [5, 5, 5]);
-  const coupled = m.calculateRelationshipsScore(
+  const coupled = calculateRelationshipsScore(
     { ...NEUTRAL_PROFILE, relationshipStatus: "Coupled" }, [3, 3, 3, 3, 3, 3], [1, 1, 1], [5, 5, 5]);
   assert.ok(single > 0 && coupled > 0);
   assert.notEqual(single, coupled);
@@ -78,38 +82,34 @@ test("relationships score includes RAS only when coupled", () => {
 // --- SCORING INTEGRITY (findings #5, #6, #7) ---
 
 test("skipped ST-5 / UCLA default to a neutral midpoint, not the healthiest extreme (#5)", () => {
-  const m = new GameStateManager();
   const defOf = key => INSTRUMENTS[key].items.map(it => it.def);
   // ST-5 at its skip-default now reads a neutral 50 stress-resilience: with
   // WHO-5 forced to 0, mental = 0.5*0 + 0.5*50 = 25 (was 50 when ST-5 defaulted
   // to the calmest option and read as 100).
-  assert.equal(m.calculateMentalScore({}, defOf("st5"), [0, 0, 0, 0, 0]), 25);
+  assert.equal(calculateMentalScore({}, defOf("st5"), [0, 0, 0, 0, 0]), 25);
   // UCLA at its skip-default now reads a neutral 50 low-loneliness: with LSNS at
   // 0, relationships = 0.5*0 + 0.5*50 = 25 (was 50 when UCLA defaulted to least
   // lonely and read as 100).
   const single = { relationshipStatus: "Single" };
-  assert.equal(m.calculateRelationshipsScore(single, [0, 0, 0, 0, 0, 0], defOf("ucla"), null), 25);
+  assert.equal(calculateRelationshipsScore(single, [0, 0, 0, 0, 0, 0], defOf("ucla"), null), 25);
 });
 
 test("social contribution now scores the previously-ignored PTM 'help friends/family' item (#6)", () => {
-  const m = new GameStateManager();
-  const low = m.calculateSocialContributionScore(NEUTRAL_PROFILE, [2, 0, 2, 2, 3]); // Q2 = 0
-  const high = m.calculateSocialContributionScore(NEUTRAL_PROFILE, [2, 4, 2, 2, 3]); // Q2 = 4
+  const low = calculateSocialContributionScore(NEUTRAL_PROFILE, [2, 0, 2, 2, 3]); // Q2 = 0
+  const high = calculateSocialContributionScore(NEUTRAL_PROFILE, [2, 4, 2, 2, 3]); // Q2 = 4
   assert.ok(high > low, "raising PTM Q2 must raise the score now that it counts");
 });
 
 test("environment now scores the previously-ignored GEB avoidance (Q2) and eco-product (Q6) items (#6)", () => {
-  const m = new GameStateManager();
-  const q2low = m.calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 0, 2, 2, 2, 2]);
-  const q2high = m.calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 4, 2, 2, 2, 2]);
+  const q2low = calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 0, 2, 2, 2, 2]);
+  const q2high = calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 4, 2, 2, 2, 2]);
   assert.ok(q2high > q2low, "GEB Q2 (single-use avoidance) now counts");
-  const q6low = m.calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 2, 2, 2, 0]);
-  const q6high = m.calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 2, 2, 2, 4]);
+  const q6low = calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 2, 2, 2, 0]);
+  const q6high = calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 2, 2, 2, 4]);
   assert.ok(q6high > q6low, "GEB Q6 (eco-products) now counts");
 });
 
 test("physical omits BMI (no fabricated 50) and renormalizes when weight/height are missing (#7)", () => {
-  const m = new GameStateManager();
   // All measurable components are perfect; only weight/height are absent.
   const perfectNoBody = {
     weeklyVigorousDays: 7, weeklyVigorousMins: 120, // MET 6720 -> activity 100
@@ -121,15 +121,14 @@ test("physical omits BMI (no fabricated 50) and renormalizes when weight/height 
   };
   // Renormalized over the surviving parts (all 100) -> 100. The old code blended
   // a fake S_bmi = 50 and returned 90.
-  assert.equal(m.calculatePhysicalScore(perfectNoBody, [0, 0, 0, 0]), 100);
+  assert.equal(calculatePhysicalScore(perfectNoBody, [0, 0, 0, 0]), 100);
 });
 
 test("physical still includes body composition when weight/height are present (#7)", () => {
-  const m = new GameStateManager();
   const ideal = { ...NEUTRAL_PROFILE, weight: 60, height: 170 }; // BMI ~20.8 -> 100
   const obese = { ...NEUTRAL_PROFILE, weight: 100, height: 160 }; // BMI ~39 -> 25
   assert.ok(
-    m.calculatePhysicalScore(ideal, [0, 0, 0, 0]) > m.calculatePhysicalScore(obese, [0, 0, 0, 0]),
+    calculatePhysicalScore(ideal, [0, 0, 0, 0]) > calculatePhysicalScore(obese, [0, 0, 0, 0]),
     "measured body composition still moves the score"
   );
 });

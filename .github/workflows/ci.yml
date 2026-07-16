@@ -15,9 +15,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Run node --test suite
-        run: node --test tests/*.test.mjs
+          # 22.8+ is required for the --test-coverage-* threshold flags.
+          node-version: 22
+      # Coverage gate (finding #13): fails the build if line coverage drops
+      # below 80% or function coverage below 70% across the loaded modules.
+      - name: Run node --test suite with coverage gate
+        run: npm run test:coverage
 
       # Bug-class rules only (see biome.json): no formatting, no style opinions.
       # The project has no build step, so nothing else would catch a typo'd
@@ -43,11 +46,12 @@ jobs:
         run: |
           npm install --no-save playwright@1.49.1
           npx playwright install --with-deps chromium
-      - name: Serve and smoke
+      - name: Serve, smoke, and E2E flows
         run: |
           npx --yes http-server . -p 8181 -c-1 --silent &
           npx --yes wait-on http://127.0.0.1:8181 -t 30000
           node tests/smoke.mjs http://127.0.0.1:8181
+          node tests/e2e.mjs http://127.0.0.1:8181
 
   deploy:
     # Deploy the static site to GitHub Pages on every green main push.
