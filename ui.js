@@ -8,6 +8,7 @@ export { renderOnboarding } from "./views/onboarding.js";
 export { renderDashboard } from "./views/dashboard.js";
 export { renderAspectPage } from "./views/aspect.js";
 export { renderCheckin, renderDeepAssessment } from "./views/assessments.js";
+export { renderMethodology } from "./views/methodology.js";
 export { renderLedger } from "./views/ledger.js";
 export { renderQuests } from "./views/quests.js";
 export { renderLeaderboard } from "./views/leaderboard.js";

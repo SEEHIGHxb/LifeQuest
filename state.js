@@ -17,6 +17,8 @@ import {
   calculateHumanityFutureScore, deepAspectScore,
   rankForLevel, rankClassForLevel
 } from "./scoring.js";
+import { INSTRUMENTS, DEEP_INSTRUMENTS } from "./surveys.js";
+import { isStraightLined } from "./validation.js";
 
 const STORAGE_KEY = "lifequest_state";
 // A save the running code cannot read (corrupt JSON or an incompatible schema)
@@ -532,20 +534,34 @@ export class GameStateManager {
 
     const deep = { ...(b.deep || {}) };
     const deepAnswered = { ...(b.deepAnswered || {}) };
+    const deepFlagged = { ...(b.deepFlagged || {}) };
+    let anyFlagged = false;
     for (const [key, arr] of Object.entries(deepData)) {
       if (!Array.isArray(arr)) continue;
+      // Response quality (G3): a straight-lined long-form instrument (same
+      // option position on every item despite reverse-keyed items — including
+      // an untouched all-defaults submission) is rejected outright: careless
+      // data never enters scoring and cannot mark the section verified.
+      if (isStraightLined(DEEP_INSTRUMENTS[key], arr)) {
+        deepFlagged[key] = true;
+        anyFlagged = true;
+        continue;
+      }
+      delete deepFlagged[key]; // an honest retake clears an earlier flag
       deep[key] = rawSum(arr);
       deepAnswered[key] = true;
     }
-    const deepDone = { ...(b.deepDone || {}), [aspectKey]: true };
-    this.state.baseline = { ...b, deep, deepAnswered, deepDone };
+    const deepDone = { ...(b.deepDone || {}) };
+    if (!anyFlagged) deepDone[aspectKey] = true;
+    this.state.baseline = { ...b, deep, deepAnswered, deepDone, deepFlagged };
 
     const newScore = deepAspectScore(aspectKey, this.state.profile, this.state.baseline, this.state.aspects[aspectKey]);
     if (newScore !== null) this.state.aspects[aspectKey] = newScore;
 
-    this.addXP(DEEP_ASSESSMENT_XP);
+    // No reward for a flagged submission — straight-lining must not farm XP.
+    if (!anyFlagged) this.addXP(DEEP_ASSESSMENT_XP);
     this.saveState();
-    return { score: this.state.aspects[aspectKey] };
+    return { score: this.state.aspects[aspectKey], flagged: anyFlagged };
   }
 
   // --- ONBOARDING ---
@@ -608,6 +624,23 @@ export class GameStateManager {
     }
     if (coverage && coverage.provided) {
       p.provided = { ...coverage.provided };
+    }
+
+    // Response quality (G3): an instrument the user DID answer but whose
+    // responses all sit at the same option position despite mixed keying reads
+    // as careless. It is demoted to unanswered — the confidence machinery then
+    // treats it as unconfirmed — and flagged so the aspect page can prompt a
+    // re-answer. Only judged when coverage was captured; untouched instruments
+    // are already handled by answered=false.
+    if (this.state.baseline.answered) {
+      const flagged = {};
+      for (const [key, instr] of Object.entries(INSTRUMENTS)) {
+        if (this.state.baseline.answered[key] === true && isStraightLined(instr, surveyData[key])) {
+          this.state.baseline.answered[key] = false;
+          flagged[key] = true;
+        }
+      }
+      this.state.baseline.flagged = flagged;
     }
 
     const aspects = this.state.aspects;

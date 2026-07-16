@@ -645,3 +645,60 @@ test("history is capped at 500 entries", () => {
   }
   assert.equal(m.state.history.length, 500);
 });
+
+// --- RESPONSE QUALITY (G3): straight-lined submissions are demoted ---
+import { DEEP_INSTRUMENTS } from "../surveys.js";
+
+// Answers that all sit at the FIRST option position (classic careless pattern).
+const topPosition = instr => instr.items.map(it => it.options[0].v);
+
+test("a straight-lined CFPB at onboarding is demoted to unanswered and flagged", () => {
+  const m = new GameStateManager();
+  // [0,0,0,4,0] is every item's FIRST radio: the reverse-keyed item 4 makes an
+  // honest pattern land elsewhere, so this reads as careless.
+  m.submitOnboarding({ ...MINIMAL_SURVEY, cfpb: topPosition(INSTRUMENTS.cfpb) }, false, {
+    provided: {},
+    answered: { cfpb: true, who5: true }
+  });
+  assert.equal(m.state.baseline.answered.cfpb, false, "flagged instrument no longer counts as answered");
+  assert.equal(m.state.baseline.flagged.cfpb, true, "flag recorded for the UI prompt");
+  assert.equal(m.state.baseline.answered.who5, true, "uniformly-keyed instruments are untouched");
+});
+
+test("a varied CFPB at onboarding keeps its answered flag and is not flagged", () => {
+  const m = new GameStateManager();
+  m.submitOnboarding({ ...MINIMAL_SURVEY, cfpb: [0, 1, 0, 0, 0] }, false, {
+    provided: {},
+    answered: { cfpb: true }
+  });
+  assert.equal(m.state.baseline.answered.cfpb, true);
+  assert.ok(!(m.state.baseline.flagged && m.state.baseline.flagged.cfpb), "no flag on varied answers");
+});
+
+test("a straight-lined deep instrument never enters scoring and blocks verification", () => {
+  const m = new GameStateManager();
+  m.submitOnboarding(MINIMAL_SURVEY);
+  const before = m.state.aspects.mental;
+
+  const result = m.submitDeepAssessment("mental", { pss10: topPosition(DEEP_INSTRUMENTS.pss10) });
+
+  assert.equal(result.flagged, true, "caller told the submission was rejected");
+  assert.equal(m.state.baseline.deep && m.state.baseline.deep.pss10, undefined, "careless data kept out of scoring");
+  assert.ok(!isAspectDeepVerified(m.state, "mental"), "flagged section does not verify");
+  assert.equal(m.state.baseline.deepFlagged.pss10, true);
+  assert.equal(m.state.aspects.mental, before, "score unchanged by a rejected submission");
+});
+
+test("an honest deep retake clears the flag and verifies normally", () => {
+  const m = new GameStateManager();
+  m.submitOnboarding(MINIMAL_SURVEY);
+  m.submitDeepAssessment("mental", { pss10: topPosition(DEEP_INSTRUMENTS.pss10) });
+  assert.equal(m.state.baseline.deepFlagged.pss10, true);
+
+  const result = m.submitDeepAssessment("mental", { pss10: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] });
+
+  assert.equal(result.flagged, false);
+  assert.ok(!(m.state.baseline.deepFlagged && m.state.baseline.deepFlagged.pss10), "flag cleared on honest retake");
+  assert.equal(m.state.baseline.deep.pss10, 0);
+  assert.ok(isAspectDeepVerified(m.state, "mental"));
+});

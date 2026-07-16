@@ -31,8 +31,8 @@
        vendored under assets/fonts. Self-hosting removes the round-trip to
        Google on every cold load, makes the PWA genuinely offline-capable,
        and means no visitor IP is disclosed to a third party. -->
-  <link rel="stylesheet" href="./assets/fonts/fonts.css?v=23">
-  <link rel="stylesheet" href="./index.css?v=23">
+  <link rel="stylesheet" href="./assets/fonts/fonts.css?v=24">
+  <link rel="stylesheet" href="./index.css?v=24">
 </head>
 <body>
   <div class="app-container">
@@ -77,7 +77,7 @@
         Loading your recommendations…
       </div>
       <div id="assistant-sr" class="sr-only" role="status" aria-live="polite"></div>
-      <img class="assistant-avatar" id="assistant-lumi-avatar" src="./assets/lumi.png?v=23" role="button" tabindex="0" aria-label="Guidance assistant" title="Guidance assistant" alt="Guidance assistant" />
+      <img class="assistant-avatar" id="assistant-lumi-avatar" src="./assets/lumi.png?v=24" role="button" tabindex="0" aria-label="Guidance assistant" title="Guidance assistant" alt="Guidance assistant" />
     </div>
 
     <!-- Footer: privacy/source/version must be reachable from the app itself,
@@ -86,6 +86,8 @@
     <footer class="app-footer">
       <a id="footer-privacy" href="./privacy.html">Privacy &amp; Data</a>
       <span aria-hidden="true">·</span>
+      <a id="footer-methodology" href="#/methodology">Methodology</a>
+      <span aria-hidden="true">·</span>
       <a id="footer-source" href="https://github.com/SEEHIGHxb/LifeBalanceIndex" target="_blank" rel="noopener noreferrer">Source code &amp; license</a>
       <span aria-hidden="true">·</span>
       <span id="footer-version">Version 22</span>
@@ -93,6 +95,6 @@
   </div>
 
   <!-- Core Scripts -->
-  <script type="module" src="./app.js?v=23"></script>
+  <script type="module" src="./app.js?v=24"></script>
 </body>
 </html>

@@ -82,3 +82,29 @@ export function buildProvidedFlags(touched) {
 export function buildAnsweredFlags(touched) {
   return flagsFrom(INSTRUMENT_KEYS, touched);
 }
+
+// --- RESPONSE QUALITY (G3): straight-line detection ---
+//
+// An instrument is judged only when it is MIXED-KEYED (its items don't all
+// share one option order — reverse-keyed items flip which end is healthy) and
+// long enough to make a uniform pattern implausible. On such an instrument an
+// honest respondent cannot land on the same option POSITION for every item
+// without contradicting themselves, so an all-same-position submission reads
+// as careless and must not be treated as a reliable measurement. Pure: takes
+// the instrument definition and the answer array, touches nothing else.
+const STRAIGHT_LINE_MIN_ITEMS = 4;
+
+export function isStraightLined(instrument, answers) {
+  const items = (instrument && instrument.items) || [];
+  if (items.length < STRAIGHT_LINE_MIN_ITEMS) return false;
+  if (!Array.isArray(answers) || answers.length !== items.length) return false;
+
+  // Uniformly-keyed instruments (every item shares one option order) are
+  // never judged: answering the same position on all of them is coherent.
+  const orders = new Set(items.map(it => it.options.map(o => o.v).join(",")));
+  if (orders.size < 2) return false;
+
+  const positions = items.map((it, i) => it.options.findIndex(o => o.v === parseInt(answers[i])));
+  if (positions.some(pos => pos < 0)) return false; // unknown value: don't judge
+  return new Set(positions).size === 1;
+}
