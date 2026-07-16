@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Two version numbers, on purpose
 
-- **`APP_VERSION`** (`version.js`, currently `24`) is a monotonic **cache-bust
+- **`APP_VERSION`** (`version.js`, currently `25`) is a monotonic **cache-bust
   counter**, not semver. It appears in the `?v=N` query on every versioned
   asset and in the service worker's `CACHE_NAME`. Bump it on *any* release that
   changes a shipped file. `tests/consistency.test.mjs` fails CI if the sites
@@ -15,6 +15,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 They are deliberately independent: a one-character CSS fix needs a cache bust
 but not a minor version.
+
+## [1.3.1] — 2026-07-16 (APP_VERSION 25)
+
+### Fixed
+
+- **In-depth questionnaires no longer render half-Thai, half-English.** The
+  deep instruments' item texts deliberately stayed in English (the
+  clinical-item carve-out), but items shared with the onboarding short forms
+  were already translated — so Thai mode showed forms like the CFPB-10 with
+  five Thai and five English questions. All 72 deep-only item texts now have
+  Thai translations (unofficial renderings, faithful to the published items;
+  the methodology page still cites the canonical English instruments), and
+  `tests/i18n-coverage.test.mjs` now walks every survey title, item, and
+  option label so a partially translated questionnaire fails CI.
 
 ## [1.3.0] — 2026-07-16 (APP_VERSION 24)
 

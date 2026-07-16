@@ -779,11 +779,12 @@ export const TH = {
     "กรุณาแก้ไขช่องที่ไฮไลต์ก่อนดำเนินการต่อ",
 
   // --- Friendlier percentiles + deep assessment (Phase 4) ---
-  // NOTE: the individual in-depth questionnaire ITEM texts (PSS-10, CFC-12,
-  // Rosenberg, GSE-10, Grit-12, LSNS-R, CFPB-10, RAS-7, etc.) intentionally
-  // fall through to English until official Thai instrument versions are used —
-  // an unofficial translation of a validated clinical scale would reduce, not
-  // improve, its reliability (same reasoning as the Thai-norm decision).
+  // NOTE: the in-depth questionnaire ITEM texts are translated in the
+  // "Deep instrument item texts" block at the end of this file. They are
+  // unofficial Thai renderings kept faithful to the published English items
+  // (the earlier English-only carve-out rendered half-translated forms,
+  // because items shared with onboarding already had Thai entries). The
+  // canonical instruments remain the cited English versions on #/methodology.
   "In-depth": "เชิงลึก",
   "Measured with the full long-form instruments (deep assessment complete)":
     "วัดด้วยแบบประเมินฉบับเต็ม (ทำแบบประเมินเชิงลึกครบแล้ว)",
@@ -909,5 +910,144 @@ export const TH = {
   "4–6 hours": "4–6 ชั่วโมง",
   "6–8 hours": "6–8 ชั่วโมง",
   "8–10 hours": "8–10 ชั่วโมง",
-  "More than 10 hours": "มากกว่า 10 ชั่วโมง"
+  "More than 10 hours": "มากกว่า 10 ชั่วโมง",
+
+  // --- Deep instrument item texts ---
+  // Unofficial Thai renderings of the deep-only items (items shared with the
+  // onboarding short forms are translated in the onboarding block above, and
+  // the two sets must read as one voice: questions end "…บ่อยแค่ไหน?",
+  // statements are first-person ฉัน without trailing punctuation).
+
+  // CFPB-10 (the five items not in the onboarding CFPB-5)
+  "I could handle a major unexpected expense.": "ฉันรับมือกับรายจ่ายก้อนใหญ่ที่ไม่คาดคิดได้",
+  "I am securing my financial future.": "ฉันกำลังสร้างความมั่นคงให้อนาคตทางการเงินของฉัน",
+  "I can enjoy life because of the way I'm managing my money.": "ฉันมีความสุขกับชีวิตได้ เพราะวิธีจัดการเงินของฉัน",
+  "Giving a gift for a wedding, birthday, or other occasion would put a strain on my finances for the month.":
+    "การให้ของขวัญในงานแต่งงาน วันเกิด หรือโอกาสอื่น ๆ ทำให้การเงินของฉันตึงมือไปทั้งเดือน",
+  "I am behind with my finances.": "ฉันมีภาระการเงินค้างจ่ายอยู่",
+
+  // Sedentary time & sleep hygiene
+  "On a typical weekday, about how many hours do you spend sitting?": "ในวันธรรมดาทั่วไป คุณใช้เวลานั่งประมาณกี่ชั่วโมง?",
+  "I keep a consistent sleep and wake schedule.": "ฉันเข้านอนและตื่นนอนเป็นเวลาสม่ำเสมอ",
+  "I avoid screens for at least 30 minutes before bed.": "ฉันงดใช้หน้าจออย่างน้อย 30 นาทีก่อนนอน",
+
+  // PSS-10 (Cohen, past month)
+  "In the last month, how often have you been upset because of something that happened unexpectedly?":
+    "ในเดือนที่ผ่านมา คุณรู้สึกไม่สบายใจเพราะมีเรื่องไม่คาดคิดเกิดขึ้นบ่อยแค่ไหน?",
+  "In the last month, how often have you felt unable to control the important things in your life?":
+    "ในเดือนที่ผ่านมา คุณรู้สึกว่าควบคุมเรื่องสำคัญในชีวิตไม่ได้บ่อยแค่ไหน?",
+  "In the last month, how often have you felt nervous and stressed?":
+    "ในเดือนที่ผ่านมา คุณรู้สึกเครียดและวิตกกังวลบ่อยแค่ไหน?",
+  "In the last month, how often have you felt confident about your ability to handle your personal problems?":
+    "ในเดือนที่ผ่านมา คุณรู้สึกมั่นใจว่าจัดการปัญหาส่วนตัวของตัวเองได้บ่อยแค่ไหน?",
+  "In the last month, how often have you felt that things were going your way?":
+    "ในเดือนที่ผ่านมา คุณรู้สึกว่าสิ่งต่าง ๆ เป็นไปอย่างที่ใจต้องการบ่อยแค่ไหน?",
+  "In the last month, how often have you found that you could not cope with all the things you had to do?":
+    "ในเดือนที่ผ่านมา คุณพบว่ารับมือกับทุกเรื่องที่ต้องทำไม่ไหวบ่อยแค่ไหน?",
+  "In the last month, how often have you been able to control irritations in your life?":
+    "ในเดือนที่ผ่านมา คุณควบคุมความหงุดหงิดในชีวิตได้บ่อยแค่ไหน?",
+  "In the last month, how often have you felt that you were on top of things?":
+    "ในเดือนที่ผ่านมา คุณรู้สึกว่าจัดการทุกอย่างได้อยู่มือบ่อยแค่ไหน?",
+  "In the last month, how often have you been angered because of things that were outside of your control?":
+    "ในเดือนที่ผ่านมา คุณรู้สึกโกรธเพราะเรื่องที่อยู่นอกเหนือการควบคุมบ่อยแค่ไหน?",
+  "In the last month, how often have you felt difficulties were piling up so high that you could not overcome them?":
+    "ในเดือนที่ผ่านมา คุณรู้สึกว่าปัญหาสุมเข้ามามากจนก้าวข้ามไม่ไหวบ่อยแค่ไหน?",
+
+  // LSNS-R (the six contact/decision items the -6 short form doesn't have)
+  "How often do you see or hear from the relative with whom you have the most contact?":
+    "คุณได้พบหรือติดต่อกับญาติคนที่ติดต่อกันมากที่สุดบ่อยแค่ไหน?",
+  "When one of your relatives has an important decision to make, how often do they talk to you about it?":
+    "เมื่อญาติของคุณต้องตัดสินใจเรื่องสำคัญ เขามาปรึกษาคุณบ่อยแค่ไหน?",
+  "How often is one of your relatives available for you to talk to when you have an important decision to make?":
+    "เมื่อคุณต้องตัดสินใจเรื่องสำคัญ มีญาติพร้อมให้ปรึกษาบ่อยแค่ไหน?",
+  "How often do you see or hear from the friend with whom you have the most contact?":
+    "คุณได้พบหรือติดต่อกับเพื่อนคนที่ติดต่อกันมากที่สุดบ่อยแค่ไหน?",
+  "When one of your friends has an important decision to make, how often do they talk to you about it?":
+    "เมื่อเพื่อนของคุณต้องตัดสินใจเรื่องสำคัญ เขามาปรึกษาคุณบ่อยแค่ไหน?",
+  "How often is one of your friends available for you to talk to when you have an important decision to make?":
+    "เมื่อคุณต้องตัดสินใจเรื่องสำคัญ มีเพื่อนพร้อมให้ปรึกษาบ่อยแค่ไหน?",
+
+  // RAS-7 (items 4-7 beyond the onboarding RAS-3)
+  "How often do you wish you hadn't gotten into this relationship?":
+    "คุณรู้สึกว่าไม่น่าเข้ามาอยู่ในความสัมพันธ์นี้เลยบ่อยแค่ไหน?",
+  "To what extent has your relationship met your original expectations?":
+    "ความสัมพันธ์ของคุณเป็นไปตามที่คาดหวังไว้แต่แรกมากน้อยแค่ไหน?",
+  "How much do you love your partner?": "คุณรักคู่ของคุณมากแค่ไหน?",
+  "How many problems are there in your relationship?": "ความสัมพันธ์ของคุณมีปัญหามากน้อยแค่ไหน?",
+
+  // GSE-10 (the four items not in the onboarding GSE-6)
+  "It is easy for me to stick to my aims and accomplish my goals.":
+    "เป็นเรื่องง่ายสำหรับฉันที่จะยึดมั่นกับความตั้งใจและทำเป้าหมายให้สำเร็จ",
+  "I can remain calm when facing difficulties because I can rely on my coping abilities.":
+    "ฉันใจเย็นได้เมื่อเจอความยากลำบาก เพราะพึ่งความสามารถรับมือของตัวเองได้",
+  "When I am confronted with a problem, I can usually find several solutions.": "เมื่อเจอปัญหา ฉันมักหาทางแก้ได้หลายทาง",
+  "If I am in trouble, I can usually think of a solution.": "หากตกที่นั่งลำบาก ฉันมักคิดหาทางออกได้",
+
+  // Grit-12 (the items not in the onboarding Grit-S)
+  "I have overcome setbacks to conquer an important challenge.": "ฉันเคยฝ่าอุปสรรคจนพิชิตความท้าทายสำคัญมาแล้ว",
+  "New ideas and projects sometimes distract me from previous ones.":
+    "ไอเดียหรือโปรเจกต์ใหม่ ๆ บางครั้งก็ดึงความสนใจฉันไปจากของเดิม",
+  "My interests change from year to year.": "ความสนใจของฉันเปลี่ยนไปปีต่อปี",
+  "Setbacks don't discourage me.": "อุปสรรคไม่ทำให้ฉันท้อ",
+  "I have been obsessed with a certain idea or project for a short time but later lost interest.":
+    "ฉันเคยหมกมุ่นกับไอเดียหรือโปรเจกต์หนึ่งอยู่ช่วงสั้น ๆ แล้วก็หมดความสนใจไป",
+  "I often set a goal but later choose to pursue a different one.":
+    "ฉันมักตั้งเป้าหมายไว้ แล้วภายหลังก็เปลี่ยนไปตามเป้าหมายอื่น",
+  "I have difficulty maintaining my focus on projects that take more than a few months to complete.":
+    "ฉันจดจ่อกับโปรเจกต์ที่ใช้เวลาหลายเดือนกว่าจะเสร็จได้ยาก",
+  "I have achieved a goal that took years of work.": "ฉันเคยทำเป้าหมายที่ใช้เวลาหลายปีจนสำเร็จ",
+  "I become interested in new pursuits every few months.": "ฉันหันไปสนใจเรื่องใหม่ ๆ ทุกสองสามเดือน",
+  "I am diligent.": "ฉันมุ่งมั่นพากเพียร",
+
+  // Rosenberg Self-Esteem Scale
+  "On the whole, I am satisfied with myself.": "โดยรวมแล้ว ฉันพอใจในตัวเอง",
+  "At times I think I am no good at all.": "บางครั้งฉันก็คิดว่าตัวเองไม่ได้เรื่องเลย",
+  "I feel that I have a number of good qualities.": "ฉันรู้สึกว่าตัวเองมีข้อดีหลายอย่าง",
+  "I am able to do things as well as most other people.": "ฉันทำสิ่งต่าง ๆ ได้ดีพอ ๆ กับคนส่วนใหญ่",
+  "I feel I do not have much to be proud of.": "ฉันรู้สึกว่าตัวเองไม่ค่อยมีอะไรให้ภูมิใจ",
+  "I certainly feel useless at times.": "บางครั้งฉันก็รู้สึกว่าตัวเองไร้ประโยชน์",
+  "I feel that I'm a person of worth, at least on an equal plane with others.":
+    "ฉันรู้สึกว่าตัวเองเป็นคนมีคุณค่า อย่างน้อยก็เท่าเทียมกับคนอื่น ๆ",
+  "I wish I could have more respect for myself.": "ฉันอยากนับถือตัวเองได้มากกว่านี้",
+  "All in all, I am inclined to feel that I am a failure.": "เมื่อมองทุกอย่างรวมกัน ฉันค่อนไปทางรู้สึกว่าตัวเองล้มเหลว",
+  "I take a positive attitude toward myself.": "ฉันมองตัวเองในแง่ดี",
+
+  // Giving & civic habits
+  "I give to or support causes I care about on a regular basis.": "ฉันบริจาคหรือสนับสนุนประเด็นที่ใส่ใจอย่างสม่ำเสมอ",
+  "I volunteer my time or skills for others or my community.": "ฉันสละเวลาหรือใช้ทักษะเป็นจิตอาสาเพื่อผู้อื่นหรือชุมชน",
+  "I take part in civic activities such as voting, community meetings, or petitions.":
+    "ฉันเข้าร่วมกิจกรรมพลเมือง เช่น เลือกตั้ง ประชุมชุมชน หรือลงชื่อเรียกร้อง",
+  "I go out of my way to help strangers when I see a need.": "ฉันเต็มใจออกแรงช่วยคนแปลกหน้าเมื่อเห็นว่าเขาเดือดร้อน",
+
+  // Everyday green habits
+  "I choose products with less packaging or more eco-friendly options.": "ฉันเลือกสินค้าที่บรรจุภัณฑ์น้อยหรือรักษ์โลกกว่า",
+  "I repair or reuse items instead of replacing them.": "ฉันซ่อมหรือใช้ซ้ำสิ่งของแทนการซื้อใหม่",
+  "I limit food waste and compost when I can.": "ฉันลดขยะอาหาร และทำปุ๋ยหมักเมื่อทำได้",
+  "I use energy- and water-saving practices at home.": "ฉันใช้วิธีประหยัดพลังงานและน้ำที่บ้าน",
+
+  // CFC-12
+  "I consider how things might be in the future, and try to influence those things with my day-to-day behavior.":
+    "ฉันคำนึงว่าอนาคตจะเป็นอย่างไร และพยายามให้พฤติกรรมประจำวันของตัวเองส่งผลต่อสิ่งเหล่านั้น",
+  "Often I engage in a particular behavior in order to achieve outcomes that may not result for many years.":
+    "บ่อยครั้งฉันทำสิ่งต่าง ๆ เพื่อผลลัพธ์ที่อาจต้องรออีกหลายปีกว่าจะเกิด",
+  "I only act to satisfy immediate concerns, figuring the future will take care of itself.":
+    "ฉันทำเพียงเพื่อตอบโจทย์เรื่องเฉพาะหน้า โดยคิดว่าอนาคตจะดูแลตัวมันเอง",
+  "My behavior is only influenced by the immediate (a matter of days or weeks) outcomes of my actions.":
+    "พฤติกรรมของฉันขึ้นกับผลลัพธ์เฉพาะหน้า (ภายในไม่กี่วันหรือไม่กี่สัปดาห์) ของการกระทำเท่านั้น",
+  "My convenience is a big factor in the decisions I make or the actions I take.":
+    "ความสะดวกของตัวเองเป็นปัจจัยใหญ่ในการตัดสินใจหรือการลงมือทำของฉัน",
+  "I am willing to sacrifice my immediate happiness or well-being in order to achieve future outcomes.":
+    "ฉันยอมสละความสุขหรือความสบายในตอนนี้ เพื่อให้ได้ผลลัพธ์ในอนาคต",
+  "I think it is important to take warnings about negative outcomes seriously even if the negative outcome will not occur for many years.":
+    "ฉันคิดว่าการใส่ใจคำเตือนถึงผลเสียเป็นเรื่องสำคัญ แม้ผลเสียนั้นจะยังไม่เกิดไปอีกหลายปี",
+  "I think it is more important to perform a behavior with important distant consequences than a behavior with less-important immediate consequences.":
+    "ฉันคิดว่าการทำสิ่งที่ส่งผลสำคัญในระยะไกล สำคัญกว่าการทำสิ่งที่ให้ผลเฉพาะหน้าแต่สำคัญน้อยกว่า",
+  "I generally ignore warnings about possible future problems because I think the problems will be resolved before they reach crisis level.":
+    "โดยทั่วไปฉันไม่ใส่ใจคำเตือนถึงปัญหาที่อาจเกิดในอนาคต เพราะคิดว่าปัญหาจะคลี่คลายก่อนถึงขั้นวิกฤต",
+  "I think that sacrificing now is usually unnecessary since future outcomes can be dealt with at a later time.":
+    "ฉันคิดว่าการเสียสละตอนนี้มักไม่จำเป็น เพราะเรื่องในอนาคตค่อยไปจัดการทีหลังได้",
+  "I only act to satisfy immediate concerns, figuring that I will take care of future problems that may occur at a later date.":
+    "ฉันทำเพียงเพื่อตอบโจทย์เรื่องเฉพาะหน้า โดยคิดว่าปัญหาในอนาคตค่อยไปแก้ทีหลัง",
+  "Since my day-to-day work has specific outcomes, it is more important to me than behavior that has distant outcomes.":
+    "เพราะงานประจำวันของฉันให้ผลลัพธ์ที่ชัดเจน มันจึงสำคัญกับฉันมากกว่าสิ่งที่ให้ผลในระยะไกล"
 };
