@@ -15,14 +15,48 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
+          # 22.8+ is required for the --test-coverage-* threshold flags.
+          node-version: 22
+      # Coverage gate (finding #13): fails the build if line coverage drops
+      # below 80% or function coverage below 70% across the loaded modules.
+      - name: Run node --test suite with coverage gate
+        run: npm run test:coverage
+
+      # Bug-class rules only (see biome.json): no formatting, no style opinions.
+      # The project has no build step, so nothing else would catch a typo'd
+      # identifier or a shadowed import until it threw in someone's browser.
+      - name: Lint
+        run: npx --yes @biomejs/biome@1.9.4 lint .
+
+  smoke:
+    # Boots the real page in a real browser. The unit suite imports modules
+    # directly and never loads index.html, so this is the only thing that
+    # proves the app actually starts — a bad import path or a module-scope
+    # throw would otherwise ship green.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
           node-version: 20
-      - name: Run node --test suite
-        run: node --test tests/*.test.mjs
+      # --no-save keeps package.json dependency-free (the project ships no
+      # runtime deps and has no lockfile) while still creating a node_modules
+      # the smoke script's `import { chromium } from "playwright"` can resolve.
+      - name: Install Playwright (chromium only)
+        run: |
+          npm install --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+      - name: Serve, smoke, and E2E flows
+        run: |
+          npx --yes http-server . -p 8181 -c-1 --silent &
+          npx --yes wait-on http://127.0.0.1:8181 -t 30000
+          node tests/smoke.mjs http://127.0.0.1:8181
+          node tests/e2e.mjs http://127.0.0.1:8181
 
   deploy:
     # Deploy the static site to GitHub Pages on every green main push.
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: test
+    needs: [test, smoke]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,8 +71,42 @@ jobs:
         with:
           # Creates/enables the Pages site on first run — no manual setup.
           enablement: true
+
+      # `path: .` shipped the whole repo — tests/, docs/, .github/, .claude/,
+      # package.json and ~555 KB of unreferenced design images (kept in git,
+      # just not served). Stage only what the app actually loads. The globs
+      # mean a new root module or view is picked up automatically; the check
+      # below is what catches anything that isn't.
+      - name: Stage the site
+        run: |
+          mkdir -p _site/views _site/assets/fonts
+          cp index.html privacy.html 404.html index.css manifest.webmanifest *.js _site/
+          cp views/*.js _site/views/
+          cp assets/icon-192.png assets/icon-512.png assets/lumi.png _site/assets/
+          cp assets/fonts/* _site/assets/fonts/
+
+      # The service worker precaches APP_SHELL with cache.addAll, which is
+      # atomic: one 404 rejects the whole install and the app silently loses
+      # offline support. Staging is hand-written, so verify every shell path
+      # actually made it into the artifact before we publish it.
+      - name: Verify the service worker shell is fully staged
+        run: |
+          node -e '
+            const fs = require("fs");
+            const sw = fs.readFileSync("sw.js", "utf8");
+            const shell = [...sw.matchAll(/"\.\/([^"]*)"/g)].map(m => m[1]);
+            const missing = shell
+              .map(p => p.split("?")[0])
+              .filter(p => p && !fs.existsSync("_site/" + p));
+            if (missing.length) {
+              console.error("APP_SHELL paths missing from _site:\n  " + missing.join("\n  "));
+              process.exit(1);
+            }
+            console.log("all " + shell.length + " APP_SHELL paths staged");
+          '
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

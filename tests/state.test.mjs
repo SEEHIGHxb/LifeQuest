@@ -1,7 +1,15 @@
-// Tests for GameStateManager scoring and game logic (node --test)
+// Tests for GameStateManager game logic and the pure scoring module (node --test)
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { GameStateManager } from "../state.js";
+import {
+  calculateFinanceScore,
+  calculatePhysicalScore,
+  calculateMentalScore,
+  calculateRelationshipsScore,
+  calculateSocialContributionScore,
+  calculateEnvironmentScore
+} from "../scoring.js";
 import { getAspectConfidence, isAspectDeepVerified } from "../aspects.js";
 import { INSTRUMENTS } from "../surveys.js";
 
@@ -42,34 +50,30 @@ const NEUTRAL_PROFILE = {
 };
 
 test("finance score combines income percentile, CFPB, and savings bonus", () => {
-  const m = new GameStateManager();
-  const low = m.calculateFinanceScore({ ...NEUTRAL_PROFILE, income: 5000, savingsRate: 0 }, [0, 0, 0, 0, 0]);
-  const high = m.calculateFinanceScore({ ...NEUTRAL_PROFILE, income: 80000, savingsRate: 30 }, [4, 4, 4, 4, 4]);
+  const low = calculateFinanceScore({ ...NEUTRAL_PROFILE, income: 5000, savingsRate: 0 }, [0, 0, 0, 0, 0]);
+  const high = calculateFinanceScore({ ...NEUTRAL_PROFILE, income: 80000, savingsRate: 30 }, [4, 4, 4, 4, 4]);
   assert.ok(low < high, "higher income + well-being must score higher");
   assert.ok(high <= 100 && low >= 0, "score stays in 0-100");
 });
 
 test("physical score rewards activity (regression: activity data must not be zeroed)", () => {
-  const m = new GameStateManager();
-  const sedentary = m.calculatePhysicalScore(
+  const sedentary = calculatePhysicalScore(
     { ...NEUTRAL_PROFILE, weeklyWalkingDays: 0, weeklyWalkingMins: 0 }, [0, 0, 0, 0]);
-  const active = m.calculatePhysicalScore(
+  const active = calculatePhysicalScore(
     { ...NEUTRAL_PROFILE, weeklyVigorousDays: 4, weeklyVigorousMins: 45 }, [0, 0, 0, 0]);
   assert.ok(active > sedentary, "active profile must outscore sedentary");
 });
 
 test("environment transit component uses GEB Q3 instead of hardcoded 100", () => {
-  const m = new GameStateManager();
-  const noTransit = m.calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 0, 2, 2, 2]);
-  const fullTransit = m.calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 4, 2, 2, 2]);
+  const noTransit = calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 0, 2, 2, 2]);
+  const fullTransit = calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 4, 2, 2, 2]);
   assert.equal(fullTransit - noTransit, 40, "transit is 40% of the environment score");
 });
 
 test("relationships score includes RAS only when coupled", () => {
-  const m = new GameStateManager();
-  const single = m.calculateRelationshipsScore(
+  const single = calculateRelationshipsScore(
     { ...NEUTRAL_PROFILE, relationshipStatus: "Single" }, [3, 3, 3, 3, 3, 3], [1, 1, 1], [5, 5, 5]);
-  const coupled = m.calculateRelationshipsScore(
+  const coupled = calculateRelationshipsScore(
     { ...NEUTRAL_PROFILE, relationshipStatus: "Coupled" }, [3, 3, 3, 3, 3, 3], [1, 1, 1], [5, 5, 5]);
   assert.ok(single > 0 && coupled > 0);
   assert.notEqual(single, coupled);
@@ -78,38 +82,34 @@ test("relationships score includes RAS only when coupled", () => {
 // --- SCORING INTEGRITY (findings #5, #6, #7) ---
 
 test("skipped ST-5 / UCLA default to a neutral midpoint, not the healthiest extreme (#5)", () => {
-  const m = new GameStateManager();
   const defOf = key => INSTRUMENTS[key].items.map(it => it.def);
   // ST-5 at its skip-default now reads a neutral 50 stress-resilience: with
   // WHO-5 forced to 0, mental = 0.5*0 + 0.5*50 = 25 (was 50 when ST-5 defaulted
   // to the calmest option and read as 100).
-  assert.equal(m.calculateMentalScore({}, defOf("st5"), [0, 0, 0, 0, 0]), 25);
+  assert.equal(calculateMentalScore({}, defOf("st5"), [0, 0, 0, 0, 0]), 25);
   // UCLA at its skip-default now reads a neutral 50 low-loneliness: with LSNS at
   // 0, relationships = 0.5*0 + 0.5*50 = 25 (was 50 when UCLA defaulted to least
   // lonely and read as 100).
   const single = { relationshipStatus: "Single" };
-  assert.equal(m.calculateRelationshipsScore(single, [0, 0, 0, 0, 0, 0], defOf("ucla"), null), 25);
+  assert.equal(calculateRelationshipsScore(single, [0, 0, 0, 0, 0, 0], defOf("ucla"), null), 25);
 });
 
 test("social contribution now scores the previously-ignored PTM 'help friends/family' item (#6)", () => {
-  const m = new GameStateManager();
-  const low = m.calculateSocialContributionScore(NEUTRAL_PROFILE, [2, 0, 2, 2, 3]); // Q2 = 0
-  const high = m.calculateSocialContributionScore(NEUTRAL_PROFILE, [2, 4, 2, 2, 3]); // Q2 = 4
+  const low = calculateSocialContributionScore(NEUTRAL_PROFILE, [2, 0, 2, 2, 3]); // Q2 = 0
+  const high = calculateSocialContributionScore(NEUTRAL_PROFILE, [2, 4, 2, 2, 3]); // Q2 = 4
   assert.ok(high > low, "raising PTM Q2 must raise the score now that it counts");
 });
 
 test("environment now scores the previously-ignored GEB avoidance (Q2) and eco-product (Q6) items (#6)", () => {
-  const m = new GameStateManager();
-  const q2low = m.calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 0, 2, 2, 2, 2]);
-  const q2high = m.calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 4, 2, 2, 2, 2]);
+  const q2low = calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 0, 2, 2, 2, 2]);
+  const q2high = calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 4, 2, 2, 2, 2]);
   assert.ok(q2high > q2low, "GEB Q2 (single-use avoidance) now counts");
-  const q6low = m.calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 2, 2, 2, 0]);
-  const q6high = m.calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 2, 2, 2, 4]);
+  const q6low = calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 2, 2, 2, 0]);
+  const q6high = calculateEnvironmentScore(NEUTRAL_PROFILE, [2, 2, 2, 2, 2, 4]);
   assert.ok(q6high > q6low, "GEB Q6 (eco-products) now counts");
 });
 
 test("physical omits BMI (no fabricated 50) and renormalizes when weight/height are missing (#7)", () => {
-  const m = new GameStateManager();
   // All measurable components are perfect; only weight/height are absent.
   const perfectNoBody = {
     weeklyVigorousDays: 7, weeklyVigorousMins: 120, // MET 6720 -> activity 100
@@ -121,15 +121,14 @@ test("physical omits BMI (no fabricated 50) and renormalizes when weight/height 
   };
   // Renormalized over the surviving parts (all 100) -> 100. The old code blended
   // a fake S_bmi = 50 and returned 90.
-  assert.equal(m.calculatePhysicalScore(perfectNoBody, [0, 0, 0, 0]), 100);
+  assert.equal(calculatePhysicalScore(perfectNoBody, [0, 0, 0, 0]), 100);
 });
 
 test("physical still includes body composition when weight/height are present (#7)", () => {
-  const m = new GameStateManager();
   const ideal = { ...NEUTRAL_PROFILE, weight: 60, height: 170 }; // BMI ~20.8 -> 100
   const obese = { ...NEUTRAL_PROFILE, weight: 100, height: 160 }; // BMI ~39 -> 25
   assert.ok(
-    m.calculatePhysicalScore(ideal, [0, 0, 0, 0]) > m.calculatePhysicalScore(obese, [0, 0, 0, 0]),
+    calculatePhysicalScore(ideal, [0, 0, 0, 0]) > calculatePhysicalScore(obese, [0, 0, 0, 0]),
     "measured body composition still moves the score"
   );
 });
@@ -483,6 +482,147 @@ test("deep assessment persists through reload and verifies only its own section"
   assert.equal(reloaded.state.baseline.deepDone.mental, true, "deep data survives localStorage reload");
   assert.equal(getAspectConfidence(reloaded.state, "mental").tier, "verified");
   assert.ok(!isAspectDeepVerified(reloaded.state, "finance"), "other aspects stay unverified");
+});
+
+// --- P7: imported goals, profile enums, and the backup nudge ---
+
+test("importing a hostile goal coerces it to a safe shape", () => {
+  const m = new GameStateManager();
+  m.importState(JSON.stringify({
+    schemaVersion: 3,
+    profile: {},
+    aspects: {},
+    goals: [{
+      id: '"><script>',
+      title: "Pwn",
+      // renderQuests prints t(goal.type.toUpperCase()) unescaped, so `type`
+      // reaching innerHTML verbatim would execute.
+      type: "<img src=x onerror=alert(1)>",
+      aspect: "evilKey",
+      actionIds: "not-an-array",
+      targetValue: "abc",
+      currentValue: 9999,
+      xpReward: "<b>1e9</b>",
+      completed: "yes"
+    }]
+  }));
+  const g = m.state.goals[0];
+  assert.equal(m.state.goals.length, 1);
+  assert.match(g.id, /^[A-Za-z0-9_-]+$/, "goal id stripped to a safe token");
+  assert.ok(["daily", "weekly", "epic"].includes(g.type), "unknown goal type snapped to an enum");
+  assert.ok(Object.keys(m.state.aspects).includes(g.aspect), "unknown aspect snapped to a real key");
+  assert.ok(Array.isArray(g.actionIds), "actionIds forced to an array");
+  assert.equal(g.targetValue, 1, "non-numeric targetValue falls back to 1");
+  assert.equal(g.currentValue, 1, "currentValue cannot exceed targetValue");
+  assert.equal(g.xpReward, 0, "non-numeric xpReward coerced to 0");
+  assert.equal(g.completed, false, "truthy-but-not-true completed coerced to false");
+});
+
+test("a goal with no usable title is dropped, and milestones are bounded", () => {
+  const m = new GameStateManager();
+  m.importState(JSON.stringify({
+    schemaVersion: 3,
+    profile: {},
+    aspects: {},
+    goals: [
+      { title: "   ", type: "daily" },
+      { title: 42, type: "daily" },
+      null,
+      {
+        title: "Keeper",
+        type: "epic",
+        targetValue: 5,
+        milestones: [
+          { text: "ok", at: 99, completed: "nope" },
+          { text: "", at: 1 },
+          ...Array.from({ length: 20 }, (_, i) => ({ text: `m${i}`, at: 1 }))
+        ]
+      }
+    ]
+  }));
+  assert.equal(m.state.goals.length, 1, "untitled/non-object goals dropped");
+  const g = m.state.goals[0];
+  assert.equal(g.title, "Keeper");
+  assert.ok(g.milestones.length <= 10, "milestone list capped");
+  assert.equal(g.milestones[0].at, 5, "milestone `at` clamped to targetValue");
+  assert.equal(g.milestones[0].completed, false);
+  assert.ok(g.milestones.every(msg => msg.text.length > 0), "empty milestone text dropped");
+});
+
+test("an imported goal with no milestones omits the key entirely", () => {
+  // renderQuests branches on `goal.milestones` being truthy — an empty array
+  // would render an empty <ul> where the original showed nothing.
+  const m = new GameStateManager();
+  m.importState(JSON.stringify({
+    schemaVersion: 3, profile: {}, aspects: {},
+    goals: [{ title: "Plain", type: "daily", milestones: [] }]
+  }));
+  assert.equal(Object.hasOwn(m.state.goals[0], "milestones"), false);
+});
+
+test("importing unknown profile enums falls back to benchmark-selectable values", () => {
+  const m = new GameStateManager();
+  m.importState(JSON.stringify({
+    schemaVersion: 3,
+    aspects: {},
+    profile: {
+      gender: "<script>", region: "Atlantis", employment: "Pirate",
+      relationshipStatus: "It's complicated",
+      age: 9999, sleepHours: "abc", income: -5, longTermInvestments: "yes"
+    }
+  }));
+  const p = m.state.profile;
+  assert.equal(p.gender, "unspecified");
+  assert.equal(p.region, "Provinces");
+  assert.equal(p.employment, "Office Worker");
+  assert.equal(p.relationshipStatus, "Single");
+  assert.equal(p.age, 120, "out-of-range age clamped, not defaulted");
+  assert.equal(p.sleepHours, 7, "non-numeric field falls back to the default");
+  assert.equal(p.income, 0, "negative income clamped to the floor");
+  assert.equal(p.longTermInvestments, false, "truthy string coerced to a real boolean");
+});
+
+test("backup nudge stays quiet until there is data worth losing", () => {
+  const m = new GameStateManager();
+  m.state.onboarded = true;
+  assert.equal(m.daysSinceLastExport(), null, "never exported reports null");
+  assert.equal(m.needsBackupNudge(), false, "no nudge with an empty history");
+
+  for (let i = 0; i < 10; i++) m.logAction(`a${i}`, "Act", { mental: 1 }, 1);
+  assert.equal(m.needsBackupNudge(), true, "nudges once enough is logged and never backed up");
+
+  m.exportState();
+  assert.equal(m.daysSinceLastExport(), 0);
+  assert.equal(m.needsBackupNudge(), false, "exporting silences the nudge");
+
+  // 31 days later the nudge returns.
+  m.state.lastExportAt = new Date(Date.now() - 31 * 86400000).toISOString();
+  assert.equal(m.daysSinceLastExport(), 31);
+  assert.equal(m.needsBackupNudge(), true, "a stale backup nudges again");
+});
+
+test("a garbage lastExportAt cannot masquerade as a recent backup", () => {
+  const m = new GameStateManager();
+  for (const bad of ["not-a-date", "", 12345, null, {}]) {
+    m.importState(JSON.stringify({
+      schemaVersion: 3, profile: {}, aspects: {}, lastExportAt: bad
+    }));
+    assert.equal(m.state.lastExportAt, null, `lastExportAt ${JSON.stringify(bad)} rejected`);
+    assert.equal(m.daysSinceLastExport(), null);
+  }
+  // A future stamp reports 0 rather than a negative age.
+  m.importState(JSON.stringify({
+    schemaVersion: 3, profile: {}, aspects: {},
+    lastExportAt: new Date(Date.now() + 86400000).toISOString()
+  }));
+  assert.equal(m.daysSinceLastExport(), 0, "future-dated stamp clamps to 0");
+});
+
+test("exportState stamps the backup with its own export time", () => {
+  const m = new GameStateManager();
+  const parsed = JSON.parse(m.exportState());
+  assert.ok(parsed.lastExportAt, "the exported file records when it was exported");
+  assert.equal(parsed.lastExportAt, m.state.lastExportAt, "stamp persisted, not just serialised");
 });
 
 test("submitDeepAssessment needs an onboarding baseline first", () => {

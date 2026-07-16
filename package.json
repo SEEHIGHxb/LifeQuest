@@ -1,11 +1,13 @@
 {
   "name": "life-balance-index",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "description": "Life Balance Index — local-first personal wellbeing self-assessment with cited aspect scoring",
   "scripts": {
     "start": "npx --yes http-server . -p 8123 -c-1",
-    "test": "node --test \"tests/*.test.mjs\""
+    "test": "node --test \"tests/*.test.mjs\"",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-functions=70 \"tests/*.test.mjs\"",
+    "lint": "npx --yes @biomejs/biome@1.9.4 lint ."
   }
 }

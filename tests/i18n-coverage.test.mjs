@@ -7,7 +7,7 @@
 // documented clinical-item carve-out).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { TH } from "../th.js";
@@ -16,7 +16,10 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const FILES = [
   "ui.js", "app.js", "aspects.js", "benchmarks.js",
-  "suggestions.js", "state.js", "crewcode.js", "chart.js", "validation.js"
+  "suggestions.js", "state.js", "defaults.js", "sanitize.js", "scoring.js",
+  "crewcode.js", "chart.js", "validation.js",
+  // ui.js is now a barrel — the actual t()/tp() literals live in views/.
+  ...readdirSync(join(root, "views")).filter(f => f.endsWith(".js")).map(f => join("views", f))
 ];
 
 // Strings deliberately rendered in English even in Thai mode (documented).

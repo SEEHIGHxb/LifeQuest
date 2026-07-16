@@ -1,0 +1,57 @@
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'none'; img-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Page not found — Life Balance Index</title>
+<link rel="icon" type="image/png" href="./assets/icon-192.png">
+<!--
+  GitHub Pages serves this for any unknown path under the site.
+
+  Deliberately script-free and self-contained, for the same reason privacy.html
+  is: this page has to work when the app itself is what failed to load. It does
+  NOT redirect — the app's routing is hash-based (#/dashboard), so a 404 means a
+  genuinely wrong path, and silently bouncing a mistyped URL to the app would
+  hide the mistake rather than explain it. Styles are inlined rather than
+  pulled from index.css so a stale-cache or path problem cannot leave this page
+  unstyled too.
+-->
+<style>
+  :root { color-scheme: light; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f7f5f0;
+    color: #24344d;
+    font-family: Georgia, "Times New Roman", serif;
+    padding: 24px;
+  }
+  main { max-width: 32rem; text-align: center; }
+  h1 { font-size: 1.6rem; margin: 0 0 0.5rem; }
+  p { font-size: 0.95rem; line-height: 1.6; color: #4a5a72; margin: 0 0 1.5rem; }
+  a.home {
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: 4px;
+    background: #24344d;
+    color: #f7f5f0;
+    text-decoration: none;
+    font-family: system-ui, sans-serif;
+    font-size: 0.9rem;
+  }
+  a.home:focus-visible { outline: 3px solid #6d2e3f; outline-offset: 2px; }
+  .code { font-family: ui-monospace, Menlo, monospace; font-size: 3rem; color: #6d2e3f; margin: 0; }
+</style>
+<main>
+  <p class="code">404</p>
+  <h1>Page not found</h1>
+  <p>
+    That address doesn’t exist on this site. Your saved data is untouched — it
+    lives in your browser, not on a server.
+    <br>
+    ไม่พบหน้าดังกล่าว ข้อมูลของคุณยังอยู่ครบในเบราว์เซอร์
+  </p>
+  <a class="home" href="./index.html">Back to Life Balance Index</a>
+</main>

@@ -5,9 +5,10 @@ assessment, then log daily routines to track eight life aspects, accrue points, 
 proficiency tiers, and clear goals. Pure static HTML/JS/CSS — no build step, no backend;
 all data lives in your browser's localStorage.
 
-> The GitHub repository is still named **LifeQuest** (`github.com/SEEHIGHxb/LifeQuest`,
-> live at `seehighxb.github.io/LifeQuest`). Internal storage keys, the export filename
-> prefix, and the `LQ1-` comparison-code prefix are unchanged for backward compatibility.
+> **Live at [seehighxb.github.io/LifeBalanceIndex](https://seehighxb.github.io/LifeBalanceIndex/)**
+> (repo [`SEEHIGHxb/LifeBalanceIndex`](https://github.com/SEEHIGHxb/LifeBalanceIndex), formerly *LifeQuest*).
+> Internal storage keys, the export filename prefix, and the `LQ1-` comparison-code
+> prefix keep the legacy `lifequest`/`LQ1` names for backward compatibility.
 
 Bilingual: the whole UI switches between **English and Thai (ไทย)** with the header
 toggle — surveys, benchmarks, recommendations, goals, and toasts included. Thai text is

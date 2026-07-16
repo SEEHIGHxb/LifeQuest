@@ -1,7 +1,22 @@
-// state.js - LifeQuest State Management & Scientific Scoring
+// state.js - LifeQuest state manager: persistence, XP/quests, recalibration.
+// Extracted in finding #13: defaults.js (state shape + starter quests),
+// sanitize.js (untrusted-import coercion), scoring.js (pure calculators).
+// What remains is the stateful manager: load/save, XP, quests, check-ins.
 
 import { t, tp } from "./i18n.js";
-import { incomePercentile } from "./benchmarks.js";
+import { DEFAULT_STATE, createDefaultQuests } from "./defaults.js";
+import {
+  clampNumber, safeString, sanitizeAspectScores, sanitizeImportedFriend,
+  sanitizeImportedCustomAction, sanitizeImportedGoal, sanitizeProfileFields
+} from "./sanitize.js";
+import {
+  rawSum, mentalComposite, relationshipsComposite, personalGoalsComposite,
+  calculateFinanceScore, calculatePhysicalScore, calculateMentalScore,
+  calculateRelationshipsScore, calculatePersonalGoalsScore,
+  calculateSocialContributionScore, calculateEnvironmentScore,
+  calculateHumanityFutureScore, deepAspectScore,
+  rankForLevel, rankClassForLevel
+} from "./scoring.js";
 
 const STORAGE_KEY = "lifequest_state";
 // A save the running code cannot read (corrupt JSON or an incompatible schema)
@@ -35,63 +50,10 @@ const DEEP_ASSESSMENT_XP = 60;
 // Real crewmates added via shared Crew Codes on the Rankings tab.
 const FRIEND_LIMIT = 50;
 
-const DEFAULT_STATE = {
-  onboarded: false,
-  schemaVersion: 3,
-  profile: {
-    name: "Guest",
-    level: 1,
-    xp: 0,
-    lifetimeXp: 0, // never-truncated total XP ever earned — drives shareable points (finding #11)
-    rank: "Foundational",
-    assessmentComplete: true, // false only after a quick-start (express) baseline
-
-    age: 25,
-    gender: "unspecified", // male, female, unspecified — for benchmark norm selection
-    region: "Provinces", // Provinces or Bangkok
-    employment: "Office Worker", // Office Worker, Freelancer, Business Owner, Unemployed, Student
-    relationshipStatus: "Single", // Single, Coupled
-    income: 15000,
-    savingsRate: 10,
-    digitalLiteracy: 50,
-    weeklyLearningHours: 2,
-    weeklyVigorousDays: 0,
-    weeklyVigorousMins: 0,
-    weeklyModerateDays: 0,
-    weeklyModerateMins: 0,
-    weeklyWalkingDays: 3,
-    weeklyWalkingMins: 20,
-    weight: 60,
-    height: 170,
-    sleepHours: 7,
-    vegetablePortions: 2,
-    waterLiters: 1.5,
-    singleUsePlastics: 5,
-    monthlyDonations: 0,
-    volunteeringHours: 0,
-    longTermInvestments: false
-  },
-  aspects: {
-    finance: 0,
-    physical: 0,
-    mental: 0,
-    relationships: 0,
-    personalGoals: 0,
-    socialContribution: 0,
-    environment: 0,
-    humanityFuture: 0
-  },
-  history: [],
-  goals: [],
-  customActions: [],
-  dailyLimits: {},
-  questResets: { daily: "", weekly: "" },
-  snapshots: [], // weekly {date, aspects} records for trend charts
-  baseline: null, // raw instrument sums from onboarding, for benchmark percentiles
-  commitment: null, // active weekly aspect pledge {aspect, weeklyTarget, week, progress, completed}
-  checkins: [], // monthly mini re-assessment records {date, sums, shifts}
-  friends: [] // crewmates imported from Crew Codes {id, name, level, totalPoints, aspects, addedAt}
-};
+// Backup nudge: localStorage is evictable and a "clear site data" wipes it, so
+// remind the user to export once they have enough logged to actually miss.
+const BACKUP_NUDGE_DAYS = 30;
+const BACKUP_NUDGE_MIN_LOGS = 10;
 
 function getStorage() {
   return typeof localStorage === "undefined" ? null : localStorage;
@@ -113,104 +75,28 @@ function isoWeekKey(date) {
   return `${d.getUTCFullYear()}-W${weekNo}`;
 }
 
-// ST-5 raw (0-15) -> stress-resilience 0-100 (higher = calmer). Same DMH bands
-// as calculateMentalScore; shared so the deep recompute stays consistent.
-function stressResilienceFromSt5(st5) {
-  if (st5 <= 4) return 100 - st5 * 10;
-  if (st5 <= 7) return 60 - (st5 - 4) * 10;
-  if (st5 <= 9) return 30 - (st5 - 7) * 10;
-  return 0;
-}
-
-// --- IMPORT SANITIZERS (defence-in-depth for backup import / reload) ---
-//
-// A saved/imported state is untrusted input: a hand-edited backup can carry
-// hostile strings that reach innerHTML sinks. These coerce imported data back to
-// known shapes so nothing can smuggle markup through the header, leaderboard, or
-// aspect labels. Escaping still happens at each sink too — this is belt AND
-// suspenders, not a replacement for it.
-const ASPECT_SCORE_KEYS = Object.keys(DEFAULT_STATE.aspects);
-const SAFE_ID_RE = /[^A-Za-z0-9_-]/g;
-
-// Finite number clamped to [min, max]; `fallback` when the value isn't numeric.
-function clampNumber(value, min, max, fallback = 0) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.max(min, Math.min(max, n));
-}
-
-// Plain string, length-capped. Non-strings collapse to "".
-function safeString(value, maxLen = 200) {
-  return typeof value === "string" ? value.slice(0, maxLen) : "";
-}
-
-// Reduce an id to a safe [A-Za-z0-9_-] token so it can never break out of the
-// HTML attribute it is rendered into. Empty results get a fresh prefixed id.
-function safeId(value, prefix) {
-  const cleaned = safeString(value, 40).replace(SAFE_ID_RE, "");
-  return cleaned || `${prefix}_${crypto.randomUUID().slice(0, 8)}`;
-}
-
-// Keep ONLY the eight known aspect keys, each a clamped 0-100 number. Unknown
-// keys are dropped: they would otherwise be echoed verbatim as labels into
-// innerHTML (a stored-XSS sink) and corrupt the score math.
-function sanitizeAspectScores(raw) {
-  const src = raw && typeof raw === "object" ? raw : {};
-  const out = {};
-  for (const key of ASPECT_SCORE_KEYS) {
-    out[key] = clampNumber(src[key], 0, 100, 0);
-  }
-  return out;
-}
-
-// Rebuild an imported crewmate to a known, type-safe shape (its id/level/points
-// are rendered into the leaderboard without escaping upstream of here).
-function sanitizeImportedFriend(f) {
-  if (!f || typeof f !== "object") return null;
-  const name = safeString(f.name, 40).trim();
-  if (!name) return null;
-  return {
-    id: safeId(f.id, "crew"),
-    name,
-    level: Math.round(clampNumber(f.level, 1, 999, 1)),
-    totalPoints: Math.round(clampNumber(f.totalPoints, 0, 10000000, 0)),
-    aspects: sanitizeAspectScores(f.aspects),
-    addedAt: safeString(f.addedAt, 40) || new Date().toISOString()
-  };
-}
-
-// Rebuild an imported custom routine to a known shape. Title/desc are escaped at
-// the sink, but the id is an attribute sink and the aspect must be a real key.
-function sanitizeImportedCustomAction(a) {
-  if (!a || typeof a !== "object") return null;
-  const aspect = ASPECT_SCORE_KEYS.includes(a.aspect) ? a.aspect : null;
-  if (!aspect) return null;
-  const pts = Math.round(clampNumber((a.impacts || {})[aspect], 1, 15, 5));
-  return {
-    id: safeId(a.id, "custom"),
-    title: safeString(a.title, 60).trim() || "Custom Routine",
-    aspect,
-    impacts: { [aspect]: pts },
-    xp: Math.round(clampNumber(a.xp, 5, 50, 15)),
-    desc: safeString(a.desc, 160)
-  };
-}
-
 export class GameStateManager {
+  // Construction only READS the save — no writes, no mutations. The boot
+  // maintenance (period resets, weekly snapshot) is an explicit init() so that
+  // merely importing this module never rewrites the user's data (finding #13).
   constructor() {
     this.state = this.loadState();
-    if (this.state.onboarded) {
-      const questsChanged = this.resetPeriodicQuests();
-      const snapshotTaken = this.maybeTakeSnapshot();
-      if (questsChanged || snapshotTaken) {
-        this.saveState();
-      }
+  }
+
+  // Run-once boot maintenance. app.js calls this at startup; tests call it (or
+  // not) explicitly. Safe to call again — every step is idempotent per period.
+  init() {
+    if (!this.state.onboarded) return;
+    const questsChanged = this.resetPeriodicQuests();
+    const snapshotTaken = this.maybeTakeSnapshot();
+    if (questsChanged || snapshotTaken) {
+      this.saveState();
     }
   }
 
   // Merge parsed data over defaults so saves survive new same-schema fields.
   // Untrusted fields that reach innerHTML are coerced back to known shapes here
-  // (see the sanitizers above) so an imported backup can't smuggle in markup.
+  // (see sanitize.js) so an imported backup can't smuggle in markup.
   mergeSavedState(parsed) {
     const defaults = structuredClone(DEFAULT_STATE);
 
@@ -228,6 +114,7 @@ export class GameStateManager {
       ? Math.round(clampNumber(parsed.profile.lifetimeXp, 0, 100000000, 0))
       : Math.round((100 * (profile.level - 1) * profile.level) / 2) + profile.xp;
     profile.rank = this.getRank(profile.level);
+    sanitizeProfileFields(profile);
 
     return {
       ...defaults,
@@ -235,7 +122,9 @@ export class GameStateManager {
       profile,
       aspects: sanitizeAspectScores(parsed.aspects),
       history: Array.isArray(parsed.history) ? parsed.history.slice(0, HISTORY_LIMIT) : [],
-      goals: Array.isArray(parsed.goals) ? parsed.goals : [],
+      goals: Array.isArray(parsed.goals)
+        ? parsed.goals.map(sanitizeImportedGoal).filter(Boolean)
+        : [],
       customActions: Array.isArray(parsed.customActions)
         ? parsed.customActions.map(sanitizeImportedCustomAction).filter(Boolean)
         : [],
@@ -248,6 +137,14 @@ export class GameStateManager {
       friends: Array.isArray(parsed.friends)
         ? parsed.friends.slice(0, FRIEND_LIMIT).map(sanitizeImportedFriend).filter(Boolean)
         : [],
+      // An ISO string or null. A garbage stamp must not read as "recently
+      // backed up" and silence the nudge, so anything unparseable becomes null.
+      // Tested as a string first: new Date(null) is the epoch, not NaN, and
+      // would otherwise sneak past a bare date check.
+      lastExportAt: (typeof parsed.lastExportAt === "string"
+        && Number.isFinite(new Date(parsed.lastExportAt).getTime()))
+        ? parsed.lastExportAt.slice(0, 40)
+        : null,
       schemaVersion: DEFAULT_STATE.schemaVersion
     };
   }
@@ -346,8 +243,49 @@ export class GameStateManager {
 
   // --- BACKUP EXPORT / IMPORT ---
 
+  // Stamping before serialising means the backup records its own export time,
+  // and the nudge below goes quiet as soon as the user actually backs up.
   exportState() {
+    this.state.lastExportAt = new Date().toISOString();
+    this.saveState();
     return JSON.stringify(this.state, null, 2);
+  }
+
+  // Whole days since the last export, or null if the user has never exported.
+  // A future-dated stamp (clock skew, hand-edited backup) clamps to 0 rather
+  // than reporting a negative age.
+  daysSinceLastExport() {
+    const stamp = this.state.lastExportAt;
+    if (!stamp) return null;
+    const ms = new Date(stamp).getTime();
+    if (!Number.isFinite(ms)) return null;
+    return Math.max(0, Math.floor((Date.now() - ms) / 86400000));
+  }
+
+  // True once there is real data worth losing and the last backup is stale
+  // (or never happened). Everything here lives in localStorage, which the
+  // browser may evict under pressure and which any "clear site data" wipes —
+  // so this is the only warning a user gets before the data is simply gone.
+  needsBackupNudge() {
+    if (!this.state.onboarded) return false;
+    if (this.state.history.length < BACKUP_NUDGE_MIN_LOGS) return false;
+    const days = this.daysSinceLastExport();
+    return days === null || days >= BACKUP_NUDGE_DAYS;
+  }
+
+  // Ask the browser to exempt our origin from storage eviction. Best-effort:
+  // Chrome grants it silently on an engaged/installed origin, Firefox may
+  // prompt, Safari has no such API — hence the guarded call and no UI on
+  // failure. Never throws; resolves to whether storage is now persistent.
+  async requestPersistentStorage() {
+    try {
+      if (!navigator.storage?.persist) return false;
+      if (await navigator.storage.persisted()) return true;
+      return await navigator.storage.persist();
+    } catch (e) {
+      console.error("Persistent storage request failed:", e);
+      return false;
+    }
   }
 
   importState(jsonText) {
@@ -390,22 +328,14 @@ export class GameStateManager {
     this.saveState();
   }
 
+  // Thin delegates kept for API stability (leaderboard + tests call them on
+  // the instance); the lookups themselves live with the other pure functions.
   getRank(level) {
-    if (level >= 56) return "Exemplary";
-    if (level >= 46) return "Distinguished";
-    if (level >= 36) return "Advanced";
-    if (level >= 26) return "Proficient";
-    if (level >= 16) return "Progressing";
-    if (level >= 6) return "Developing";
-    return "Foundational";
+    return rankForLevel(level);
   }
 
   getRankClass(level) {
-    if (level >= 36) return "S-Rank";
-    if (level >= 26) return "A-Rank";
-    if (level >= 16) return "B-Rank";
-    if (level >= 6) return "C-Rank";
-    return "D-Rank";
+    return rankClassForLevel(level);
   }
 
   // Daily quests reset each day, weekly quests each ISO week.
@@ -538,12 +468,13 @@ export class GameStateManager {
   // Re-runs the short survey instruments and recalibrates the survey-based
   // aspects toward the new reading, plus a small bonus for consistent related
   // logging since the last calibration. Shifts are capped at ±CHECKIN_MAX_SHIFT.
+  // Targets come from the shared composites in scoring.js — the SAME functions
+  // onboarding uses — so a check-in can never drift from the baseline formula.
   submitCheckin(surveyData) {
     const p = this.state.profile;
     const b = this.state.baseline;
     if (!b) return null;
 
-    const rawSum = answers => (answers || []).reduce((sum, val) => sum + parseInt(val || 0), 0);
     const sums = {
       who5: rawSum(surveyData.who5),
       st5: rawSum(surveyData.st5),
@@ -553,23 +484,12 @@ export class GameStateManager {
     };
     const since = this.lastCalibrationDate();
 
-    // Survey-derived targets, mirroring the onboarding formulas but computed
-    // from raw sums. LSNS, grit, and learning reuse their stored values.
-    const stressFactor = st5 =>
-      st5 <= 4 ? 100 - st5 * 10 : st5 <= 7 ? 60 - (st5 - 4) * 10 : st5 <= 9 ? 30 - (st5 - 7) * 10 : 0;
-    const socialNetwork = (b.lsns / 30) * 100;
-    const lowLoneliness = 100 - ((sums.ucla - 3) / 6) * 100;
-    const efficacy = ((sums.gse - 6) / 18) * 100;
-    const grit = ((b.grit - 4) / 16) * 100;
-    const study = Math.min(100, (parseFloat(p.weeklyLearningHours || 0) / 5) * 100);
-    const digital = Math.min(100, Math.max(0, parseFloat(p.digitalLiteracy || 0)));
-
+    // LSNS and grit aren't re-asked monthly, so their stored baseline sums
+    // stand in; everything else uses the fresh reading.
     const targets = {
-      mental: 0.5 * (sums.who5 * 4) + 0.5 * stressFactor(sums.st5),
-      relationships: p.relationshipStatus === "Single" || sums.ras === null
-        ? 0.5 * socialNetwork + 0.5 * lowLoneliness
-        : 0.4 * socialNetwork + 0.3 * lowLoneliness + 0.3 * (((sums.ras - 3) / 12) * 100),
-      personalGoals: 0.4 * efficacy + 0.3 * grit + 0.3 * (0.5 * study + 0.5 * digital)
+      mental: mentalComposite(sums.who5, sums.st5),
+      relationships: relationshipsComposite(b.lsns, sums.ucla, sums.ras),
+      personalGoals: personalGoalsComposite(p, sums.gse, b.grit)
     };
 
     const shifts = {};
@@ -610,7 +530,6 @@ export class GameStateManager {
     const b = this.state.baseline;
     if (!b) return null;
 
-    const rawSum = answers => (answers || []).reduce((sum, val) => sum + parseInt(val || 0), 0);
     const deep = { ...(b.deep || {}) };
     const deepAnswered = { ...(b.deepAnswered || {}) };
     for (const [key, arr] of Object.entries(deepData)) {
@@ -621,7 +540,7 @@ export class GameStateManager {
     const deepDone = { ...(b.deepDone || {}), [aspectKey]: true };
     this.state.baseline = { ...b, deep, deepAnswered, deepDone };
 
-    const newScore = this.deepAspectScore(aspectKey);
+    const newScore = deepAspectScore(aspectKey, this.state.profile, this.state.baseline, this.state.aspects[aspectKey]);
     if (newScore !== null) this.state.aspects[aspectKey] = newScore;
 
     this.addXP(DEEP_ASSESSMENT_XP);
@@ -629,314 +548,7 @@ export class GameStateManager {
     return { score: this.state.aspects[aspectKey] };
   }
 
-  // Recompute one aspect from the deep instruments. Uses delta/blend forms that
-  // adjust the CURRENT score by the change the fuller instrument implies, so any
-  // logged drift or check-in shift is preserved. Returns null if the aspect's
-  // deep instruments aren't captured yet.
-  deepAspectScore(aspectKey) {
-    const p = this.state.profile;
-    const b = this.state.baseline;
-    const d = (b && b.deep) || null;
-    if (!d) return null;
-    const base = this.state.aspects[aspectKey];
-    const clamp = v => Math.max(0, Math.min(100, Math.round(v)));
-    const has = k => Number.isFinite(d[k]);
-    const num = x => Number(x) || 0;
-
-    switch (aspectKey) {
-      case "finance": {
-        // Swap CFPB-5 for CFPB-10 in the 0.4-weighted well-being term.
-        if (!has("cfpb10")) return null;
-        const shortN = (num(b.cfpb) / 20) * 100;
-        const deepN = (d.cfpb10 / 40) * 100;
-        return clamp(base + 0.4 * (deepN - shortN));
-      }
-      case "physical": {
-        // Blend in sedentary/sleep-hygiene self-report at 15%.
-        if (!has("sedentary")) return null;
-        return clamp(0.85 * base + 0.15 * ((d.sedentary / 12) * 100));
-      }
-      case "mental": {
-        // Average the PSS-10 stress reading into the ST-5 stress half.
-        if (!has("pss10")) return null;
-        const st5f = stressResilienceFromSt5(num(b.st5));
-        const pssResilience = 100 - (d.pss10 / 40) * 100;
-        return clamp(base + 0.25 * (pssResilience - st5f));
-      }
-      case "relationships": {
-        // Swap LSNS-6 for LSNS-R, and (coupled) RAS-3 for RAS-7.
-        let score = base;
-        if (has("lsnsR")) {
-          const shortN = (num(b.lsns) / 30) * 100;
-          const deepN = (d.lsnsR / 60) * 100;
-          const w = p.relationshipStatus === "Single" ? 0.5 : 0.4;
-          score += w * (deepN - shortN);
-        }
-        if (has("ras7") && p.relationshipStatus !== "Single" && Number.isFinite(b.ras)) {
-          const shortN = ((num(b.ras) - 3) / 12) * 100;
-          const deepN = ((d.ras7 - 7) / 28) * 100;
-          score += 0.3 * (deepN - shortN);
-        }
-        return clamp(score);
-      }
-      case "personalGoals": {
-        // Swap GSE-6->GSE-10 (w=0.4) and Grit-S->Grit-12 (w=0.3), then blend in
-        // Rosenberg self-esteem at 15%.
-        let score = base;
-        if (has("gse10")) score += 0.4 * (((d.gse10 - 10) / 30) * 100 - ((num(b.gse) - 6) / 18) * 100);
-        if (has("grit12")) score += 0.3 * (((d.grit12 - 12) / 48) * 100 - ((num(b.grit) - 4) / 16) * 100);
-        if (has("rses")) score = 0.85 * score + 0.15 * ((d.rses / 30) * 100);
-        return clamp(score);
-      }
-      case "socialContribution": {
-        if (!has("civicplus")) return null;
-        return clamp(0.8 * base + 0.2 * ((d.civicplus / 16) * 100));
-      }
-      case "environment": {
-        if (!has("greenplus")) return null;
-        return clamp(0.8 * base + 0.2 * ((d.greenplus / 16) * 100));
-      }
-      case "humanityFuture": {
-        // Blend in Consideration of Future Consequences at 20%.
-        if (!has("cfc12")) return null;
-        return clamp(0.8 * base + 0.2 * (((d.cfc12 - 12) / 48) * 100));
-      }
-      default:
-        return null;
-    }
-  }
-
-  // --- SCIENTIFIC ASPECT SCORING CALCULATIONS ---
-
-  calculateFinanceScore(profile, cfpbAnswers) {
-    // 1. Subjective CFPB Well-Being Score (5 items, each 0-4, raw 0-20)
-    const rawCfpb = cfpbAnswers.reduce((sum, val) => sum + parseInt(val || 0), 0);
-    const S_wellbeing = rawCfpb * 5; // standardize to 0-100
-
-    // 2. Objective income standing — the SAME cited lognormal model as the
-    //    finance benchmark card (single source of truth, finding #9), so the
-    //    score and the on-page income percentile can no longer disagree.
-    const S_income = incomePercentile(profile.income, profile.region);
-
-    // Savings rate modifier (max 10 bonus points)
-    const savRate = parseFloat(profile.savingsRate || 0);
-    const savingsBonus = Math.min(10, (savRate / 20) * 10);
-
-    return Math.round(Math.min(100, (0.6 * S_income) + (0.4 * S_wellbeing) + savingsBonus));
-  }
-
-  calculatePhysicalScore(profile, jssAnswers) {
-    // 1. IPAQ MET-minutes
-    const vigDays = parseInt(profile.weeklyVigorousDays || 0);
-    const vigMins = parseInt(profile.weeklyVigorousMins || 0);
-    const modDays = parseInt(profile.weeklyModerateDays || 0);
-    const modMins = parseInt(profile.weeklyModerateMins || 0);
-    const walkDays = parseInt(profile.weeklyWalkingDays || 0);
-    const walkMins = parseInt(profile.weeklyWalkingMins || 0);
-
-    const totalMET = (8.0 * vigDays * vigMins) + (4.0 * modDays * modMins) + (3.3 * walkDays * walkMins);
-
-    let S_activity = 0;
-    if (totalMET < 600) {
-      S_activity = (totalMET / 600) * 40;
-    } else if (totalMET <= 3000) {
-      S_activity = 40 + ((totalMET - 600) / 2400) * 40;
-    } else {
-      S_activity = 80 + Math.min(20, ((totalMET - 3000) / 3000) * 20);
-    }
-
-    // 2. Asian BMI Standard — OMITTED (not faked at 50) when weight/height are
-    // missing. A fabricated "average" silently inflates or deflates the score;
-    // instead its 0.2 weight is redistributed across the measured components.
-    const w = parseFloat(profile.weight || 0);
-    const h = parseFloat(profile.height || 0) / 100; // in meters
-    let S_bmi = null;
-    if (w > 0 && h > 0) {
-      const bmi = w / (h * h);
-      if (bmi >= 18.5 && bmi <= 22.9) S_bmi = 100; // Ideal
-      else if (bmi >= 23.0 && bmi <= 24.9) S_bmi = 75; // Overweight
-      else if (bmi >= 25.0 && bmi <= 29.9) S_bmi = 50; // Obese Class 1
-      else if (bmi >= 30.0) S_bmi = 25; // Obese Class 2
-      else S_bmi = Math.round(Math.max(25, (bmi / 18.5) * 100)); // Underweight
-    }
-
-    // 3. Sleep quality (4 items, each 0-5, raw 0-20)
-    const rawJss = jssAnswers.reduce((sum, val) => sum + parseInt(val || 0), 0);
-    const F_quality = 100 - (rawJss * 5); // 0 raw -> 100 pts, 20 raw -> 0 pts
-
-    // Duration folds in only when reported. A genuinely short night (< 6h) still
-    // scores low, but an ABSENT duration no longer fabricates a floor of 50 —
-    // sleep then reflects the measured quality alone.
-    const duration = parseFloat(profile.sleepHours || 0);
-    let S_sleep;
-    if (duration > 0) {
-      const F_duration = duration >= 7 && duration <= 9 ? 100 : (duration >= 6 && duration < 7 ? 75 : 50);
-      S_sleep = (0.5 * F_duration) + (0.5 * F_quality);
-    } else {
-      S_sleep = F_quality;
-    }
-
-    // 4. Nutrition
-    const portions = parseFloat(profile.vegetablePortions || 0);
-    const F_veg = Math.min(100, (portions / 5) * 100);
-    const liters = parseFloat(profile.waterLiters || 0);
-    const F_water = Math.min(100, (liters / 2.5) * 100);
-    const S_nutrition = (0.5 * F_veg) + (0.5 * F_water);
-
-    // Weighted aggregate. A null component (BMI without measurements) drops out
-    // and the surviving weights are renormalized, so nothing is ever imputed.
-    const parts = [
-      [0.4, S_activity],
-      [0.2, S_bmi],
-      [0.2, S_sleep],
-      [0.2, S_nutrition]
-    ].filter(([, value]) => value !== null);
-    const totalWeight = parts.reduce((sum, [weight]) => sum + weight, 0);
-    const weighted = parts.reduce((sum, [weight, value]) => sum + (weight * value), 0);
-    return Math.round(weighted / totalWeight);
-  }
-
-  calculateMentalScore(profile, st5Answers, who5Answers) {
-    // 1. DMH Thailand ST-5 Stress Test (5 items, each 0-3, raw 0-15)
-    const rawSt5 = st5Answers.reduce((sum, val) => sum + parseInt(val || 0), 0);
-    let S_stress_factor = 0;
-    if (rawSt5 <= 4) {
-      S_stress_factor = 100 - (rawSt5 * 10);
-    } else if (rawSt5 <= 7) {
-      S_stress_factor = 60 - ((rawSt5 - 4) * 10);
-    } else if (rawSt5 <= 9) {
-      S_stress_factor = 30 - ((rawSt5 - 7) * 10);
-    } else {
-      S_stress_factor = 0;
-    }
-
-    // 2. WHO-5 Index (5 items, each 0-5, raw 0-25)
-    const rawWho5 = who5Answers.reduce((sum, val) => sum + parseInt(val || 0), 0);
-    const S_wellbeing = rawWho5 * 4; // 0-100
-
-    return Math.round((0.5 * S_wellbeing) + (0.5 * S_stress_factor));
-  }
-
-  calculateRelationshipsScore(profile, lsnsAnswers, uclaAnswers, rasAnswers) {
-    // 1. LSNS-6 Social Support (6 items, each 0-5, raw 0-30)
-    const rawLsns = lsnsAnswers.reduce((sum, val) => sum + parseInt(val || 0), 0);
-    const S_social_network = (rawLsns / 30) * 100;
-
-    // 2. UCLA Loneliness (3 items, each 1-3, raw 3-9)
-    const rawUcla = uclaAnswers.reduce((sum, val) => sum + parseInt(val || 0), 0);
-    const S_loneliness = 100 - (((rawUcla - 3) / 6) * 100);
-
-    // 3. Romantic Satisfaction (RAS 3 items, each 1-5, raw 3-15)
-    let S_romantic = 0;
-    if (profile.relationshipStatus !== "Single" && rasAnswers) {
-      const rawRas = rasAnswers.reduce((sum, val) => sum + parseInt(val || 0), 0);
-      S_romantic = ((rawRas - 3) / 12) * 100;
-    }
-
-    if (profile.relationshipStatus === "Single") {
-      return Math.round((0.5 * S_social_network) + (0.5 * S_loneliness));
-    }
-    return Math.round((0.4 * S_social_network) + (0.3 * S_loneliness) + (0.3 * S_romantic));
-  }
-
-  calculatePersonalGoalsScore(profile, gseAnswers, gritAnswers) {
-    // 1. GSE-6 Self-Efficacy (6 items, each 1-4, raw 6-24)
-    const rawGse = gseAnswers.reduce((sum, val) => sum + parseInt(val || 0), 0);
-    const S_self_efficacy = ((rawGse - 6) / 18) * 100;
-
-    // 2. Grit-S (4 items, each 1-5, raw 4-20)
-    const rawGrit = gritAnswers.reduce((sum, val) => sum + parseInt(val || 0), 0);
-    const S_grit = ((rawGrit - 4) / 16) * 100;
-
-    // 3. Active Learning habits
-    // NOTE: `weeklyLearningHours` is intentionally shared with
-    // calculateHumanityFutureScore's S_skills — learning time counts toward both
-    // personal growth and future-proofing. Deliberate reuse, not a bug.
-    const hours = parseFloat(profile.weeklyLearningHours || 0);
-    const F_study = Math.min(100, (hours / 5) * 100);
-    const F_digital = Math.min(100, Math.max(0, parseFloat(profile.digitalLiteracy || 0)));
-    const S_learning = (0.5 * F_study) + (0.5 * F_digital);
-
-    return Math.round((0.4 * S_self_efficacy) + (0.3 * S_grit) + (0.3 * S_learning));
-  }
-
-  calculateSocialContributionScore(profile, ptmAnswers) {
-    // PTM Behavior (5 items, each 0-4)
-    const qValues = ptmAnswers.map(v => parseInt(v || 0));
-
-    // Donation Score
-    const donRate = parseFloat(profile.monthlyDonations || 0);
-    const donIncRatio = profile.income > 0 ? (donRate / profile.income) * 100 : 0;
-    const volumeFactor = donIncRatio >= 2 || donRate >= 500 ? 100 : Math.min(100, (donRate / 500) * 100);
-    const frequencyFactor = qValues[0] * 25; // max 100
-    const S_donation = (0.5 * frequencyFactor) + (0.5 * volumeFactor);
-
-    // Volunteering & Prosocial. Both PTM helping items count toward prosocial
-    // behavior: Q2 "help friends/family in need" (previously collected but never
-    // scored) and Q3 "help strangers".
-    const volHours = parseFloat(profile.volunteeringHours || 0);
-    const volunteerFactor = Math.min(100, (volHours / 4) * 100);
-    const prosocialFactor = ((qValues[1] + qValues[2]) / 8) * 100; // Q2 + Q3
-    const S_action = (0.6 * volunteerFactor) + (0.4 * prosocialFactor);
-
-    // Civic & Local (Q4 & Q5)
-    const S_civic = ((qValues[3] + qValues[4]) / 8) * 100;
-
-    return Math.round((0.4 * S_donation) + (0.4 * S_action) + (0.2 * S_civic));
-  }
-
-  calculateEnvironmentScore(profile, gebAnswers) {
-    // GEB Scale (6 items, each 0-4)
-    const qValues = gebAnswers.map(v => parseInt(v || 0));
-
-    // Waste and Plastics
-    const plastics = parseInt(profile.singleUsePlastics || 0);
-    let plasticFactor = 0;
-    if (plastics === 0) plasticFactor = 100;
-    else if (plastics <= 2) plasticFactor = 80;
-    else if (plastics <= 5) plasticFactor = 50;
-    else if (plastics <= 7) plasticFactor = 25;
-
-    // Waste: plastic footprint + recycling (Q1) + single-use avoidance (Q2).
-    // Q2 was previously collected but never scored.
-    const S_waste = (0.5 * plasticFactor) + (0.25 * (qValues[0] * 25)) + (0.25 * (qValues[1] * 25));
-
-    // Transit (GEB Q3: public transit / walk / cycle frequency)
-    const S_transit = qValues[2] * 25;
-
-    // Conservation: energy habits (Q4 & Q5) + eco-product choices (Q6). Q6 was
-    // previously collected but never scored.
-    const S_conservation = ((qValues[3] + qValues[4] + qValues[5]) / 12) * 100;
-
-    return Math.round((0.4 * S_waste) + (0.4 * S_transit) + (0.2 * S_conservation));
-  }
-
-  calculateHumanityFutureScore(profile, lfisAnswers) {
-    // LFIS (5 items, each 0-4)
-    const qValues = lfisAnswers.map(v => parseInt(v || 0));
-
-    // Future Skills
-    // NOTE: `weeklyLearningHours` is intentionally shared with
-    // calculatePersonalGoalsScore's S_learning (see note there). The UI surfaces
-    // the reuse on the "Future skills" component detail line.
-    const hours = parseFloat(profile.weeklyLearningHours || 0);
-    const studyHours = Math.min(100, (hours / 4) * 100);
-    const Q1_val = qValues[0] * 25;
-    const S_skills = (0.5 * studyHours) + (0.5 * Q1_val);
-
-    // Legacy (Q2)
-    const S_legacy = qValues[1] * 25;
-
-    // Risk / Philanthropy (Q3 & Q5)
-    const S_philanthropy = ((qValues[2] + qValues[4]) / 8) * 100;
-
-    // Security (Q4 & Pension)
-    const pensionVal = profile.longTermInvestments ? 100 : 0;
-    const Q4_val = qValues[3] * 25;
-    const S_security = (0.5 * pensionVal) + (0.5 * Q4_val);
-
-    return Math.round((0.25 * S_skills) + (0.25 * S_legacy) + (0.25 * S_philanthropy) + (0.25 * S_security));
-  }
+  // --- ONBOARDING ---
 
   // Set the onboarding baseline. `coverage` (optional) carries the Phase 1
   // input-coverage maps captured at input time: { provided: {field: bool},
@@ -973,7 +585,6 @@ export class GameStateManager {
 
     // Raw instrument sums preserved for benchmark percentiles and the
     // Phase 4 monthly re-assessments.
-    const rawSum = answers => (answers || []).reduce((sum, val) => sum + parseInt(val || 0), 0);
     this.state.baseline = {
       date: new Date().toISOString(),
       cfpb: rawSum(surveyData.cfpb),
@@ -1000,14 +611,14 @@ export class GameStateManager {
     }
 
     const aspects = this.state.aspects;
-    aspects.finance = this.calculateFinanceScore(p, surveyData.cfpb);
-    aspects.physical = this.calculatePhysicalScore(p, surveyData.jss);
-    aspects.mental = this.calculateMentalScore(p, surveyData.st5, surveyData.who5);
-    aspects.relationships = this.calculateRelationshipsScore(p, surveyData.lsns, surveyData.ucla, surveyData.ras);
-    aspects.personalGoals = this.calculatePersonalGoalsScore(p, surveyData.gse, surveyData.grit);
-    aspects.socialContribution = this.calculateSocialContributionScore(p, surveyData.ptm);
-    aspects.environment = this.calculateEnvironmentScore(p, surveyData.geb);
-    aspects.humanityFuture = this.calculateHumanityFutureScore(p, surveyData.lfis);
+    aspects.finance = calculateFinanceScore(p, surveyData.cfpb);
+    aspects.physical = calculatePhysicalScore(p, surveyData.jss);
+    aspects.mental = calculateMentalScore(p, surveyData.st5, surveyData.who5);
+    aspects.relationships = calculateRelationshipsScore(p, surveyData.lsns, surveyData.ucla, surveyData.ras);
+    aspects.personalGoals = calculatePersonalGoalsScore(p, surveyData.gse, surveyData.grit);
+    aspects.socialContribution = calculateSocialContributionScore(p, surveyData.ptm);
+    aspects.environment = calculateEnvironmentScore(p, surveyData.geb);
+    aspects.humanityFuture = calculateHumanityFutureScore(p, surveyData.lfis);
 
     this.state.onboarded = true;
     p.assessmentComplete = !express;
@@ -1025,61 +636,7 @@ export class GameStateManager {
   }
 
   initializeDefaultQuests() {
-    this.state.goals = [
-      {
-        id: "daily_water",
-        title: "Stay Hydrated",
-        description: "Log your 2L+ hydration once today.",
-        aspect: "physical",
-        type: "daily",
-        actionIds: ["drink_water"],
-        targetValue: 1,
-        currentValue: 0,
-        xpReward: 15,
-        completed: false
-      },
-      {
-        id: "daily_sigh",
-        title: "Breath Control",
-        description: "Log 3 physiological sighs to reset stress.",
-        aspect: "mental",
-        type: "daily",
-        actionIds: ["phys_sigh"],
-        targetValue: 3,
-        currentValue: 0,
-        xpReward: 10,
-        completed: false
-      },
-      {
-        id: "weekly_workout",
-        title: "Active Core",
-        description: "Log at least 3 exercise sessions this week.",
-        aspect: "physical",
-        type: "weekly",
-        actionIds: ["workout"],
-        targetValue: 3,
-        currentValue: 0,
-        xpReward: 50,
-        completed: false
-      },
-      {
-        id: "epic_savings",
-        title: "Safety Deposit",
-        description: "Log a savings deposit 10 times.",
-        aspect: "finance",
-        type: "epic",
-        actionIds: ["save_money"],
-        targetValue: 10,
-        currentValue: 0,
-        xpReward: 150,
-        completed: false,
-        milestones: [
-          { text: "3 deposits logged", at: 3, completed: false },
-          { text: "6 deposits logged", at: 6, completed: false },
-          { text: "10 deposits logged", at: 10, completed: false }
-        ]
-      }
-    ];
+    this.state.goals = createDefaultQuests();
   }
 
   // --- CUSTOM ROUTINES ---
@@ -1235,4 +792,7 @@ export class GameStateManager {
   }
 }
 
+// Construction only READS the saved state. The boot maintenance (quest resets,
+// weekly snapshot) runs when app.js calls stateManager.init() — importing this
+// module never writes to storage.
 export const stateManager = new GameStateManager();
