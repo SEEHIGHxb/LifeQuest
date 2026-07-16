@@ -15,12 +15,12 @@ export const TH = {
   "Medical emergency": "เหตุฉุกเฉินทางการแพทย์",
   "Mental health support": "การสนับสนุนด้านสุขภาพจิต",
   // --- Instrument-fidelity disclosures (finding #8) ---
-  "Grit (perseverance)": "Grit (ความเพียร)",
-  "Perseverance facet only — {g}/5 vs the ~3.4 full-scale reference": "เฉพาะด้านความเพียร — {g}/5 เทียบกับค่าอ้างอิงเต็มสเกล ~3.4",
+  "Grit (perseverance)": "ความมุ่งมั่น (ด้านความเพียร)",
+  "Perseverance facet only — {g}/5 vs the ~3.4 full-scale reference": "เฉพาะด้านความเพียร — {g}/5 เทียบกับค่าอ้างอิงฉบับเต็ม ~3.4",
   "Raw {n}/20 — converted with the CFPB's official scoring table (self-administered)": "คะแนนดิบ {n}/20 — แปลงด้วยตารางคะแนนทางการของ CFPB (แบบตอบด้วยตนเอง)",
-  "Full 10-item scale — raw {n}/40, converted with the CFPB's official scoring table": "สเกลเต็ม 10 ข้อ — คะแนนดิบ {n}/40 แปลงด้วยตารางคะแนนทางการของ CFPB",
-  "Grit {g}/5 from your full 12-item scale vs the ~3.4 adult reference point.": "Grit {g}/5 จากสเกลเต็ม 12 ข้อ เทียบกับค่าอ้างอิงผู้ใหญ่ ~3.4",
-  "Grit {g}/5 — the onboarding measure is the perseverance facet only (4 of the 8 Grit-S items), so this is indicative, not an exact match to the ~3.4 reference.": "Grit {g}/5 — แบบวัดตอนเริ่มต้นครอบคลุมเฉพาะด้านความเพียร (4 จาก 8 ข้อของ Grit-S) จึงเป็นเพียงค่าชี้บ่ง ไม่ใช่การเทียบตรงกับค่าอ้างอิง ~3.4",
+  "Full 10-item scale — raw {n}/40, converted with the CFPB's official scoring table": "แบบเต็ม 10 ข้อ — คะแนนดิบ {n}/40 แปลงด้วยตารางคะแนนทางการของ CFPB",
+  "Grit {g}/5 from your full 12-item scale vs the ~3.4 adult reference point.": "ความมุ่งมั่น {g}/5 จากแบบวัดฉบับเต็ม 12 ข้อ เทียบกับค่าอ้างอิงผู้ใหญ่ ~3.4",
+  "Grit {g}/5 — the onboarding measure is the perseverance facet only (4 of the 8 Grit-S items), so this is indicative, not an exact match to the ~3.4 reference.": "ความมุ่งมั่น {g}/5 — แบบวัดตอนเริ่มต้นครอบคลุมเฉพาะด้านความเพียร (4 จาก 8 ข้อของ Grit-S) จึงเป็นเพียงค่าชี้บ่ง ไม่ใช่การเทียบตรงกับค่าอ้างอิง ~3.4",
   // --- Core-surface i18n leaks fixed (finding #10) ---
   "Life Balance Index": "ดัชนีสมดุลชีวิต",
   "Lv.": "Lv.",
@@ -68,11 +68,13 @@ export const TH = {
   "Import failed: {msg}": "นำเข้าไม่สำเร็จ: {msg}",
   "Activity recorded: +{xp} points{detail}.": "บันทึกกิจกรรมแล้ว: +{xp} คะแนน{detail}",
   "Re-assessment complete: {parts} (+40 points)": "ประเมินซ้ำเสร็จสิ้น: {parts} (+40 คะแนน)",
-  "Re-assessment needs a baseline — complete the initial assessment first.": "การประเมินซ้ำต้องมีข้อมูลพื้นฐานก่อน — กรุณาทำแบบประเมินแรกให้เสร็จก่อน",
-  "Level Up": "เลื่อนระดับ",
-  "Your overall progress level has increased.": "ระดับความก้าวหน้าโดยรวมของคุณเพิ่มขึ้นแล้ว",
+  "Re-assessment needs a baseline — complete the initial assessment first.": "การประเมินซ้ำต้องมีข้อมูลพื้นฐานก่อน — กรุณาทำแบบประเมินเริ่มต้นให้เสร็จก่อน",
+  "Level Up": "เลเวลเพิ่มขึ้น",
+  "Your overall progress level has increased.": "ความก้าวหน้าโดยรวมของคุณเพิ่มขึ้นแล้ว",
   "LEVEL {n}": "เลเวล {n}",
-  "Rank: {rank}": "ระดับ: {rank}",
+  // {rank} already arrives translated as "ระดับ S" — repeating the label
+  // would render the doubled "ระดับ: ระดับ S".
+  "Rank: {rank}": "{rank}",
   "Continue": "ดำเนินการต่อ",
   'Goal completed: "{title}" (+{xp} points)': 'บรรลุเป้าหมาย: "{title}" (+{xp} คะแนน)',
   "Weekly commitment met — +{bonus} bonus points.": "ทำตามคำมั่นประจำสัปดาห์สำเร็จ — โบนัส +{bonus} คะแนน",
@@ -132,7 +134,7 @@ export const TH = {
   "Optional — self-efficacy and perseverance, plus your weekly learning habits.": "ไม่บังคับ — ความเชื่อมั่นในความสามารถและความมุ่งมั่น พร้อมนิสัยการเรียนรู้รายสัปดาห์",
   "Optional — prosocial habits, everyday environmental behavior, and your long-term outlook.": "ไม่บังคับ — พฤติกรรมช่วยเหลือสังคม การดูแลสิ่งแวดล้อมในชีวิตประจำวัน และมุมมองระยะยาว",
   "Quick-start results.": "ผลลัพธ์แบบเริ่มเร็ว",
-  "Aspects beyond your first sections use baseline estimates. Log routines to shape them, and monthly re-assessments refine your survey scores over time.": "ด้านที่อยู่นอกเหนือช่วงแรกใช้ค่าประมาณพื้นฐาน บันทึกกิจวัตรเพื่อปรับให้ตรงขึ้น และการประเมินซ้ำรายเดือนจะปรับคะแนนแบบสำรวจของคุณให้แม่นยำขึ้นเมื่อเวลาผ่านไป",
+  "Aspects beyond your first sections use baseline estimates. Log routines to shape them, and monthly re-assessments refine your survey scores over time.": "ด้านที่อยู่นอกเหนือช่วงแรกใช้ค่าประมาณพื้นฐาน บันทึกกิจวัตรเพื่อปรับให้ตรงขึ้น และการประเมินซ้ำรายเดือนจะปรับคะแนนแบบสอบถามของคุณให้แม่นยำขึ้นเมื่อเวลาผ่านไป",
   "points": "คะแนน",
   "Name": "ชื่อ",
   "E.g., Alex": "เช่น อเล็กซ์",
@@ -214,7 +216,7 @@ export const TH = {
     "นี่คือเครื่องมือสำรวจตนเอง ไม่ใช่การวินิจฉัยทางการแพทย์หรือจิตวิทยา หากคะแนนใดทำให้กังวล โปรดถือเป็นสัญญาณให้ปรึกษาผู้เชี่ยวชาญ ไม่ใช่คำตัดสิน",
   "The eight aspects": "แปดด้านของชีวิต",
   "60% income percentile (lognormal model calibrated to Thai Labour Force Survey wages) + 40% CFPB Financial Well-Being score (official age-banded table) + a savings-rate bonus of up to 10 points.":
-    "60% เปอร์เซ็นไทล์รายได้ (แบบจำลอง lognormal เทียบค่าจ้างจากการสำรวจภาวะการทำงานของไทย) + 40% คะแนนสุขภาวะการเงิน CFPB (ตารางทางการแยกช่วงอายุ) + โบนัสอัตราการออมสูงสุด 10 คะแนน",
+    "60% เปอร์เซ็นไทล์รายได้ (แบบจำลอง lognormal เทียบค่าจ้างจากการสำรวจภาวะการทำงานของไทย) + 40% คะแนนสุขภาวะทางการเงิน CFPB (ตารางทางการแยกช่วงอายุ) + โบนัสอัตราการออมสูงสุด 10 คะแนน",
   "Objective standing is weighted above sentiment; the savings bonus rewards a habit you fully control.":
     "ให้น้ำหนักสถานะที่วัดได้จริงมากกว่าความรู้สึก และโบนัสการออมให้รางวัลกับนิสัยที่คุณควบคุมได้เอง",
   "40% activity (IPAQ MET-minutes vs the WHO 600 guideline) + 20% Asian-BMI band + 20% sleep (Jenkins Sleep Scale + reported duration) + 20% nutrition (vegetables + water). Missing measurements are omitted and the weights renormalized — never faked.":
@@ -222,7 +224,7 @@ export const TH = {
   "Activity carries the most weight because it has the strongest evidence base and is the component daily logging can move.":
     "การเคลื่อนไหวได้น้ำหนักมากที่สุดเพราะมีหลักฐานวิชาการแข็งแรงที่สุด และเป็นส่วนที่การบันทึกกิจวัตรรายวันขยับได้จริง",
   "50% WHO-5 well-being + 50% ST-5 stress resilience (Thai DMH cutoffs, inverted so calmer scores higher). The in-depth PSS-10 refines the stress half when completed.":
-    "50% สุขภาวะ WHO-5 + 50% ความทนต่อความเครียด ST-5 (เกณฑ์กรมสุขภาพจิต กลับด้านให้ยิ่งสงบยิ่งคะแนนสูง) แบบเจาะลึก PSS-10 จะละเอียดขึ้นเมื่อทำครบ",
+    "50% สุขภาวะ WHO-5 + 50% ความทนทานต่อความเครียด ST-5 (เกณฑ์กรมสุขภาพจิต กลับด้านให้ยิ่งสงบยิ่งคะแนนสูง) แบบประเมินเชิงลึก PSS-10 จะละเอียดขึ้นเมื่อทำครบ",
   "An equal split of positive well-being and stress keeps one bad week from dominating the score.":
     "การแบ่งครึ่งระหว่างสุขภาวะเชิงบวกกับความเครียด ทำให้สัปดาห์แย่ ๆ สัปดาห์เดียวไม่ครอบงำคะแนน",
   "40% social network (LSNS-6) + 30% low loneliness (UCLA-3) + 30% relationship satisfaction (RAS, couples only). Singles reweight to 50/50 — being single is never penalized.":
@@ -230,7 +232,7 @@ export const TH = {
   "Network size and felt loneliness measure different things; both matter, so neither dominates.":
     "ขนาดเครือข่ายกับความเหงาที่รู้สึกวัดคนละสิ่ง ทั้งคู่สำคัญจึงไม่ให้ด้านใดครอบงำ",
   "40% self-efficacy (GSE) + 30% grit (Grit-S perseverance facet) + 30% active learning (weekly study hours + self-rated digital literacy). The in-depth section adds the full GSE-10, Grit-12, and Rosenberg self-esteem.":
-    "40% การรับรู้ความสามารถของตน (GSE) + 30% ความมุ่งมั่น (Grit-S ด้านความเพียร) + 30% การเรียนรู้ (ชั่วโมงเรียนต่อสัปดาห์ + ทักษะดิจิทัลที่ประเมินเอง) แบบเจาะลึกเพิ่ม GSE-10, Grit-12 และความภาคภูมิใจในตนเองของ Rosenberg",
+    "40% การรับรู้ความสามารถของตน (GSE) + 30% ความมุ่งมั่น (Grit-S ด้านความเพียร) + 30% การเรียนรู้ (ชั่วโมงเรียนต่อสัปดาห์ + ทักษะดิจิทัลที่ประเมินเอง) แบบประเมินเชิงลึกเพิ่ม GSE-10, Grit-12 และความภาคภูมิใจในตนเองของ Rosenberg",
   "Belief you can act, persistence, and actual learning time together approximate progress toward goals.":
     "ความเชื่อว่าทำได้ ความเพียร และเวลาเรียนรู้จริง รวมกันสะท้อนความคืบหน้าสู่เป้าหมาย",
   "40% donations (frequency + amount vs income) + 40% action (volunteering hours + helping behavior) + 20% civic participation.":
@@ -242,14 +244,14 @@ export const TH = {
   "Plastics and transport dominate the part of an individual Thai footprint that daily habits can actually change.":
     "พลาสติกกับการเดินทางคือส่วนใหญ่ของรอยเท้าสิ่งแวดล้อมรายบุคคลที่นิสัยประจำวันเปลี่ยนได้จริง",
   "25% future skills + 25% legacy actions + 25% future-oriented giving + 25% long-term security (retirement investments). The in-depth CFC-12 adds a validated future-orientation reading.":
-    "25% ทักษะแห่งอนาคต + 25% การสร้างมรดกเชิงบวก + 25% การให้เพื่อคนรุ่นหลัง + 25% ความมั่นคงระยะยาว (การลงทุนเกษียณ) แบบเจาะลึก CFC-12 เพิ่มการวัดมุมมองต่ออนาคตที่ผ่านการตรวจสอบแล้ว",
+    "25% ทักษะแห่งอนาคต + 25% การสร้างมรดกเชิงบวก + 25% การให้เพื่อคนรุ่นหลัง + 25% ความมั่นคงระยะยาว (การลงทุนเกษียณ) แบบประเมินเชิงลึก CFC-12 เพิ่มการวัดมุมมองต่ออนาคตที่ผ่านการตรวจสอบแล้ว",
   "Four equal parts because there is no published evidence for ranking them — an honest uniform prior.":
     "สี่ส่วนเท่ากันเพราะยังไม่มีหลักฐานตีพิมพ์ที่บอกว่าอะไรสำคัญกว่า — จึงให้น้ำหนักเท่ากันอย่างตรงไปตรงมา",
   "App-authored behavioral items — not a standardized instrument. Read this aspect as a habits index, not a validated psychological measure.":
     "ชุดคำถามพฤติกรรมที่แอปสร้างเอง — ไม่ใช่เครื่องมือมาตรฐาน โปรดอ่านด้านนี้เป็นดัชนีนิสัย ไม่ใช่การวัดทางจิตวิทยาที่ผ่านการตรวจสอบ",
   "Confidence, benchmarks, and answer quality": "ความเชื่อมั่น เกณฑ์เปรียบเทียบ และคุณภาพคำตอบ",
   "Every score carries a confidence tier: High (you answered everything), Partial, Estimated (defaults stood in), or Verified (you completed the full-length in-depth instruments).":
-    "ทุกคะแนนมีระดับความเชื่อมั่น: สูง (ตอบครบ), บางส่วน, ประมาณการ (ใช้ค่าเริ่มต้นแทน) หรือยืนยันแล้ว (ทำแบบเจาะลึกฉบับเต็มครบ)",
+    "ทุกคะแนนมีระดับความเชื่อมั่น: สูง (ตอบครบ), บางส่วน, ประมาณการ (ใช้ค่าเริ่มต้นแทน) หรือยืนยันแล้ว (ทำแบบประเมินเชิงลึกฉบับเต็มครบ)",
   "Society percentiles are honest approximations against cited published statistics — each benchmark names its method and sources, and the band around it is an indicative range, not a statistical confidence interval.":
     "เปอร์เซ็นไทล์เทียบสังคมเป็นการประมาณอย่างตรงไปตรงมาจากสถิติที่ตีพิมพ์และอ้างอิงได้ — แต่ละเกณฑ์ระบุวิธีและแหล่งที่มา และช่วงคะแนนเป็นช่วงบ่งชี้ ไม่ใช่ช่วงความเชื่อมั่นทางสถิติ",
   "Answer quality is checked: a questionnaire answered with the same option on every row (despite reverse-worded questions) is not counted as a confirmed measurement until re-answered.":
@@ -455,7 +457,6 @@ export const TH = {
   "Targeting your weakest measured components — tap one to open that aspect.": "เจาะจงองค์ประกอบที่อ่อนที่สุดของคุณ — แตะเพื่อเปิดด้านนั้น",
   "Aspect Scores": "คะแนนรายด้าน",
   "Open {aspect} details": "เปิดรายละเอียดด้าน{aspect}",
-  "Society: ~{pct} percentile": "สังคม: ~เปอร์เซ็นไทล์{pct}",
   "vs published norms": "เทียบเกณฑ์ที่ตีพิมพ์",
   "vs participation rates": "เทียบอัตราการมีส่วนร่วม",
   "estimate": "ค่าประมาณ",
@@ -478,9 +479,8 @@ export const TH = {
   "Remove routine": "ลบกิจวัตร",
   "Standing vs Society": "สถานะเทียบกับสังคม",
   "Percentile vs society": "เปอร์เซ็นไทล์เทียบสังคม",
-  "~{pct} percentile": "~เปอร์เซ็นไทล์{pct}",
   "Sources": "แหล่งอ้างอิง",
-  "No baseline data for this comparison yet — re-run the onboarding sync to unlock it.": "ยังไม่มีข้อมูลพื้นฐานสำหรับการเทียบนี้ — ทำแบบประเมินแรกเข้าใหม่เพื่อปลดล็อก",
+  "No baseline data for this comparison yet — re-run the onboarding sync to unlock it.": "ยังไม่มีข้อมูลพื้นฐานสำหรับการเทียบนี้ — ทำแบบประเมินเริ่มต้นใหม่เพื่อปลดล็อก",
   "Component Breakdown": "องค์ประกอบย่อย",
   "Baseline survey data needed for this breakdown.": "ต้องมีข้อมูลแบบประเมินพื้นฐานจึงจะแสดงส่วนนี้ได้",
   "Suggested Focus": "จุดที่ควรโฟกัส",
@@ -514,7 +514,7 @@ export const TH = {
   "MONTHLY RE-ASSESSMENT": "การประเมินซ้ำประจำเดือน",
   "Short instruments only • recalibrates Mental, Relationships & Personal Goals": "แบบประเมินชุดสั้น • ปรับเทียบด้านจิตใจ ความสัมพันธ์ และเป้าหมายส่วนตัว",
   "Answer for the recent weeks, not how you felt at onboarding. Scores shift by at most ±15 points per re-assessment, and consistent routine logging since the last one adds a small bonus. Reward: +40 points.":
-    "ตอบตามช่วงสัปดาห์ที่ผ่านมา ไม่ใช่ความรู้สึกตอนแรกเข้า คะแนนขยับได้ไม่เกิน ±15 แต้มต่อการประเมินซ้ำ และการบันทึกกิจวัตรสม่ำเสมอตั้งแต่ครั้งก่อนจะได้โบนัสเล็กน้อย รางวัล: +40 คะแนน",
+    "ตอบตามช่วงสัปดาห์ที่ผ่านมา ไม่ใช่ความรู้สึกตอนเริ่มต้น คะแนนขยับได้ไม่เกิน ±15 คะแนนต่อการประเมินซ้ำ และการบันทึกกิจวัตรสม่ำเสมอตั้งแต่ครั้งก่อนจะได้โบนัสเล็กน้อย รางวัล: +40 คะแนน",
   "Complete Re-assessment": "เสร็จสิ้นการประเมินซ้ำ",
   "Re-assessment Error: ": "การประเมินซ้ำผิดพลาด: ",
 
@@ -623,15 +623,13 @@ export const TH = {
   "Loneliness {n}/9, inverted (higher bar = less lonely)": "ความเหงา {n}/9 กลับด้าน (แถบสูง = เหงาน้อย)",
   "Romantic satisfaction (RAS)": "ความพึงพอใจในความรัก (RAS)",
   "Raw {n}/15 at baseline": "คะแนนดิบ {n}/15 ณ จุดเริ่มต้น",
-  "Self-efficacy (GSE)": "การรับรู้ความสามารถตนเอง (GSE)",
+  "Self-efficacy (GSE)": "การรับรู้ความสามารถของตนเอง (GSE)",
   "Raw {n}/24 at baseline": "คะแนนดิบ {n}/24 ณ จุดเริ่มต้น",
-  "Grit": "ความมุ่งมั่น",
-  "{g}/5 vs the ~3.4 adult reference": "{g}/5 เทียบจุดอ้างอิงผู้ใหญ่ ~3.4",
   "Active learning": "การเรียนรู้เชิงรุก",
   "{h}h/week study + digital skills {d}/100": "เรียน {h} ชม./สัปดาห์ + ทักษะดิจิทัล {d}/100",
   "Giving": "การให้",
   "{thb} THB/month (500+ maxes this)": "{thb} บาท/เดือน (500 ขึ้นไปได้เต็ม)",
-  "Volunteering": "งานอาสา",
+  "Volunteering": "จิตอาสา",
   "{h}h/month (4h+ maxes this)": "{h} ชม./เดือน (4 ชม. ขึ้นไปได้เต็ม)",
   "Prosocial habits (PTM)": "พฤติกรรมเพื่อสังคม (PTM)",
   "Plastic reduction": "การลดพลาสติก",
@@ -669,8 +667,7 @@ export const TH = {
   "LSNS-6 score {n}/30 is under the social-isolation cutoff of 12.": "คะแนน LSNS-6 {n}/30 ต่ำกว่าจุดตัดภาวะโดดเดี่ยวทางสังคมที่ 12",
   "LSNS-6 score {n}/30 is above the social-isolation cutoff of 12.": "คะแนน LSNS-6 {n}/30 สูงกว่าจุดตัดภาวะโดดเดี่ยวทางสังคมที่ 12",
   "Loneliness (UCLA-3) and social network (LSNS-6) vs published community samples": "ความเหงา (UCLA-3) และเครือข่ายสังคม (LSNS-6) เทียบกับกลุ่มตัวอย่างที่ตีพิมพ์",
-  "Grit {g}/5 vs the ~3.4 adult reference point.": "ความมุ่งมั่น {g}/5 เทียบจุดอ้างอิงผู้ใหญ่ ~3.4",
-  "Self-efficacy (GSE) vs 25-country norms, N=19,120": "การรับรู้ความสามารถตนเอง (GSE) เทียบเกณฑ์ 25 ประเทศ N=19,120",
+  "Self-efficacy (GSE) vs 25-country norms, N=19,120": "การรับรู้ความสามารถของตนเอง (GSE) เทียบเกณฑ์ 25 ประเทศ N=19,120",
   "Your 6-item GSE is compared per-item against 10-item GSE norms — a short-form approximation, not an exact match.":
     "GSE แบบ 6 ข้อของคุณถูกเทียบรายข้อกับเกณฑ์ GSE แบบ 10 ข้อ — เป็นการประมาณจากแบบสั้น ไม่ใช่การเทียบที่ตรงกันพอดี",
   "Giving participation: {band}": "การมีส่วนร่วมในการให้: {band}",
@@ -791,12 +788,14 @@ export const TH = {
   "Measured with the full long-form instruments (deep assessment complete)":
     "วัดด้วยแบบประเมินฉบับเต็ม (ทำแบบประเมินเชิงลึกครบแล้ว)",
   "Ahead of about {pct}% of people like you": "นำหน้าผู้คนที่คล้ายคุณราว {pct}%",
-  "{pct} percentile · typical range {low}–{high}": "เปอร์เซ็นไทล์ {pct} · ช่วงทั่วไป {low}–{high}",
+  // {pct}/{low}/{high} arrive from percentileLabel() already prefixed with
+  // "ที่ " in Thai, so the template adds no space before them.
+  "{pct} percentile · typical range {low}–{high}": "เปอร์เซ็นไทล์{pct} · ช่วงทั่วไป{low}–{high}",
   "in-depth verified": "ยืนยันเชิงลึกแล้ว",
   "“Percentile” = the share of people you're ahead of, so higher is better. The range shows how precise this estimate is, not a statistical confidence interval.":
     "“เปอร์เซ็นไทล์” = สัดส่วนของคนที่คุณนำหน้า ยิ่งสูงยิ่งดี ส่วนช่วงบอกว่าค่าประมาณนี้แม่นแค่ไหน ไม่ใช่ช่วงความเชื่อมั่นทางสถิติ",
 
-  "Go deeper for more accurate scores.": "เจาะลึกเพื่อคะแนนที่แม่นยำขึ้น",
+  "Go deeper for more accurate scores.": "ทำแบบประเมินเชิงลึกเพื่อคะแนนที่แม่นยำขึ้น",
   "An optional in-depth assessment uses the full-length validated questionnaires to sharpen your estimates and tighten each percentile band.":
     "แบบประเมินเชิงลึก (ไม่บังคับ) ใช้แบบสอบถามฉบับเต็มที่ผ่านการตรวจสอบ เพื่อให้ค่าประมาณคมขึ้นและช่วงเปอร์เซ็นไทล์แคบลง",
   "In-depth sections completed: {done}/{total}": "ทำแบบประเมินเชิงลึกแล้ว: {done}/{total} หมวด",
@@ -826,13 +825,13 @@ export const TH = {
 
   // Deep section titles & blurbs
   "Finance — in depth": "การเงิน — เชิงลึก",
-  "Physical — in depth": "สุขภาพกาย — เชิงลึก",
-  "Mental — in depth": "สุขภาพใจ — เชิงลึก",
+  "Physical — in depth": "ร่างกาย — เชิงลึก",
+  "Mental — in depth": "จิตใจ — เชิงลึก",
   "Relationships — in depth": "ความสัมพันธ์ — เชิงลึก",
   "Personal Goals — in depth": "เป้าหมายส่วนตัว — เชิงลึก",
-  "Social Contribution — in depth": "การมีส่วนร่วมต่อสังคม — เชิงลึก",
+  "Social Contribution — in depth": "การช่วยเหลือสังคม — เชิงลึก",
   "Environment — in depth": "สิ่งแวดล้อม — เชิงลึก",
-  "Humanity's Future — in depth": "อนาคตของมนุษยชาติ — เชิงลึก",
+  "Humanity's Future — in depth": "อนาคตมนุษยชาติ — เชิงลึก",
   "The full 10-item CFPB Financial Well-Being Scale (onboarding used 5).":
     "แบบวัดสุขภาวะทางการเงิน CFPB ฉบับเต็ม 10 ข้อ (ตอนเริ่มต้นใช้ 5 ข้อ)",
   "Sedentary time and sleep hygiene refine your activity and sleep scores.":
@@ -853,7 +852,7 @@ export const TH = {
   "Perceived Stress Scale (PSS-10, past month)": "แบบวัดความเครียด (PSS-10, เดือนที่ผ่านมา)",
   "Lubben Social Network Scale – Revised (LSNS-R)": "แบบวัดเครือข่ายสังคม Lubben ฉบับปรับปรุง (LSNS-R)",
   "Relationship Assessment Scale (full 7-item)": "แบบวัดความสัมพันธ์ (ฉบับเต็ม 7 ข้อ)",
-  "General Self-Efficacy Scale (full 10-item)": "แบบวัดการรับรู้ความสามารถตนเอง (ฉบับเต็ม 10 ข้อ)",
+  "General Self-Efficacy Scale (full 10-item)": "แบบวัดการรับรู้ความสามารถของตนเอง (ฉบับเต็ม 10 ข้อ)",
   "Grit Scale (full 12-item)": "แบบวัดความมุ่งมั่น (ฉบับเต็ม 12 ข้อ)",
   "Rosenberg Self-Esteem Scale": "แบบวัดความภาคภูมิใจในตนเองของ Rosenberg",
   "Giving & civic habits (self-report)": "นิสัยการให้และพลเมือง (รายงานตนเอง)",
@@ -865,7 +864,7 @@ export const TH = {
   "Perceived stress (PSS-10)": "ความเครียดที่รับรู้ (PSS-10)",
   "Social network (LSNS-R)": "เครือข่ายสังคม (LSNS-R)",
   "Relationship quality (RAS-7)": "คุณภาพความสัมพันธ์ (RAS-7)",
-  "Self-efficacy (GSE-10)": "การรับรู้ความสามารถตนเอง (GSE-10)",
+  "Self-efficacy (GSE-10)": "การรับรู้ความสามารถของตนเอง (GSE-10)",
   "Grit (12-item)": "ความมุ่งมั่น (12 ข้อ)",
   "Self-esteem (Rosenberg)": "ความภาคภูมิใจในตนเอง (Rosenberg)",
   "Giving & civic habits": "นิสัยการให้และพลเมือง",

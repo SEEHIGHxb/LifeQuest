@@ -37,6 +37,17 @@ careless-response detection, and a public methodology page.
   frequency response set** (Always … Never) rather than "describes me",
   matching the published worksheet.
 
+### Fixed
+
+- **Thai-mode terminology made consistent.** Grit is now ความมุ่งมั่น everywhere
+  (ความเพียร reserved for "perseverance"), self-efficacy is uniformly
+  การรับรู้ความสามารถของตนเอง, the in-depth assessment is เชิงลึก on the
+  methodology page too (was แบบเจาะลึก), and the in-depth section titles reuse
+  the exact aspect names (ร่างกาย, จิตใจ, การช่วยเหลือสังคม, อนาคตมนุษยชาติ).
+  Also fixed the level-up modal doubling "ระดับ: ระดับ S", a stray space before
+  Thai percentile labels, and five stale dictionary entries left from the
+  benchmark rewrite.
+
 ### Added
 
 - **Scoring-integrity test guards** (`tests/scoring-integrity.test.mjs`):
