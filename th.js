@@ -42,6 +42,12 @@ export const TH = {
   // --- Chart accessible names (review finding: SVGs were silent to AT) ---
   "Trend chart: {n} weekly snapshot(s), latest score {latest} of 100": "แผนภูมิแนวโน้ม: สแนปช็อตรายสัปดาห์ {n} รายการ คะแนนล่าสุด {latest} จาก 100",
   "Radar chart of the eight aspect scores: {summary}": "แผนภูมิเรดาร์คะแนนทั้งแปดด้าน: {summary}",
+  "Radar chart of the eight aspect scores: {summary}. Dashed outline shows the population average: {avgSummary}": "แผนภูมิเรดาร์คะแนนทั้งแปดด้าน: {summary} เส้นประแสดงค่าเฉลี่ยของประชากร: {avgSummary}",
+  // --- Radar legend (population-average overlay) ---
+  "Your scores": "คะแนนของคุณ",
+  "Population average": "ค่าเฉลี่ยของประชากร",
+  "Average estimated from cited population statistics — see Methodology.": "ค่าเฉลี่ยประมาณจากสถิติประชากรที่มีการอ้างอิง — ดูหน้าระเบียบวิธี",
+  "The dashed outline on the dashboard radar is a derived population average: a reference person assembled from the same cited statistics (median income, typical activity levels, published questionnaire means) is scored through the exact formulas that score you.": "เส้นประบนแผนภูมิเรดาร์หน้าภาพรวมคือค่าเฉลี่ยของประชากรที่ประมาณขึ้น: บุคคลอ้างอิงที่ประกอบขึ้นจากสถิติที่มีการอ้างอิงชุดเดียวกัน (รายได้มัธยฐาน ระดับกิจกรรมทางกายทั่วไป ค่าเฉลี่ยของแบบสอบถามที่ตีพิมพ์) จะถูกคำนวณผ่านสูตรเดียวกับที่ใช้คำนวณคะแนนของคุณ",
   // --- Footer (privacy/source/version reachable from the app) ---
   "Privacy & Data": "ความเป็นส่วนตัวและข้อมูล",
   "Source code & license": "ซอร์สโค้ดและสัญญาอนุญาต",

@@ -1273,3 +1273,35 @@ header {
   .reward-pop { animation: reward-out 0.4s ease-in 1.5s both; }
   .onb-progress-fill { transition: none; }
 }
+
+/* --- Radar chart legend (you vs population average) --- */
+.radar-legend {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1.25rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+.radar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.radar-legend-swatch {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  border-top: 2px solid var(--color-astral);
+}
+.radar-legend-swatch--average {
+  border-top: 2px dashed rgba(32, 50, 76, 0.55);
+}
+.radar-legend-caption {
+  flex-basis: 100%;
+  margin: 0.1rem 0 0;
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+}

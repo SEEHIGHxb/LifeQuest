@@ -4,6 +4,7 @@
 
 import { stateManager } from "../state.js";
 import { renderRadarChart } from "../chart.js";
+import { AVERAGE_ASPECT_SCORES } from "../averages.js";
 import { getAllBenchmarks, collectSources } from "../benchmarks.js";
 import { getAspectConfidence, ASPECT_KEYS, isAspectDeepVerified } from "../aspects.js";
 import { getTopSuggestions, getMentalHealthNotice } from "../suggestions.js";
@@ -181,7 +182,7 @@ export function renderDashboard(containerId, state, onExportBackup) {
     </div>
   `;
 
-  renderRadarChart("radar-chart-container", state.aspects);
+  renderRadarChart("radar-chart-container", state.aspects, { average: AVERAGE_ASPECT_SCORES });
 
   if (needsBackup && typeof onExportBackup === "function") {
     document.getElementById("backup-nudge-export")

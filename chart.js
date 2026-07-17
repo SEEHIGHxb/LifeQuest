@@ -123,10 +123,11 @@ export function renderTrendChart(containerId, trend) {
   container.appendChild(svg);
 }
 
-export function renderRadarChart(containerId, aspects) {
+export function renderRadarChart(containerId, aspects, options = {}) {
   const container = document.getElementById(containerId);
   if (!container) return;
   container.innerHTML = "";
+  const average = options.average || null;
 
   const width = container.clientWidth || 360;
   const height = 360;
@@ -145,7 +146,15 @@ export function renderRadarChart(containerId, aspects) {
   // the game theme, defined but never applied — is gone.
   const summary = ASPECT_KEYS.map(key => `${t(ASPECT_LABELS[key])} ${aspects[key] || 0}`).join(", ");
   svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", tp("Radar chart of the eight aspect scores: {summary}", { summary }));
+  if (average) {
+    const avgSummary = ASPECT_KEYS.map(key => `${t(ASPECT_LABELS[key])} ${average[key] || 0}`).join(", ");
+    svg.setAttribute("aria-label", tp(
+      "Radar chart of the eight aspect scores: {summary}. Dashed outline shows the population average: {avgSummary}",
+      { summary, avgSummary }
+    ));
+  } else {
+    svg.setAttribute("aria-label", tp("Radar chart of the eight aspect scores: {summary}", { summary }));
+  }
 
   // 1. Draw Concentric Grid Lines (concentric octagons for 8 axes)
   const gridLevels = [20, 40, 60, 80, 100];
@@ -207,7 +216,27 @@ export function renderRadarChart(containerId, aspects) {
     svg.appendChild(text);
   });
 
-  // 3. Draw User Score Polygon
+  // 3. Draw the population-average reference polygon FIRST (dashed, unfilled,
+  // no vertex dots) so the user's polygon layers on top of it.
+  if (average) {
+    const avgPoints = [];
+    ASPECT_KEYS.forEach((key, i) => {
+      const angle = (i * Math.PI) / 4 - Math.PI / 2;
+      const value = average[key] || 0;
+      const x = cx + Math.cos(angle) * radius * (value / 100);
+      const y = cy + Math.sin(angle) * radius * (value / 100);
+      avgPoints.push(`${x},${y}`);
+    });
+    const avgPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    avgPolygon.setAttribute("points", avgPoints.join(" "));
+    avgPolygon.setAttribute("fill", "none");
+    avgPolygon.setAttribute("stroke", "rgba(32, 50, 76, 0.45)");
+    avgPolygon.setAttribute("stroke-width", "1.5");
+    avgPolygon.setAttribute("stroke-dasharray", "5,4");
+    svg.appendChild(avgPolygon);
+  }
+
+  // 4. Draw User Score Polygon
   const scorePoints = [];
   ASPECT_KEYS.forEach((key, i) => {
     const angle = (i * Math.PI) / 4 - Math.PI / 2;
@@ -224,7 +253,7 @@ export function renderRadarChart(containerId, aspects) {
   scorePolygon.setAttribute("stroke-width", "2");
   svg.appendChild(scorePolygon);
 
-  // 4. Draw Score Points (dots at vertices)
+  // 5. Draw Score Points (dots at vertices)
   ASPECT_KEYS.forEach((key, i) => {
     const angle = (i * Math.PI) / 4 - Math.PI / 2;
     const score = aspects[key] || 0;
@@ -254,4 +283,28 @@ export function renderRadarChart(containerId, aspects) {
   });
 
   container.appendChild(svg);
+
+  // Legend + provenance caption, only when the reference polygon is drawn.
+  // Built with createElement/textContent — no markup ever passes through here.
+  if (average) {
+    const legend = document.createElement("div");
+    legend.className = "radar-legend";
+    const legendItem = (swatchClass, label) => {
+      const item = document.createElement("span");
+      item.className = "radar-legend-item";
+      const swatch = document.createElement("span");
+      swatch.className = `radar-legend-swatch ${swatchClass}`;
+      swatch.setAttribute("aria-hidden", "true");
+      item.appendChild(swatch);
+      item.appendChild(document.createTextNode(label));
+      return item;
+    };
+    legend.appendChild(legendItem("radar-legend-swatch--you", t("Your scores")));
+    legend.appendChild(legendItem("radar-legend-swatch--average", t("Population average")));
+    const caption = document.createElement("p");
+    caption.className = "radar-legend-caption";
+    caption.textContent = t("Average estimated from cited population statistics — see Methodology.");
+    legend.appendChild(caption);
+    container.appendChild(legend);
+  }
 }

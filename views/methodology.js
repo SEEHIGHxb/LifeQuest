@@ -126,6 +126,7 @@ export function renderMethodology(containerId, state) {
       <h4 class="card-header">${t("Confidence, benchmarks, and answer quality")}</h4>
       <p class="aspect-blurb">${t("Every score carries a confidence tier: High (you answered everything), Partial, Estimated (defaults stood in), or Verified (you completed the full-length in-depth instruments).")}</p>
       <p class="aspect-blurb">${t("Society percentiles are honest approximations against cited published statistics — each benchmark names its method and sources, and the band around it is an indicative range, not a statistical confidence interval.")}</p>
+      <p class="aspect-blurb">${t("The dashed outline on the dashboard radar is a derived population average: a reference person assembled from the same cited statistics (median income, typical activity levels, published questionnaire means) is scored through the exact formulas that score you.")}</p>
       <p class="aspect-blurb">${t("Answer quality is checked: a questionnaire answered with the same option on every row (despite reverse-worded questions) is not counted as a confirmed measurement until re-answered.")}</p>
     </div>
 

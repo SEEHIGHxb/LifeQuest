@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Two version numbers, on purpose
 
-- **`APP_VERSION`** (`version.js`, currently `25`) is a monotonic **cache-bust
+- **`APP_VERSION`** (`version.js`, currently `26`) is a monotonic **cache-bust
   counter**, not semver. It appears in the `?v=N` query on every versioned
   asset and in the service worker's `CACHE_NAME`. Bump it on *any* release that
   changes a shipped file. `tests/consistency.test.mjs` fails CI if the sites
@@ -15,6 +15,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 They are deliberately independent: a one-character CSS fix needs a cache bust
 but not a minor version.
+
+## [1.4.0] — 2026-07-17 (APP_VERSION 26)
+
+### Added
+
+- **The dashboard radar now shows the population average.** A dashed outline
+  drawn under your polygon marks the score an average person would get, with
+  a legend and a provenance caption. The average is not hand-picked: a
+  reference person assembled from the same cited statistics the benchmarks
+  use (median Thai income, typical activity levels, published questionnaire
+  means such as WHO-5 67.56/100; app-authored scales at their midpoints) is
+  scored through the exact calculators in `scoring.js` that score you, so
+  the overlay can never drift from the formulas (`averages.js`, pinned by
+  `tests/averages.test.mjs`). The chart's accessible name includes both
+  series, and the methodology page documents the derivation.
 
 ## [1.3.1] — 2026-07-16 (APP_VERSION 25)
 
