@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Two version numbers, on purpose
 
-- **`APP_VERSION`** (`version.js`, currently `26`) is a monotonic **cache-bust
+- **`APP_VERSION`** (`version.js`, currently `27`) is a monotonic **cache-bust
   counter**, not semver. It appears in the `?v=N` query on every versioned
   asset and in the service worker's `CACHE_NAME`. Bump it on *any* release that
   changes a shipped file. `tests/consistency.test.mjs` fails CI if the sites
@@ -15,6 +15,62 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 They are deliberately independent: a one-character CSS fix needs a cache bust
 but not a minor version.
+
+## [1.5.0] — 2026-07-18 (APP_VERSION 27)
+
+The weekly-review redesign: daily activity logging is replaced by ONE measured
+self-report per ISO week, so using the app well takes minutes a week, not a
+daily ritual.
+
+### Changed (breaking)
+
+- **Daily activity logging is removed.** The Activity Log tab, preset and
+  custom routines, the 5-logs-per-day fatigue caps, and per-log flat score
+  bonuses are all gone. In their place, the new **Weekly Review** tab asks for
+  rough weekly quantities ("about 2 L of water a day", "exercised 3 days"),
+  prefilled with last week's answers so an unchanged week takes seconds.
+- **Scores are now measured, not nudged.** The quantities you report replace
+  last week's values inside the SAME cited formulas that scored your
+  onboarding (`weeklyAspectShifts` in `scoring.js`), so a behavior-driven
+  aspect moves exactly as much as the measured change implies — never by a
+  flat +N per tap. Survey-only aspects (mental, relationships) are untouched
+  by reviews and still recalibrate via the monthly re-assessment, whose small
+  consistency bonus now counts weekly reviews instead of logged actions.
+- **Goals are now weekly quantity pledges.** Count-of-logs goals and the
+  separate weekly commitment pledge are replaced by up to 6 pledges chosen
+  from 10 measurable templates (hydration, sleep, exercise days, MET-minutes,
+  vegetables, learning, plastics, savings rate, donations, volunteering).
+  Every pledge is auto-graded by the weekly review — nothing to log day to
+  day — with streaks tracked and fixed per-template points so a self-set
+  target cannot farm the economy.
+- **XP economy**: weekly review pays 60 base + each met pledge's 25-40. An
+  engaged week lands near ~135 points; levels now track weeks of consistency
+  rather than tap volume. Existing levels and lifetime points are preserved.
+
+### Migration (schema v3 -> v4, automatic, no data loss where a v4 meaning exists)
+
+- Kept: profile (XP/level/lifetime points), aspect scores, the full onboarding
+  baseline (incl. in-depth sections), snapshots, re-assessment history,
+  crewmates, and the old action log — retained as a read-only archive.
+- Converted: the three default quests with a measurable equivalent
+  (`daily_water` → hydration ≥2 L/day, `weekly_workout` → exercise ≥3
+  days/week, `epic_savings` → savings rate ≥10%).
+- Dropped: the breathing-exercise quest (`daily_sigh`), custom routines and
+  custom goals (no measurable weekly quantity maps to them), the commitment
+  pledge, daily rate-limit counters, and quest reset stamps.
+
+### Added
+
+- `#/review`: the prefilled weekly form (IPAQ activity grid, sleep, water,
+  vegetables, learning, plastics, savings; donations/volunteering under a
+  collapsed monthly section), a "reviewed this week" state naming the next
+  review date, past-review history, and a dashboard banner + Recent Reviews
+  feed. Completing a review chains straight into the monthly re-assessment
+  when that is due — one ritual, two short steps.
+- Goals tab rebuilt around pledge cards (target, last week's ✓/✗ with the
+  measured value, streak badge) and a bounded add-pledge form.
+- Aspect pages now show a "Measured Weekly" card naming exactly which review
+  fields feed that aspect's score.
 
 ## [1.4.0] — 2026-07-17 (APP_VERSION 26)
 

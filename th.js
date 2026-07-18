@@ -48,6 +48,7 @@ export const TH = {
   "Population average": "ค่าเฉลี่ยของประชากร",
   "Average estimated from cited population statistics — see Methodology.": "ค่าเฉลี่ยประมาณจากสถิติประชากรที่มีการอ้างอิง — ดูหน้าระเบียบวิธี",
   "The dashed outline on the dashboard radar is a derived population average: a reference person assembled from the same cited statistics (median income, typical activity levels, published questionnaire means) is scored through the exact formulas that score you.": "เส้นประบนแผนภูมิเรดาร์หน้าภาพรวมคือค่าเฉลี่ยของประชากรที่ประมาณขึ้น: บุคคลอ้างอิงที่ประกอบขึ้นจากสถิติที่มีการอ้างอิงชุดเดียวกัน (รายได้มัธยฐาน ระดับกิจกรรมทางกายทั่วไป ค่าเฉลี่ยของแบบสอบถามที่ตีพิมพ์) จะถูกคำนวณผ่านสูตรเดียวกับที่ใช้คำนวณคะแนนของคุณ",
+  "Behavior-driven aspects are re-measured by the weekly review: the quantities you report replace last week's values inside the same formulas, so a score moves exactly as much as the measured change implies — never by flat per-log bonuses.": "ด้านที่ขับเคลื่อนด้วยพฤติกรรมจะถูกวัดใหม่ผ่านการทบทวนรายสัปดาห์: ปริมาณที่คุณรายงานจะแทนที่ค่าของสัปดาห์ก่อนในสูตรเดียวกัน คะแนนจึงขยับเท่าที่การเปลี่ยนแปลงที่วัดได้บ่งชี้เท่านั้น — ไม่ใช่โบนัสคงที่ต่อการบันทึก",
   // --- Footer (privacy/source/version reachable from the app) ---
   "Privacy & Data": "ความเป็นส่วนตัวและข้อมูล",
   "Source code & license": "ซอร์สโค้ดและสัญญาอนุญาต",
@@ -83,9 +84,6 @@ export const TH = {
   "Rank: {rank}": "{rank}",
   "Continue": "ดำเนินการต่อ",
   'Goal completed: "{title}" (+{xp} points)': 'บรรลุเป้าหมาย: "{title}" (+{xp} คะแนน)',
-  "Weekly commitment met — +{bonus} bonus points.": "ทำตามคำมั่นประจำสัปดาห์สำเร็จ — โบนัส +{bonus} คะแนน",
-  "Here to help. Focus on logging your routines today to build momentum.":
-    "ยินดีช่วยเหลือ วันนี้ลองโฟกัสที่การบันทึกกิจวัตรเพื่อสร้างแรงส่งดูนะ",
 
   // --- Proficiency tiers ---
   "Foundational": "ระดับพื้นฐาน",
@@ -227,8 +225,8 @@ export const TH = {
     "ให้น้ำหนักสถานะที่วัดได้จริงมากกว่าความรู้สึก และโบนัสการออมให้รางวัลกับนิสัยที่คุณควบคุมได้เอง",
   "40% activity (IPAQ MET-minutes vs the WHO 600 guideline) + 20% Asian-BMI band + 20% sleep (Jenkins Sleep Scale + reported duration) + 20% nutrition (vegetables + water). Missing measurements are omitted and the weights renormalized — never faked.":
     "40% การเคลื่อนไหว (MET-นาทีตาม IPAQ เทียบเกณฑ์ WHO 600) + 20% ช่วง BMI เอเชีย + 20% การนอน (Jenkins Sleep Scale + ชั่วโมงนอนที่รายงาน) + 20% โภชนาการ (ผัก + น้ำ) ค่าที่ไม่ได้กรอกจะถูกตัดออกและกระจายน้ำหนักใหม่ ไม่มีการแต่งตัวเลขแทน",
-  "Activity carries the most weight because it has the strongest evidence base and is the component daily logging can move.":
-    "การเคลื่อนไหวได้น้ำหนักมากที่สุดเพราะมีหลักฐานวิชาการแข็งแรงที่สุด และเป็นส่วนที่การบันทึกกิจวัตรรายวันขยับได้จริง",
+  "Activity carries the most weight because it has the strongest evidence base and is the component your weekly review re-measures most directly.":
+    "การเคลื่อนไหวได้น้ำหนักมากที่สุดเพราะมีหลักฐานวิชาการแข็งแรงที่สุด และเป็นส่วนที่การทบทวนรายสัปดาห์วัดใหม่ได้ตรงที่สุด",
   "50% WHO-5 well-being + 50% ST-5 stress resilience (Thai DMH cutoffs, inverted so calmer scores higher). The in-depth PSS-10 refines the stress half when completed.":
     "50% สุขภาวะ WHO-5 + 50% ความทนทานต่อความเครียด ST-5 (เกณฑ์กรมสุขภาพจิต กลับด้านให้ยิ่งสงบยิ่งคะแนนสูง) แบบประเมินเชิงลึก PSS-10 จะละเอียดขึ้นเมื่อทำครบ",
   "An equal split of positive well-being and stress keeps one bad week from dominating the score.":
@@ -519,8 +517,8 @@ export const TH = {
   // --- Monthly re-sync page ---
   "MONTHLY RE-ASSESSMENT": "การประเมินซ้ำประจำเดือน",
   "Short instruments only • recalibrates Mental, Relationships & Personal Goals": "แบบประเมินชุดสั้น • ปรับเทียบด้านจิตใจ ความสัมพันธ์ และเป้าหมายส่วนตัว",
-  "Answer for the recent weeks, not how you felt at onboarding. Scores shift by at most ±15 points per re-assessment, and consistent routine logging since the last one adds a small bonus. Reward: +40 points.":
-    "ตอบตามช่วงสัปดาห์ที่ผ่านมา ไม่ใช่ความรู้สึกตอนเริ่มต้น คะแนนขยับได้ไม่เกิน ±15 คะแนนต่อการประเมินซ้ำ และการบันทึกกิจวัตรสม่ำเสมอตั้งแต่ครั้งก่อนจะได้โบนัสเล็กน้อย รางวัล: +40 คะแนน",
+  "Answer for the recent weeks, not how you felt at onboarding. Scores shift by at most ±15 points per re-assessment, and consistent weekly reviews since the last one add a small bonus. Reward: +40 points.":
+    "ตอบตามช่วงสัปดาห์ที่ผ่านมา ไม่ใช่ความรู้สึกตอนเริ่มต้น คะแนนขยับได้ไม่เกิน ±15 คะแนนต่อการประเมินซ้ำ และการทบทวนรายสัปดาห์อย่างสม่ำเสมอตั้งแต่ครั้งก่อนจะได้โบนัสเล็กน้อย รางวัล: +40 คะแนน",
   "Complete Re-assessment": "เสร็จสิ้นการประเมินซ้ำ",
   "Re-assessment Error: ": "การประเมินซ้ำผิดพลาด: ",
 
@@ -563,6 +561,91 @@ export const TH = {
   "Remove {name}": "ลบ {name}",
   "Remove participant": "ลบผู้เข้าร่วม",
   "Participant list is full (max {max}).": "รายชื่อผู้เข้าร่วมเต็มแล้ว (สูงสุด {max} คน)",
+  // --- Weekly pledges (state.js) ---
+  "Pledge list is full (max {max}).": "รายการคำมั่นเต็มแล้ว (สูงสุด {max} รายการ)",
+  "You already have a pledge on that metric.": "คุณมีคำมั่นในตัวชี้วัดนี้อยู่แล้ว",
+  "Unknown pledge type.": "ไม่รู้จักประเภทคำมั่นนี้",
+  // --- Weekly review (#/review) ---
+  "Weekly Review": "ทบทวนรายสัปดาห์",
+  "Reviewed this week.": "ทบทวนสัปดาห์นี้แล้ว",
+  "Nothing to do here until {date} — live your week; the app can wait.": "ไม่มีอะไรต้องทำจนถึงวันที่ {date} — ใช้ชีวิตของคุณไปเลย แอปรอได้",
+  "One thing while you're here: the monthly re-assessment is due.": "อีกหนึ่งอย่างระหว่างที่อยู่ตรงนี้: ถึงกำหนดการประเมินซ้ำประจำเดือนแล้ว",
+  "Report a rough weekly average for each habit — no daily logging needed. Every value is prefilled with last week's answer, so only touch what changed. Takes about two minutes.": "รายงานค่าเฉลี่ยคร่าว ๆ ของแต่ละพฤติกรรมในสัปดาห์นี้ — ไม่ต้องบันทึกรายวัน ทุกช่องเติมคำตอบของสัปดาห์ก่อนไว้ให้แล้ว แก้เฉพาะที่เปลี่ยนไปก็พอ ใช้เวลาราวสองนาที",
+  "Activity this week": "กิจกรรมทางกายสัปดาห์นี้",
+  "Daily habits (weekly average)": "พฤติกรรมประจำวัน (ค่าเฉลี่ยรายสัปดาห์)",
+  "Monthly habits (update when they change)": "พฤติกรรมรายเดือน (แก้ไขเมื่อเปลี่ยนแปลง)",
+  "Complete Weekly Review": "ส่งการทบทวนรายสัปดาห์",
+  "Past Reviews": "การทบทวนที่ผ่านมา",
+  "scores steady": "คะแนนคงที่",
+  "{met}/{total} pledges met": "ทำได้ {met}/{total} คำมั่น",
+  "+{xp} points": "+{xp} คะแนน",
+  "Weekly review open.": "การทบทวนรายสัปดาห์เปิดแล้ว",
+  "Two minutes of rough weekly numbers keep every score measured — no daily logging.": "ตัวเลขคร่าว ๆ รายสัปดาห์เพียงสองนาทีช่วยให้ทุกคะแนนมาจากการวัดจริง — ไม่ต้องบันทึกรายวัน",
+  "Start Weekly Review": "เริ่มทบทวนรายสัปดาห์",
+  "Recent Reviews": "การทบทวนล่าสุด",
+  "No weekly reviews yet — your first one opens the week after onboarding.": "ยังไม่มีการทบทวนรายสัปดาห์ — ครั้งแรกจะเปิดในสัปดาห์ถัดจากการประเมินเริ่มต้น",
+  "This week's review is already recorded — come back next week.": "บันทึกการทบทวนของสัปดาห์นี้ไปแล้ว — กลับมาใหม่สัปดาห์หน้า",
+  "Weekly review saved: {met}/{total} pledges met.": "บันทึกการทบทวนรายสัปดาห์แล้ว: ทำได้ {met}/{total} คำมั่น",
+  "Weekly review saved.": "บันทึกการทบทวนรายสัปดาห์แล้ว",
+  "Here to help. One short weekly review keeps your scores honest — about two minutes, once a week.": "พร้อมช่วยเสมอ การทบทวนรายสัปดาห์สั้น ๆ ช่วยให้คะแนนของคุณตรงกับความจริง — ราวสองนาที สัปดาห์ละครั้ง",
+  "Complete your weekly review to keep your assessment current and track your progress.": "ทำการทบทวนรายสัปดาห์เพื่อให้การประเมินเป็นปัจจุบันและติดตามความคืบหน้าของคุณ",
+  // --- Goals tab (weekly pledges) ---
+  "Weekly Pledges": "คำมั่นรายสัปดาห์",
+  "A pledge is a weekly quantity target. Your weekly review grades every pledge automatically — nothing to log day to day.": "คำมั่นคือเป้าหมายเชิงปริมาณรายสัปดาห์ การทบทวนรายสัปดาห์จะตรวจทุกคำมั่นให้อัตโนมัติ — ไม่ต้องบันทึกอะไรรายวัน",
+  "No pledges yet — add one from the catalog.": "ยังไม่มีคำมั่น — เพิ่มจากรายการได้เลย",
+  "Add a Pledge": "เพิ่มคำมั่นใหม่",
+  "Pledge type": "ประเภทคำมั่น",
+  "Weekly target": "เป้าหมายรายสัปดาห์",
+  "Add Pledge": "เพิ่มคำมั่น",
+  "Every pledge type is already in use.": "คำมั่นทุกประเภทถูกใช้งานแล้ว",
+  "Remove": "ลบ",
+  "Remove this pledge? Its streak will be lost.": "ลบคำมั่นนี้หรือไม่? สถิติต่อเนื่องจะหายไป",
+  "Met last week ({value} {unit})": "สัปดาห์ที่แล้วทำได้ ({value} {unit})",
+  "Missed last week ({value} {unit})": "สัปดาห์ที่แล้วพลาด ({value} {unit})",
+  "Graded at your next weekly review.": "จะตรวจในการทบทวนรายสัปดาห์ครั้งถัดไป",
+  "{n}-week streak": "ต่อเนื่อง {n} สัปดาห์",
+  "+{xp} points each week it's met": "+{xp} คะแนนทุกสัปดาห์ที่ทำได้",
+  // --- Pledge templates (goals.js, rendered via t(variable)) ---
+  "Hydration pledge": "คำมั่นดื่มน้ำ",
+  "Average at least {target} L of water per day.": "ดื่มน้ำเฉลี่ยอย่างน้อยวันละ {target} ลิตร",
+  "Sleep pledge": "คำมั่นการนอน",
+  "Average at least {target} hours of sleep per night.": "นอนเฉลี่ยอย่างน้อยคืนละ {target} ชั่วโมง",
+  "Vegetables pledge": "คำมั่นกินผัก",
+  "Average at least {target} vegetable portions per day.": "กินผักเฉลี่ยอย่างน้อยวันละ {target} ส่วน",
+  "Exercise days pledge": "คำมั่นวันออกกำลังกาย",
+  "Exercise (vigorous or moderate) on at least {target} days this week.": "ออกกำลังกาย (หนักหรือปานกลาง) อย่างน้อย {target} วันในสัปดาห์นี้",
+  "Activity volume pledge": "คำมั่นปริมาณกิจกรรม",
+  "Reach at least {target} MET-minutes of activity this week (600 meets the WHO guideline).": "สะสมกิจกรรมอย่างน้อย {target} MET-นาทีในสัปดาห์นี้ (600 ตามเกณฑ์ WHO)",
+  "Learning pledge": "คำมั่นการเรียนรู้",
+  "Spend at least {target} hours on active learning this week.": "ใช้เวลาเรียนรู้อย่างน้อย {target} ชั่วโมงในสัปดาห์นี้",
+  "Plastics pledge": "คำมั่นลดพลาสติก",
+  "Keep single-use plastics to at most {target} pieces per day.": "ใช้พลาสติกใช้ครั้งเดียวไม่เกินวันละ {target} ชิ้น",
+  "Savings pledge": "คำมั่นการออม",
+  "Keep your savings rate at or above {target}% of income.": "รักษาอัตราการออมไว้อย่างน้อย {target}% ของรายได้",
+  "Giving pledge": "คำมั่นการให้",
+  "Donate at least {target} THB this month.": "บริจาคอย่างน้อย {target} บาทในเดือนนี้",
+  "Volunteering pledge": "คำมั่นจิตอาสา",
+  "Volunteer at least {target} hours this month.": "เป็นจิตอาสาอย่างน้อย {target} ชั่วโมงในเดือนนี้",
+  "L/day": "ลิตร/วัน",
+  "hours/night": "ชั่วโมง/คืน",
+  "portions/day": "ส่วน/วัน",
+  "days/week": "วัน/สัปดาห์",
+  "MET-min/week": "MET-นาที/สัปดาห์",
+  "hours/week": "ชั่วโมง/สัปดาห์",
+  "pieces/day": "ชิ้น/วัน",
+  "% of income": "% ของรายได้",
+  "THB/month": "บาท/เดือน",
+  "hours/month": "ชั่วโมง/เดือน",
+  // --- Aspect page: measured-weekly card ---
+  "Measured Weekly": "วัดรายสัปดาห์",
+  "Your weekly review re-measures this aspect from: {fields}.": "การทบทวนรายสัปดาห์วัดด้านนี้ใหม่จาก: {fields}",
+  "Savings rate": "อัตราการออม",
+  "Exercise days and minutes, sleep, water, vegetables": "จำนวนวันและนาทีที่ออกกำลังกาย การนอน น้ำ ผัก",
+  "Learning hours": "ชั่วโมงการเรียนรู้",
+  "Donations and volunteering hours": "เงินบริจาคและชั่วโมงจิตอาสา",
+  "Single-use plastic items": "พลาสติกใช้ครั้งเดียว",
+  "Reviewed this week — the next review opens next week.": "ทบทวนสัปดาห์นี้แล้ว — ครั้งถัดไปเปิดสัปดาห์หน้า",
+  "This aspect is measured by its questionnaires rather than weekly quantities — update it at the monthly re-assessment.": "ด้านนี้วัดด้วยแบบสอบถาม ไม่ใช่ปริมาณรายสัปดาห์ — อัปเดตได้ที่การประเมินซ้ำประจำเดือน",
   'Comparison codes start with "{prefix}".': 'รหัสเปรียบเทียบต้องขึ้นต้นด้วย "{prefix}"',
   "That code is damaged — ask the participant to copy it again.": "รหัสนี้เสียหาย — ให้ผู้เข้าร่วมคัดลอกส่งมาใหม่อีกครั้ง",
   "Unsupported comparison code version.": "เวอร์ชันรหัสเปรียบเทียบไม่รองรับ",
@@ -741,8 +824,8 @@ export const TH = {
   "Plan one distraction-free date this week — satisfaction tracks shared, novel experiences.":
     "วางแผนเดตแบบไม่มีสิ่งรบกวนหนึ่งครั้งในสัปดาห์นี้ — ความพึงพอใจมาจากประสบการณ์ใหม่ที่ทำร่วมกัน",
   "Stack small wins": "สะสมชัยชนะเล็ก ๆ",
-  "Self-efficacy grows from completed challenges — pick one finishable task each morning and log it done.":
-    "ความเชื่อมั่นในความสามารถโตจากความท้าทายที่ทำสำเร็จ — เลือกงานที่จบได้หนึ่งชิ้นทุกเช้าแล้วบันทึกว่าเสร็จ",
+  "Self-efficacy grows from completed challenges — pick one finishable task each morning and see it through.":
+    "ความเชื่อมั่นในความสามารถโตจากความท้าทายที่ทำสำเร็จ — เลือกงานที่จบได้หนึ่งชิ้นทุกเช้าแล้วทำให้เสร็จ",
   "Build a streak": "สร้างสตรีค",
   "Choose one skill and touch it daily for 10 minutes — consistency, not intensity, moves grit.":
     "เลือกหนึ่งทักษะแล้วฝึกทุกวันวันละ 10 นาที — ความสม่ำเสมอ ไม่ใช่ความหนักหน่วง ที่ขยับความมุ่งมั่น",

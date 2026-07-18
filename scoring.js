@@ -156,6 +156,23 @@ export function futureStudyScore(profile) {
   return Math.min(100, (parseFloat(profile.weeklyLearningHours || 0) / 4) * 100);
 }
 
+// Savings-rate bonus points on the finance score (a 20% rate maxes the +10).
+export function savingsBonus(profile) {
+  return Math.min(10, (parseFloat(profile.savingsRate || 0) / 20) * 10);
+}
+
+// Donation volume vs income, 0-100: 2% of income or 500 THB/mo maxes it.
+export function donationVolumeFactor(profile) {
+  const donRate = parseFloat(profile.monthlyDonations || 0);
+  const donIncRatio = profile.income > 0 ? (donRate / profile.income) * 100 : 0;
+  return donIncRatio >= 2 || donRate >= 500 ? 100 : Math.min(100, (donRate / 500) * 100);
+}
+
+// Volunteering hours per month, 0-100 (4h maxes it).
+export function volunteerFactor(profile) {
+  return Math.min(100, (parseFloat(profile.volunteeringHours || 0) / 4) * 100);
+}
+
 // --- COMPOSITES (unrounded, shared by onboarding scoring and the monthly
 // check-in recalibration so the two can never drift apart) ---
 
@@ -193,10 +210,7 @@ export function calculateFinanceScore(profile, cfpbAnswers) {
   const S_income = incomePercentile(profile.income, profile.region);
 
   // Savings rate modifier (max 10 bonus points)
-  const savRate = parseFloat(profile.savingsRate || 0);
-  const savingsBonus = Math.min(10, (savRate / 20) * 10);
-
-  return Math.round(Math.min(100, (0.6 * S_income) + (0.4 * S_wellbeing) + savingsBonus));
+  return Math.round(Math.min(100, (0.6 * S_income) + (0.4 * S_wellbeing) + savingsBonus(profile)));
 }
 
 export function calculatePhysicalScore(profile, jssAnswers) {
@@ -269,19 +283,14 @@ export function calculateSocialContributionScore(profile, ptmAnswers) {
   const qValues = ptmAnswers.map(v => parseInt(v || 0));
 
   // Donation Score
-  const donRate = parseFloat(profile.monthlyDonations || 0);
-  const donIncRatio = profile.income > 0 ? (donRate / profile.income) * 100 : 0;
-  const volumeFactor = donIncRatio >= 2 || donRate >= 500 ? 100 : Math.min(100, (donRate / 500) * 100);
   const frequencyFactor = qValues[0] * 25; // max 100
-  const S_donation = (0.5 * frequencyFactor) + (0.5 * volumeFactor);
+  const S_donation = (0.5 * frequencyFactor) + (0.5 * donationVolumeFactor(profile));
 
   // Volunteering & Prosocial. Both PTM helping items count toward prosocial
   // behavior: Q2 "help friends/family in need" (previously collected but never
   // scored) and Q3 "help strangers".
-  const volHours = parseFloat(profile.volunteeringHours || 0);
-  const volunteerFactor = Math.min(100, (volHours / 4) * 100);
   const prosocialFactor = ((qValues[1] + qValues[2]) / 8) * 100; // Q2 + Q3
-  const S_action = (0.6 * volunteerFactor) + (0.4 * prosocialFactor);
+  const S_action = (0.6 * volunteerFactor(profile)) + (0.4 * prosocialFactor);
 
   // Civic & Local (Q4 & Q5)
   const S_civic = ((qValues[3] + qValues[4]) / 8) * 100;
@@ -327,6 +336,45 @@ export function calculateHumanityFutureScore(profile, lfisAnswers) {
   const S_security = (0.5 * pensionVal) + (0.5 * Q4_val);
 
   return Math.round((0.25 * S_skills) + (0.25 * S_legacy) + (0.25 * S_philanthropy) + (0.25 * S_security));
+}
+
+// --- WEEKLY REVIEW (measured re-scoring) ---
+
+// The per-aspect score deltas implied by a weekly review changing the measured
+// profile fields, computed through the SAME formulas as onboarding so measured
+// scores can never drift from the calculators above.
+//
+// Physical is fully re-measured (activity + sleep duration + nutrition all
+// live in the weekly fields), so its delta is a whole-calculator difference —
+// which also inherits the null-BMI weight renormalization for free. Every
+// other aspect only has ONE OR TWO weekly inputs, so its delta is that
+// component's change times its published weight chain. Deltas rather than
+// overwrites: check-in and deep-assessment adjustments on the current score
+// are preserved. mental/relationships have no weekly-measured inputs and are
+// never shifted (sleep feeds physical, not mental).
+//
+// There is deliberately NO ±cap here: these are re-measurements through the
+// same formulas onboarding runs uncapped, the inputs are range-validated, and
+// each non-physical delta is structurally bounded by its weight product. The
+// ±15 cap belongs to the survey re-assessment, where retake noise is real.
+export function weeklyAspectShifts(oldProfile, newProfile, baseline) {
+  const jss = [Number(baseline && baseline.jss) || 0];
+  const deltas = {
+    physical: calculatePhysicalScore(newProfile, jss) - calculatePhysicalScore(oldProfile, jss),
+    finance: savingsBonus(newProfile) - savingsBonus(oldProfile),
+    personalGoals: 0.3 * (learningScore(newProfile) - learningScore(oldProfile)),
+    socialContribution:
+      (0.4 * 0.5) * (donationVolumeFactor(newProfile) - donationVolumeFactor(oldProfile))
+      + (0.4 * 0.6) * (volunteerFactor(newProfile) - volunteerFactor(oldProfile)),
+    environment: (0.4 * 0.5) * (plasticScore(newProfile) - plasticScore(oldProfile)),
+    humanityFuture: (0.25 * 0.5) * (futureStudyScore(newProfile) - futureStudyScore(oldProfile))
+  };
+  const shifts = {};
+  for (const [aspect, delta] of Object.entries(deltas)) {
+    const rounded = Math.round(delta);
+    if (rounded !== 0) shifts[aspect] = rounded;
+  }
+  return shifts;
 }
 
 // --- LEVEL RANKS (progression labels — pure lookups on level) ---

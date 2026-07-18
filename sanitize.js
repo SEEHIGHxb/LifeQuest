@@ -8,11 +8,11 @@
 // suspenders, not a replacement for it.
 
 import { DEFAULT_STATE } from "./defaults.js";
+import { goalTemplate, clampPledgeTarget, createPledge } from "./goals.js";
 
 const ASPECT_SCORE_KEYS = Object.keys(DEFAULT_STATE.aspects);
 const SAFE_ID_RE = /[^A-Za-z0-9_-]/g;
-const GOAL_TYPES = ["daily", "weekly", "epic"];
-const MILESTONE_LIMIT = 10;
+const REVIEW_GOAL_RESULT_LIMIT = 12;
 
 // The profile fields that select a benchmark norm. An unknown value here does
 // not just look wrong — it silently misses every lookup table in benchmarks.js
@@ -96,68 +96,103 @@ export function sanitizeImportedFriend(f) {
   };
 }
 
-// Rebuild an imported custom routine to a known shape. Title/desc are escaped at
-// the sink, but the id is an attribute sink and the aspect must be a real key.
-export function sanitizeImportedCustomAction(a) {
-  if (!a || typeof a !== "object") return null;
-  const aspect = ASPECT_SCORE_KEYS.includes(a.aspect) ? a.aspect : null;
-  if (!aspect) return null;
-  const pts = Math.round(clampNumber((a.impacts || {})[aspect], 1, 15, 5));
+// Rebuild an imported pledge to a known shape. templateId must name a real
+// template — everything user-facing (title, description, unit, XP) derives
+// from the template at render time, so an unknown or hostile templateId is
+// dropped whole rather than coerced: there is nothing safe to render it as.
+// The target is clamped to the template's own bounds and lastResult is
+// rebuilt field by field (its week/value reach the Goals tab UI).
+export function sanitizeImportedGoal(g) {
+  if (!g || typeof g !== "object") return null;
+  if (!goalTemplate(g.templateId)) return null;
+  const goal = {
+    id: safeId(g.id, "goal"),
+    templateId: g.templateId,
+    target: clampPledgeTarget(g.templateId, g.target),
+    streak: Math.round(clampNumber(g.streak, 0, 100000, 0)),
+    lastResult: null
+  };
+  if (g.lastResult && typeof g.lastResult === "object") {
+    goal.lastResult = {
+      week: safeString(g.lastResult.week, 12),
+      value: clampNumber(g.lastResult.value, -1000000, 1000000, 0),
+      met: g.lastResult.met === true
+    };
+  }
+  return goal;
+}
+
+// Rebuild an imported weekly-review record. Reviews are display history (the
+// dashboard's Recent Reviews and the review page's past list), so a record
+// that can't carry a real date is dropped and every number is clamped.
+export function sanitizeImportedReview(r) {
+  if (!r || typeof r !== "object") return null;
+  const date = safeString(r.date, 40);
+  if (!Number.isFinite(new Date(date).getTime())) return null;
+
+  const inputs = {};
+  if (r.inputs && typeof r.inputs === "object") {
+    for (const [key, [min, max]] of Object.entries(PROFILE_NUMERIC)) {
+      if (Object.hasOwn(r.inputs, key)) inputs[key] = clampNumber(r.inputs[key], min, max, min);
+    }
+  }
+  const shifts = {};
+  if (r.shifts && typeof r.shifts === "object") {
+    for (const key of ASPECT_SCORE_KEYS) {
+      if (Object.hasOwn(r.shifts, key)) shifts[key] = Math.round(clampNumber(r.shifts[key], -100, 100, 0));
+    }
+  }
+  const goals = Array.isArray(r.goals)
+    ? r.goals.slice(0, REVIEW_GOAL_RESULT_LIMIT).map(gr => {
+        if (!gr || typeof gr !== "object" || !goalTemplate(gr.templateId)) return null;
+        return {
+          id: safeId(gr.id, "goal"),
+          templateId: gr.templateId,
+          target: clampPledgeTarget(gr.templateId, gr.target),
+          value: clampNumber(gr.value, -1000000, 1000000, 0),
+          met: gr.met === true
+        };
+      }).filter(Boolean)
+    : [];
+
   return {
-    id: safeId(a.id, "custom"),
-    title: safeString(a.title, 60).trim() || "Custom Routine",
-    aspect,
-    impacts: { [aspect]: pts },
-    xp: Math.round(clampNumber(a.xp, 5, 50, 15)),
-    desc: safeString(a.desc, 160)
+    date,
+    week: safeString(r.week, 12),
+    inputs,
+    shifts,
+    goals,
+    xp: Math.round(clampNumber(r.xp, 0, 10000, 0))
   };
 }
 
-// Rebuild an imported goal to a known shape. This one matters more than it
-// looks: renderQuests prints `t(goal.type.toUpperCase())` and interpolates
-// `xpReward` through tp(), and neither t() nor tp() escapes — so a hand-edited
-// backup carrying markup in `type` would land straight in innerHTML. Coercing
-// `type` to an enum and the rewards to numbers closes that at the boundary.
-// Shape also has to hold up for the score math: updateQuestProgress calls
-// goal.actionIds.includes(...) and iterates milestones, both of which throw on
-// a non-array, and a NaN targetValue would make the progress bar NaN%.
-export function sanitizeImportedGoal(g) {
-  if (!g || typeof g !== "object") return null;
-  const title = safeString(g.title, 60).trim();
-  if (!title) return null;
+// --- v3 -> v4 MIGRATION (the weekly-review redesign) ---
 
-  const targetValue = Math.round(clampNumber(g.targetValue, 1, 100000, 1));
-  const milestones = Array.isArray(g.milestones)
-    ? g.milestones.slice(0, MILESTONE_LIMIT).map(m => {
-        const text = safeString(m && m.text, 80).trim();
-        if (!text) return null;
-        return {
-          text,
-          at: Math.round(clampNumber(m.at, 0, targetValue, targetValue)),
-          completed: m.completed === true
-        };
-      }).filter(Boolean)
-    : null;
+// The three default count-goals with a measurable quantity equivalent.
+const V3_GOAL_MAP = {
+  daily_water: { templateId: "water", target: 2 },
+  weekly_workout: { templateId: "exerciseDays", target: 3 },
+  epic_savings: { templateId: "savings", target: 10 }
+};
 
-  const goal = {
-    id: safeId(g.id, "goal"),
-    title,
-    description: safeString(g.description, 200),
-    aspect: ASPECT_SCORE_KEYS.includes(g.aspect) ? g.aspect : ASPECT_SCORE_KEYS[0],
-    type: GOAL_TYPES.includes(g.type) ? g.type : "daily",
-    actionIds: Array.isArray(g.actionIds)
-      ? g.actionIds.map(id => safeString(id, 40)).filter(Boolean).slice(0, 20)
-      : [],
-    targetValue,
-    currentValue: Math.round(clampNumber(g.currentValue, 0, targetValue, 0)),
-    xpReward: Math.round(clampNumber(g.xpReward, 0, 10000, 0)),
-    completed: g.completed === true
-  };
-  // Absent milestones and an empty list mean different things to renderQuests
-  // (it branches on `goal.milestones` being truthy), so keep the key off
-  // entirely rather than writing an empty array.
-  if (milestones && milestones.length) goal.milestones = milestones;
-  return goal;
+// One-way, lossless where a v4 meaning exists: keeps profile/XP/level,
+// aspects, baseline (incl. deep), snapshots, checkins, friends, and the old
+// action history as a read-only archive. daily_sigh, custom goals, custom
+// routines, and the commitment pledge have no quantity field to grade
+// against and are dropped (documented in the CHANGELOG). The result still
+// passes through mergeSavedState's sanitizers afterwards.
+export function migrateV3State(parsed) {
+  const out = { ...parsed };
+  out.schemaVersion = 4;
+  out.reviews = [];
+  out.goals = (Array.isArray(parsed.goals) ? parsed.goals : [])
+    .map(g => (g && typeof g.id === "string" && Object.hasOwn(V3_GOAL_MAP, g.id)) ? V3_GOAL_MAP[g.id] : null)
+    .filter(Boolean)
+    .map(m => createPledge(m.templateId, m.target));
+  delete out.commitment;
+  delete out.customActions;
+  delete out.dailyLimits;
+  delete out.questResets;
+  return out;
 }
 
 // Coerce the profile's enum + numeric fields back to known values. Anything

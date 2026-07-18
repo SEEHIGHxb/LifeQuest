@@ -11,7 +11,7 @@ import { getTopSuggestions, getMentalHealthNotice } from "../suggestions.js";
 import { t, tp, dateLocale } from "../i18n.js";
 import {
   escapeHtml, aspectLabel, confidenceBadge, benchmarkStanding, methodTag,
-  estimatedAspects, commitmentPin, mentalHealthNotice, CHECKIN_ASPECTS
+  estimatedAspects, mentalHealthNotice, CHECKIN_ASPECTS
 } from "./helpers.js";
 
 // Shared markup for one suggestion entry.
@@ -37,13 +37,18 @@ export function renderDashboard(containerId, state, onExportBackup) {
   const benchmarks = getAllBenchmarks(state);
   const benchmarkSources = collectSources(benchmarks);
   const suggestions = getTopSuggestions(state, 3);
-  const commitment = state.commitment;
   const checkinDue = stateManager.isCheckinDue();
+  const reviewDue = stateManager.isWeeklyReviewDue();
   const needsBackup = stateManager.needsBackupNudge();
   const daysSinceExport = stateManager.daysSinceLastExport();
 
   container.innerHTML = `
     ${mentalHealthNotice(getMentalHealthNotice(state))}
+    ${reviewDue ? `
+      <div class="checkin-banner">
+        <p><strong>${t("Weekly review open.")}</strong> ${t("Two minutes of rough weekly numbers keep every score measured — no daily logging.")}</p>
+        <a href="#/review" class="btn btn-primary" style="white-space: nowrap;">${t("Start Weekly Review")}</a>
+      </div>` : ""}
     ${checkinDue ? `
       <div class="checkin-banner">
         <p><strong>${t("Monthly re-assessment due.")}</strong> ${t("Re-run the short well-being instruments so your scores track your real standing, not last month's.")}</p>
@@ -104,12 +109,6 @@ export function renderDashboard(containerId, state, onExportBackup) {
           </div>
         </div>
 
-        ${commitment ? `
-        <div class="card">
-          <h4 class="card-header">${t("Weekly Commitment")}</h4>
-          <a href="#/aspect/${commitment.aspect}" class="suggestion-link">${commitmentPin(commitment)}</a>
-        </div>` : ""}
-
         <div class="card">
           <h4 class="card-header">${t("Aspect Radar")}</h4>
           <div id="radar-chart-container" style="width: 100%; display: flex; justify-content: center; align-items: center;"></div>
@@ -165,16 +164,21 @@ export function renderDashboard(containerId, state, onExportBackup) {
         </div>
 
         <div class="card">
-          <h4 class="card-header">${t("Recent Activity")}</h4>
+          <h4 class="card-header">${t("Recent Reviews")}</h4>
           <div class="terminal" id="dashboard-terminal">
-            ${state.history.length === 0 ?
-              `<div class="terminal-line"><span class="terminal-accent">> ${t("No logs recorded yet. Ledger is clean.")}</span></div>` :
-              state.history.slice(0, 10).map(item => `
+            ${state.reviews.length === 0 ?
+              `<div class="terminal-line"><span class="terminal-accent">> ${t("No weekly reviews yet — your first one opens the week after onboarding.")}</span></div>` :
+              state.reviews.slice(-4).reverse().map(r => {
+                const met = r.goals.filter(g => g.met).length;
+                const shiftText = Object.entries(r.shifts || {})
+                  .map(([key, v]) => `${aspectLabel(key)} ${v > 0 ? "+" : ""}${v}`)
+                  .join(" · ");
+                return `
                 <div class="terminal-line">
-                  <span class="terminal-gold">[${new Date(item.timestamp).toLocaleTimeString(dateLocale())}]</span>
-                  ${t("Logged:")} <span class="terminal-accent">"${escapeHtml(t(item.actionName))}"</span>${item.quantity ? ` — ${item.quantity.value} ${escapeHtml(t(item.quantity.unit))}` : ""}. ${tp("Reward +{xp} points.", { xp: item.xpReward })}
-                </div>
-              `).join("")
+                  <span class="terminal-gold">[${new Date(r.date).toLocaleDateString(dateLocale(), { day: "numeric", month: "short" })}]</span>
+                  ${shiftText || t("scores steady")} · ${tp("{met}/{total} pledges met", { met, total: r.goals.length })} · ${tp("+{xp} points", { xp: r.xp })}
+                </div>`;
+              }).join("")
             }
           </div>
         </div>

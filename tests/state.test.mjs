@@ -140,80 +140,39 @@ test("addXP handles multiple level-ups in one grant", () => {
   assert.equal(m.state.profile.xp, 50);
 });
 
-test("logAction enforces the 5-per-day limit per action id", () => {
+test("addPledge validates the template, clamps the target, and blocks duplicates", () => {
   const m = new GameStateManager();
-  for (let i = 0; i < 5; i++) {
-    assert.equal(m.logAction("workout", "Workout", { physical: 5 }, 10).ok, true);
+  const added = m.addPledge("water", 99);
+  assert.equal(added.ok, true);
+  assert.equal(added.pledge.target, 5, "target clamped into the template bounds");
+  assert.match(added.pledge.id, /^goal_/);
+  assert.equal(m.addPledge("water", 2).ok, false, "one pledge per metric");
+  assert.equal(m.addPledge("notATemplate", 2).ok, false, "unknown templates rejected");
+});
+
+test("the pledge list is capped at 6", () => {
+  const m = new GameStateManager();
+  for (const id of ["water", "sleep", "veg", "exerciseDays", "metMinutes", "learning"]) {
+    assert.equal(m.addPledge(id).ok, true, `${id} added`);
   }
-  const sixth = m.logAction("workout", "Workout", { physical: 5 }, 10);
-  assert.equal(sixth.ok, false);
-  assert.match(sixth.reason, /limit/i);
+  const seventh = m.addPledge("plastics", 2);
+  assert.equal(seventh.ok, false);
+  assert.match(seventh.reason, /full/i);
 });
 
-test("goals progress only from their linked action ids", () => {
+test("removePledge and updatePledgeTarget operate by pledge id", () => {
   const m = new GameStateManager();
-  m.initializeDefaultQuests();
-
-  // drink_water advances daily_water but NOT weekly_workout (both aspect=physical)
-  m.logAction("drink_water", "Drink Water", { physical: 5 }, 10);
-  const water = m.state.goals.find(g => g.id === "daily_water");
-  const workout = m.state.goals.find(g => g.id === "weekly_workout");
-  assert.equal(water.completed, true, "one water log completes daily hydration");
-  assert.equal(workout.currentValue, 0, "water must not advance the workout quest");
-});
-
-test("epic savings quest completes after 10 logs with milestone tracking", () => {
-  const m = new GameStateManager();
-  m.initializeDefaultQuests();
-  const epic = () => m.state.goals.find(g => g.id === "epic_savings");
-
-  for (let i = 0; i < 3; i++) m.logAction("save_money", "Save", { finance: 8 }, 20);
-  assert.equal(epic().milestones[0].completed, true, "first milestone at 3 logs");
-  assert.equal(epic().completed, false);
-
-  // continue across simulated days (daily limit is 5/day)
-  m.state.dailyLimits["save_money"] = { count: 0, lastUpdated: "another day" };
-  for (let i = 0; i < 5; i++) m.logAction("save_money", "Save", { finance: 8 }, 20);
-  m.state.dailyLimits["save_money"] = { count: 0, lastUpdated: "third day" };
-  for (let i = 0; i < 2; i++) m.logAction("save_money", "Save", { finance: 8 }, 20);
-
-  assert.equal(epic().completed, true, "10 logs complete the epic quest");
-  assert.equal(epic().milestones.every(ms => ms.completed), true);
-});
-
-test("daily and weekly quests reset on new periods", () => {
-  const m = new GameStateManager();
-  m.initializeDefaultQuests();
-  m.state.onboarded = true;
-  m.logAction("drink_water", "Drink Water", { physical: 5 }, 10);
-  assert.equal(m.state.goals.find(g => g.id === "daily_water").completed, true);
-
-  m.state.questResets.daily = "some other day";
-  m.resetPeriodicQuests();
-  const water = m.state.goals.find(g => g.id === "daily_water");
-  assert.equal(water.completed, false);
-  assert.equal(water.currentValue, 0);
-});
-
-test("custom actions get stable ids and are rate-limited", () => {
-  const m = new GameStateManager();
-  const action = m.addCustomAction("Meditate", "mental", 5, 15);
-  assert.match(action.id, /^custom_/);
-
-  for (let i = 0; i < 5; i++) {
-    assert.equal(m.logAction(action.id, action.title, action.impacts, action.xp).ok, true);
-  }
-  assert.equal(m.logAction(action.id, action.title, action.impacts, action.xp).ok, false);
-
-  m.removeCustomAction(action.id);
-  assert.equal(m.state.customActions.length, 0);
-  assert.equal(m.state.dailyLimits[action.id], undefined, "limits entry cleaned up");
+  const { pledge } = m.addPledge("plastics", 2);
+  assert.equal(m.updatePledgeTarget(pledge.id, 999).target, 10, "update clamps to the template bounds");
+  assert.equal(m.updatePledgeTarget("no-such-id", 3), null);
+  m.removePledge(pledge.id);
+  assert.equal(m.state.goals.length, 0);
 });
 
 test("same-schema saves merge over defaults (field backfill)", () => {
   installMockStorage({
     lifequest_state: JSON.stringify({
-      schemaVersion: 3,
+      schemaVersion: 4,
       onboarded: true,
       profile: { name: "OldUser", level: 4, xp: 20 },
       aspects: { finance: 55 },
@@ -226,8 +185,7 @@ test("same-schema saves merge over defaults (field backfill)", () => {
   assert.equal(m.state.profile.level, 4);
   assert.equal(m.state.aspects.finance, 55);
   assert.equal(m.state.aspects.physical, 0, "missing aspects default to 0");
-  assert.deepEqual(m.state.customActions, [], "new fields are backfilled");
-  assert.ok(m.state.questResets, "questResets backfilled");
+  assert.deepEqual(m.state.reviews, [], "new fields are backfilled");
   assert.equal(m.state.profile.digitalLiteracy, 50, "new profile fields backfilled");
 });
 
@@ -245,15 +203,6 @@ test("pre-v3 saves trigger a fresh start (measurement model changed)", () => {
   assert.equal(m.state.profile.name, "Guest");
 });
 
-test("logAction stores real quantities on history entries", () => {
-  const m = new GameStateManager();
-  m.logAction("workout", "Exercise Session", { physical: 10 }, 30, { value: 45, unit: "minutes", label: "Duration" });
-  m.logAction("phys_sigh", "Physiological Sigh", { mental: 5 }, 10);
-  assert.deepEqual(m.state.history[1].quantity, { value: 45, unit: "minutes", label: "Duration" });
-  assert.equal(m.state.history[0].quantity, undefined, "event-only actions have no quantity");
-  assert.equal(m.state.history[1].actionId, "workout", "actionId recorded for measured scoring");
-});
-
 test("weekly snapshots: one at onboarding, none again within 7 days, one after", () => {
   const m = new GameStateManager();
   m.state.onboarded = true;
@@ -269,15 +218,25 @@ test("export/import round-trips full state", () => {
   const m = new GameStateManager();
   m.state.onboarded = true;
   m.state.profile.name = "Backup User";
-  m.logAction("save_money", "Add to Savings", { finance: 8 }, 20, { value: 1500, unit: "THB", label: "Amount saved" });
+  m.state.goals = [{
+    id: "goal_abc123", templateId: "water", target: 2.5, streak: 3,
+    lastResult: { week: "2026-W28", value: 2.6, met: true }
+  }];
+  m.state.reviews.push({
+    date: new Date().toISOString(), week: "2026-W28",
+    inputs: { waterLiters: 2.6 }, shifts: { physical: 2 }, goals: [], xp: 85
+  });
   const backup = m.exportState();
 
   installMockStorage();
   const restored = new GameStateManager();
   restored.importState(backup);
   assert.equal(restored.state.profile.name, "Backup User");
-  assert.equal(restored.state.history[0].quantity.value, 1500);
   assert.equal(restored.state.onboarded, true);
+  assert.equal(restored.state.goals[0].streak, 3, "pledge streak survives the round-trip");
+  assert.equal(restored.state.goals[0].lastResult.met, true);
+  assert.equal(restored.state.reviews[0].xp, 85, "review history survives the round-trip");
+  assert.equal(restored.state.reviews[0].inputs.waterLiters, 2.6);
 });
 
 test("importState rejects invalid or incompatible backups", () => {
@@ -292,14 +251,16 @@ test("importState rejects invalid or incompatible backups", () => {
 
 // --- DURABILITY & SECURITY (findings #1, #2, #3) ---
 
-test("saveState reports failure instead of swallowing it; logAction flags a non-persisted write (#1)", () => {
+test("saveState reports failure instead of swallowing it; a review flags a non-persisted write (#1)", () => {
   const m = new GameStateManager();
+  m.submitOnboarding(MINIMAL_SURVEY);
+  m.state.baseline.date = new Date(Date.now() - 8 * 86400000).toISOString(); // review due
   // Simulate a full quota / Safari Private Mode: every write throws.
   globalThis.localStorage.setItem = () => { throw new Error("QuotaExceededError"); };
   assert.equal(m.saveState(), false, "saveState returns false when the write is rejected");
-  const result = m.logAction("workout", "Workout", { physical: 5 }, 10);
-  assert.equal(result.ok, true);
-  assert.equal(result.persisted, false, "logAction reports that the write did not persist");
+  const result = m.submitWeeklyReview({ waterLiters: 2 });
+  assert.ok(result, "the review itself still completes");
+  assert.equal(result.persisted, false, "submitWeeklyReview reports that the write did not persist");
 });
 
 test("a corrupt save is preserved for recovery, never silently overwritten (#2)", () => {
@@ -330,11 +291,11 @@ test("an incompatible-schema save is preserved for recovery rather than discarde
 test("importing hostile fields is coerced to safe shapes (#3 XSS hardening)", () => {
   const m = new GameStateManager();
   const hostile = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     profile: { name: "<img src=x onerror=alert(1)>", level: "<script>", xp: "abc", rank: "<b>evil</b>" },
     aspects: { finance: 55, "<img onerror=alert(1)>": 90, physical: 999 },
     friends: [{ id: '"><script>', name: "Mallory", level: "<x>", totalPoints: "NaN", aspects: {} }],
-    customActions: [{ id: '"><img>', title: "x", aspect: "evilKey", impacts: {} }]
+    goals: [{ id: '"><img>', templateId: "<script>alert(1)</script>", target: 2 }]
   };
   m.importState(JSON.stringify(hostile));
   const s = m.state;
@@ -350,8 +311,10 @@ test("importing hostile fields is coerced to safe shapes (#3 XSS hardening)", ()
   assert.match(s.friends[0].id, /^[A-Za-z0-9_-]+$/, "friend id stripped to a safe token");
   assert.equal(typeof s.friends[0].level, "number");
   assert.equal(typeof s.friends[0].totalPoints, "number");
-  // A custom action with an unknown aspect is dropped entirely.
-  assert.equal(s.customActions.length, 0, "custom action with unknown aspect rejected");
+  // A pledge whose templateId names no real template is dropped whole — every
+  // user-facing pledge string derives from its template, so there is nothing
+  // safe to render an unknown one as.
+  assert.equal(s.goals.length, 0, "pledge with a hostile templateId rejected");
 });
 
 test("submitOnboarding stores clamped age and validated gender", () => {
@@ -486,78 +449,47 @@ test("deep assessment persists through reload and verifies only its own section"
 
 // --- P7: imported goals, profile enums, and the backup nudge ---
 
-test("importing a hostile goal coerces it to a safe shape", () => {
+test("importing a hostile pledge coerces it to a safe shape", () => {
   const m = new GameStateManager();
   m.importState(JSON.stringify({
-    schemaVersion: 3,
+    schemaVersion: 4,
     profile: {},
     aspects: {},
     goals: [{
       id: '"><script>',
-      title: "Pwn",
-      // renderQuests prints t(goal.type.toUpperCase()) unescaped, so `type`
-      // reaching innerHTML verbatim would execute.
-      type: "<img src=x onerror=alert(1)>",
-      aspect: "evilKey",
-      actionIds: "not-an-array",
-      targetValue: "abc",
-      currentValue: 9999,
-      xpReward: "<b>1e9</b>",
-      completed: "yes"
+      templateId: "water",
+      target: "abc",
+      streak: -5,
+      lastResult: { week: "<img src=x onerror=alert(1)>", value: "1e99", met: "yes" }
     }]
   }));
   const g = m.state.goals[0];
   assert.equal(m.state.goals.length, 1);
-  assert.match(g.id, /^[A-Za-z0-9_-]+$/, "goal id stripped to a safe token");
-  assert.ok(["daily", "weekly", "epic"].includes(g.type), "unknown goal type snapped to an enum");
-  assert.ok(Object.keys(m.state.aspects).includes(g.aspect), "unknown aspect snapped to a real key");
-  assert.ok(Array.isArray(g.actionIds), "actionIds forced to an array");
-  assert.equal(g.targetValue, 1, "non-numeric targetValue falls back to 1");
-  assert.equal(g.currentValue, 1, "currentValue cannot exceed targetValue");
-  assert.equal(g.xpReward, 0, "non-numeric xpReward coerced to 0");
-  assert.equal(g.completed, false, "truthy-but-not-true completed coerced to false");
+  assert.match(g.id, /^[A-Za-z0-9_-]+$/, "pledge id stripped to a safe token");
+  assert.equal(g.target, 2, "non-numeric target falls back to the template default");
+  assert.equal(g.streak, 0, "negative streak clamped");
+  assert.ok(g.lastResult.week.length <= 12, "lastResult week length-capped");
+  assert.equal(g.lastResult.value, 1000000, "absurd value clamped");
+  assert.equal(g.lastResult.met, false, "truthy-but-not-true met coerced to false");
 });
 
-test("a goal with no usable title is dropped, and milestones are bounded", () => {
+test("pledges that cannot be rebuilt are dropped whole", () => {
   const m = new GameStateManager();
   m.importState(JSON.stringify({
-    schemaVersion: 3,
+    schemaVersion: 4,
     profile: {},
     aspects: {},
     goals: [
-      { title: "   ", type: "daily" },
-      { title: 42, type: "daily" },
       null,
-      {
-        title: "Keeper",
-        type: "epic",
-        targetValue: 5,
-        milestones: [
-          { text: "ok", at: 99, completed: "nope" },
-          { text: "", at: 1 },
-          ...Array.from({ length: 20 }, (_, i) => ({ text: `m${i}`, at: 1 }))
-        ]
-      }
+      "water",
+      { id: "g1" }, // no templateId
+      { id: "g2", templateId: "constructor", target: 2 }, // prototype-chain probe
+      { id: "keeper", templateId: "sleep", target: 7 }
     ]
   }));
-  assert.equal(m.state.goals.length, 1, "untitled/non-object goals dropped");
-  const g = m.state.goals[0];
-  assert.equal(g.title, "Keeper");
-  assert.ok(g.milestones.length <= 10, "milestone list capped");
-  assert.equal(g.milestones[0].at, 5, "milestone `at` clamped to targetValue");
-  assert.equal(g.milestones[0].completed, false);
-  assert.ok(g.milestones.every(msg => msg.text.length > 0), "empty milestone text dropped");
-});
-
-test("an imported goal with no milestones omits the key entirely", () => {
-  // renderQuests branches on `goal.milestones` being truthy — an empty array
-  // would render an empty <ul> where the original showed nothing.
-  const m = new GameStateManager();
-  m.importState(JSON.stringify({
-    schemaVersion: 3, profile: {}, aspects: {},
-    goals: [{ title: "Plain", type: "daily", milestones: [] }]
-  }));
-  assert.equal(Object.hasOwn(m.state.goals[0], "milestones"), false);
+  assert.equal(m.state.goals.length, 1, "only the rebuildable pledge survives");
+  assert.equal(m.state.goals[0].templateId, "sleep");
+  assert.equal(m.state.goals[0].lastResult, null, "absent lastResult stays null");
 });
 
 test("importing unknown profile enums falls back to benchmark-selectable values", () => {
@@ -586,10 +518,13 @@ test("backup nudge stays quiet until there is data worth losing", () => {
   const m = new GameStateManager();
   m.state.onboarded = true;
   assert.equal(m.daysSinceLastExport(), null, "never exported reports null");
-  assert.equal(m.needsBackupNudge(), false, "no nudge with an empty history");
+  assert.equal(m.needsBackupNudge(), false, "no nudge with nothing recorded");
 
-  for (let i = 0; i < 10; i++) m.logAction(`a${i}`, "Act", { mental: 1 }, 1);
-  assert.equal(m.needsBackupNudge(), true, "nudges once enough is logged and never backed up");
+  // Two weekly reviews are the "worth losing" threshold.
+  for (const week of ["2026-W27", "2026-W28"]) {
+    m.state.reviews.push({ date: new Date().toISOString(), week, inputs: {}, shifts: {}, goals: [], xp: 60 });
+  }
+  assert.equal(m.needsBackupNudge(), true, "nudges once enough is recorded and never backed up");
 
   m.exportState();
   assert.equal(m.daysSinceLastExport(), 0);
@@ -599,6 +534,13 @@ test("backup nudge stays quiet until there is data worth losing", () => {
   m.state.lastExportAt = new Date(Date.now() - 31 * 86400000).toISOString();
   assert.equal(m.daysSinceLastExport(), 31);
   assert.equal(m.needsBackupNudge(), true, "a stale backup nudges again");
+});
+
+test("a migrated legacy action archive alone also justifies the nudge", () => {
+  const m = new GameStateManager();
+  m.state.onboarded = true;
+  m.state.history = Array.from({ length: 10 }, () => ({ timestamp: new Date().toISOString() }));
+  assert.equal(m.needsBackupNudge(), true, "the pre-v4 archive is still worth backing up");
 });
 
 test("a garbage lastExportAt cannot masquerade as a recent backup", () => {
@@ -637,12 +579,16 @@ test("corrupt saved state falls back to defaults", () => {
   assert.equal(m.state.profile.name, "Guest");
 });
 
-test("history is capped at 500 entries", () => {
+test("the legacy action archive is capped at 500 entries on load", () => {
+  // Nothing writes history anymore (it is a read-only pre-v4 archive), so the
+  // cap is enforced where the data enters: the merge on load/import.
   const m = new GameStateManager();
-  for (let i = 0; i < 510; i++) {
-    // unique ids to dodge the daily limit
-    m.logAction(`a${i}`, "Act", { mental: 1 }, 1);
-  }
+  m.importState(JSON.stringify({
+    schemaVersion: 4,
+    profile: {},
+    aspects: {},
+    history: Array.from({ length: 510 }, (_, i) => ({ timestamp: `t${i}` }))
+  }));
   assert.equal(m.state.history.length, 500);
 });
 

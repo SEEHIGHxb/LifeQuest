@@ -114,21 +114,6 @@ test("getTopSuggestions caps the list and dedupes by aspect", () => {
   assert.deepEqual(values, [...values].sort((a, b) => a - b), "weakest aspects surface first");
 });
 
-test("suggestion actionIds reference preset routine ids when present", () => {
-  const KNOWN_PRESETS = new Set([
-    "save_money", "cbt_journal", "phys_sigh", "workout", "eat_veggies", "drink_water",
-    "call_friend", "date_night", "make_merit", "volunteer", "recycle_waste",
-    "public_transit", "learn_future_skills", "mentor_someone"
-  ]);
-  for (const key of ASPECT_KEYS) {
-    for (const s of getAspectSuggestions(makeState(), key)) {
-      if (s.actionId !== undefined) {
-        assert.ok(KNOWN_PRESETS.has(s.actionId), `${s.componentKey} links a real preset (${s.actionId})`);
-      }
-    }
-  }
-});
-
 // --- Finding #4: duty-of-care mental-health notice ---
 // Fires on the established clinical cutoffs, silent otherwise:
 //   WHO-5 raw <= 12 / 25  (depression-screening cutoff)

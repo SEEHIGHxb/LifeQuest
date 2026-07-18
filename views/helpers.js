@@ -1,9 +1,7 @@
 // views/helpers.js - presentation glue shared by two or more view modules:
 // HTML escaping, aspect labels, confidence badges, benchmark standing lines,
-// commitment pin, routine cards, and the quantity prompt. Moved verbatim from
-// the old monolithic ui.js; behavior unchanged.
+// and the accessible dialog scaffold.
 
-import { stateManager } from "../state.js";
 import { percentileBand } from "../benchmarks.js";
 import { getAspectConfidence, ASPECT_KEYS } from "../aspects.js";
 import { t, tp, percentileLabel } from "../i18n.js";
@@ -102,26 +100,6 @@ export function estimatedAspects(state) {
   return ASPECT_KEYS.filter(k => getAspectConfidence(state, k).tier === "estimated");
 }
 
-// Pinned commitment progress (dashboard + aspect page).
-export function commitmentPin(commitment) {
-  const pct = Math.min(100, Math.round((commitment.progress / commitment.weeklyTarget) * 100));
-  return `
-    <div class="commit-head">
-      <span>${tp("{aspect} • this week", { aspect: aspectLabel(commitment.aspect) })}</span>
-      <span class="text-gold" style="font-family: var(--font-mono); font-weight: bold;">${commitment.progress} / ${commitment.weeklyTarget}</span>
-    </div>
-    <div class="xp-bar-container" style="height: 6px; margin-top: 4px;" role="progressbar" aria-label="${t("Commitment progress")}" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
-      <div class="xp-bar-fill" style="width: ${pct}%;"></div>
-    </div>
-    <div class="commit-note">${commitment.completed
-      ? t("✅ Pledge complete — bonus points banked. Resets next week.")
-      : tp("Log {n} more {aspect} routine(s) for +{xp} bonus points.", {
-          n: commitment.weeklyTarget - commitment.progress,
-          aspect: aspectLabel(commitment.aspect),
-          xp: stateManager.commitBonusXp(commitment.weeklyTarget)
-        })}</div>`;
-}
-
 // Duty-of-care banner (finding #4). Renders the mental-health support notice
 // from getMentalHealthNotice(): static app copy plus Thailand hotline numbers,
 // escaped defensively to match the other innerHTML sinks. Returns "" when
@@ -142,45 +120,8 @@ export function mentalHealthNotice(notice) {
     </div>`;
 }
 
-// Shared routine-card markup (ledger + aspect pages).
-export function actionCard(action, removable) {
-  return `
-    <div class="action-card" data-id="${escapeHtml(action.id)}" role="button" tabindex="0" aria-label="${tp("Log {title}", { title: escapeHtml(t(action.title)) })}">
-      ${removable ? `<button type="button" class="action-remove" data-remove-id="${action.id}" aria-label="${t("Remove routine")}" title="${t("Remove routine")}">✕</button>` : ""}
-      <div class="action-title">${escapeHtml(t(action.title))}</div>
-      <div class="action-impacts">+${action.xp} ${t("points")}</div>
-      <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHtml(t(action.desc))}</div>
-    </div>`;
-}
-
-// Shared click/keyboard binding for routine cards. Quantifiable actions
-// ask for the real amount first; others log directly.
-export function bindActionCards(container, actions, onLogAction) {
-  container.querySelectorAll(".action-card").forEach(card => {
-    const logIt = () => {
-      const action = actions.find(a => a.id === card.getAttribute("data-id"));
-      if (!action) return;
-      if (action.metric) {
-        promptQuantity(action, (value) => {
-          onLogAction(action.id, action.title, action.impacts, action.xp,
-            { value, unit: action.metric.unit, label: action.metric.label });
-        });
-      } else {
-        onLogAction(action.id, action.title, action.impacts, action.xp);
-      }
-    };
-    card.addEventListener("click", logIt);
-    card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        logIt();
-      }
-    });
-  });
-}
-
-// Accessible modal scaffold shared by every popup (quantity prompt, level-up,
-// reset flow). Implements the WCAG dialog pattern the individual popups were
+// Accessible modal scaffold shared by every popup (level-up, reset flow).
+// Implements the WCAG dialog pattern the individual popups were
 // missing: role="dialog" + aria-modal, a Tab/Shift-Tab focus trap, Escape to
 // close, and focus restored to the triggering element on close.
 // `html` must be a single .popup-card element of trusted/escaped markup.
@@ -237,46 +178,4 @@ export function openDialog({ label, html, closeOnBackdrop = true }) {
   if (els.length) els[0].focus();
 
   return { overlay, close };
-}
-
-// Small modal asking for the real measured amount before logging.
-export function promptQuantity(action, onConfirm) {
-  const m = action.metric;
-  const { overlay, close } = openDialog({
-    label: t(action.title),
-    html: `
-    <div class="popup-card" style="max-width: 360px;">
-      <h3 style="font-family: var(--font-serif); font-weight: 700; margin-bottom: 6px;">${escapeHtml(t(action.title))}</h3>
-      <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 15px;">${t("Enter the real amount — it becomes part of your measured record.")}</p>
-      <div class="form-group" style="text-align: left;">
-        <label for="quantity-input">${escapeHtml(t(m.label))} (${escapeHtml(t(m.unit))})</label>
-        <input type="number" id="quantity-input" class="form-control" value="${m.default}" min="${m.min}" max="${m.max}" step="${m.step}">
-      </div>
-      <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
-        <button type="button" class="btn btn-quantity-cancel">${t("Cancel")}</button>
-        <button type="button" class="btn btn-primary btn-quantity-confirm">${t("Log It")}</button>
-      </div>
-    </div>
-  `
-  });
-
-  const input = overlay.querySelector("#quantity-input");
-  input.focus();
-  input.select();
-
-  const confirm = () => {
-    const value = parseFloat(input.value);
-    if (!Number.isFinite(value) || value < m.min || value > m.max) {
-      input.style.borderColor = "var(--color-crimson)";
-      return;
-    }
-    close();
-    onConfirm(value);
-  };
-
-  overlay.querySelector(".btn-quantity-cancel").addEventListener("click", close);
-  overlay.querySelector(".btn-quantity-confirm").addEventListener("click", confirm);
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") confirm();
-  });
 }

@@ -5,8 +5,8 @@
 //
 // smoke.mjs proves the app boots; this proves the three flows a real user
 // actually depends on still work end-to-end (finding #13e):
-//   1. express onboarding  -> dashboard renders with a real baseline
-//   2. log a routine       -> points, history, and the ledger all update
+//   1. express onboarding  -> dashboard renders with a real baseline + radar average
+//   2. weekly review       -> measured quantities land, pledges grade, points pay
 //   3. EN -> TH toggle     -> persists across a full reload
 //
 // Usage: node tests/e2e.mjs <base-url>
@@ -50,33 +50,54 @@ try {
   if (!dashboardText || dashboardText.length < 100) {
     problems.push("flow1: dashboard rendered empty");
   }
+  // The population-average overlay: a dashed polygon under the user's own.
+  const avgPolygon = await page.$('#radar-chart-container polygon[stroke-dasharray="5,4"]');
+  if (!avgPolygon) problems.push("flow1: radar is missing the dashed population-average polygon");
 } catch (err) {
   problems.push(`flow1 (express onboarding): ${err.message}`);
 }
 
-// --- FLOW 2: log a routine -> reward, points, and history update ---
-// phys_sigh has no quantity modal, so one click logs it directly.
+// --- FLOW 2: weekly review -> measured values land, pledges grade, points pay ---
+// Onboarding counts as this week's measurement, so backdate the baseline a
+// week to make the review due, exactly as a returning user would find it.
 try {
   const before = await readState();
-  await page.click("#tab-ledger");
-  await page.waitForSelector('.action-card[data-id="phys_sigh"]', { timeout: 10000 });
-  await page.click('.action-card[data-id="phys_sigh"]');
-  // logAction writes synchronously; poll the save until the entry lands.
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem("lifequest_state"));
+    s.baseline.date = new Date(Date.now() - 8 * 86400000).toISOString();
+    localStorage.setItem("lifequest_state", JSON.stringify(s));
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.click("#tab-review");
+  await page.waitForSelector("#weekly-review-form", { timeout: 10000 });
+
+  // The form is prefilled; only touch what changed this week.
+  await page.fill("#rev-waterLiters", "2.5");
+  await page.click('#weekly-review-form button[type="submit"]');
   await page.waitForFunction(() => {
     const s = JSON.parse(localStorage.getItem("lifequest_state") || "{}");
-    return s.history && s.history.length > 0;
+    return s.reviews && s.reviews.length > 0;
   }, { timeout: 5000 });
+  // The 60+ points can trigger the level-up dialog; Escape dismisses it.
+  await page.keyboard.press("Escape");
 
   const after = await readState();
-  const entry = after?.history?.[0];
-  if (entry?.actionId !== "phys_sigh") problems.push("flow2: logged action missing from history");
+  const review = after?.reviews?.[0];
+  if (!/^\d{4}-W\d+$/.test(review?.week || "")) {
+    problems.push(`flow2: review week key malformed (${review?.week})`);
+  }
+  if (review?.inputs?.waterLiters !== 2.5) problems.push("flow2: measured water intake not recorded");
+  if (after?.profile?.waterLiters !== 2.5) problems.push("flow2: measured value did not land in the profile");
   const gained = (after?.profile?.lifetimeXp || 0) - (before?.profile?.lifetimeXp || 0);
-  if (gained < 10) problems.push(`flow2: expected >=10 points from the log, got ${gained}`);
-  if ((after?.aspects?.mental || 0) < (before?.aspects?.mental || 0) + 5) {
-    problems.push("flow2: mental aspect did not gain the +5 impact");
+  if (gained < 60) problems.push(`flow2: expected >=60 points from the review, got ${gained}`);
+  const waterPledge = after?.goals?.find(g => g.templateId === "water");
+  if (!waterPledge?.lastResult) {
+    problems.push("flow2: water pledge was not graded by the review");
+  } else if (waterPledge.lastResult.met !== true) {
+    problems.push("flow2: 2.5 L/day must meet the 2 L/day default pledge");
   }
 } catch (err) {
-  problems.push(`flow2 (log routine): ${err.message}`);
+  problems.push(`flow2 (weekly review): ${err.message}`);
 }
 
 // --- FLOW 3: EN -> TH language toggle persists across reload ---
@@ -103,4 +124,4 @@ if (problems.length) {
   console.error("E2E FAILED:\n  " + problems.join("\n  "));
   process.exit(1);
 }
-console.log("e2e passed: express onboarding, routine logging, and TH persistence all work");
+console.log("e2e passed: express onboarding, the weekly review, and TH persistence all work");

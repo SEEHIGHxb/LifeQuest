@@ -4,7 +4,7 @@ import { stateManager } from "./state.js";
 import {
   renderOnboarding,
   renderDashboard,
-  renderLedger,
+  renderReview,
   renderQuests,
   renderLeaderboard,
   renderAspectPage,
@@ -13,7 +13,7 @@ import {
   renderMethodology,
   getLumiTip,
   openDialog
-} from "./ui.js?v=26";
+} from "./ui.js?v=27";
 import { ASPECT_KEYS, ASPECT_META } from "./aspects.js";
 import { t, tp, getLang, setLang } from "./i18n.js";
 import { APP_VERSION } from "./version.js";
@@ -21,7 +21,7 @@ import { APP_VERSION } from "./version.js";
 const TOAST_DURATION_MS = 1600;
 const REWARD_DURATION_MS = 1900;
 const TYPEWRITER_SPEED_MS = 15;
-const TABS = ["dashboard", "ledger", "quests", "leaderboard"];
+const TABS = ["dashboard", "review", "quests", "leaderboard"];
 const DEFAULT_TAB = "dashboard";
 
 let lumiTypewriterInterval = null;
@@ -73,7 +73,7 @@ function applyChromeTranslations() {
   setText("btn-import-data", t("Import"));
   setText("btn-reset-data", t("Reset Data"));
   setText("tab-dashboard", t("Overview"));
-  setText("tab-ledger", t("Activity Log"));
+  setText("tab-review", t("Weekly Review"));
   setText("tab-quests", t("Goals"));
   setText("tab-leaderboard", t("Peer Comparison"));
   setText("footer-privacy", t("Privacy & Data"));
@@ -219,7 +219,7 @@ function renderActiveTab() {
   });
 
   if (route.type === "aspect") {
-    renderAspectPage("main-view", state, route.key, handleLogAction, renderActiveTab);
+    renderAspectPage("main-view", state, route.key);
   } else if (route.type === "checkin") {
     renderCheckin("main-view", state, handleCheckinComplete);
   } else if (route.type === "deep") {
@@ -228,10 +228,10 @@ function renderActiveTab() {
     renderMethodology("main-view", state);
   } else if (activeTab === "dashboard") {
     renderDashboard("main-view", state, downloadBackup);
-  } else if (activeTab === "ledger") {
-    renderLedger("main-view", state, handleLogAction, renderActiveTab);
+  } else if (activeTab === "review") {
+    renderReview("main-view", state, handleReviewComplete);
   } else if (activeTab === "quests") {
-    renderQuests("main-view", state);
+    renderQuests("main-view", state, renderActiveTab);
   } else if (activeTab === "leaderboard") {
     renderLeaderboard("main-view", state, renderActiveTab);
   }
@@ -244,7 +244,7 @@ function renderActiveTab() {
 function announceRoute(route) {
   const el = document.getElementById("route-announcer");
   if (!el) return;
-  const tabNames = { dashboard: "Overview", ledger: "Activity Log", quests: "Goals", leaderboard: "Peer Comparison" };
+  const tabNames = { dashboard: "Overview", review: "Weekly Review", quests: "Goals", leaderboard: "Peer Comparison" };
   let label;
   if (route.type === "aspect") label = t(ASPECT_META[route.key]?.label || route.key);
   else if (route.type === "checkin") label = t("Re-assessment");
@@ -277,19 +277,22 @@ function handleDeepComplete(aspect, result) {
   renderActiveTab(); // stay on #/deep so the saved section shows as verified
 }
 
-function handleLogAction(id, title, impacts, xp, quantity = null) {
-  const result = stateManager.logAction(id, title, impacts, xp, quantity);
-  if (result.ok) {
-    // Only celebrate a write that actually persisted. When storage rejected it,
-    // the lifequest_storage_error listener below warns the user instead.
-    if (result.persisted !== false) {
-      const detail = quantity ? ` (${quantity.value} ${t(quantity.unit)})` : "";
-      showReward(xp, impacts, detail);
-    }
+function handleReviewComplete(record) {
+  if (!record) {
+    showToast(t("This week's review is already recorded — come back next week."), "warning");
     renderActiveTab();
-  } else {
-    showToast(result.reason, "warning");
+    return;
   }
+  // Only celebrate a write that actually persisted. When storage rejected it,
+  // the lifequest_storage_error listener below warns the user instead.
+  if (record.persisted !== false) {
+    showReward(record.xp, record.shifts || {});
+    const met = record.goals.filter(g => g.met).length;
+    showToast(record.goals.length
+      ? tp("Weekly review saved: {met}/{total} pledges met.", { met, total: record.goals.length })
+      : t("Weekly review saved."));
+  }
+  renderActiveTab();
 }
 
 // --- BACKUP EXPORT / IMPORT ---
@@ -482,7 +485,7 @@ function setupAssistant() {
     const newAvatar = avatar.cloneNode(true);
     avatar.parentNode.replaceChild(newAvatar, avatar);
 
-    const activate = () => triggerLumiMessage(t("Here to help. Focus on logging your routines today to build momentum."), { announce: true });
+    const activate = () => triggerLumiMessage(t("Here to help. One short weekly review keeps your scores honest — about two minutes, once a week."), { announce: true });
     newAvatar.addEventListener("click", activate);
     // Keyboard activation for the role="button" avatar (finding #12).
     newAvatar.addEventListener("keydown", (e) => {
@@ -556,16 +559,6 @@ window.addEventListener("lifequest_levelup", (e) => {
   overlay.querySelector(".btn-close-levelup").addEventListener("click", close);
 });
 
-window.addEventListener("lifequest_quest_completed", (e) => {
-  const data = e.detail;
-  showToast(tp('Goal completed: "{title}" (+{xp} points)', { title: t(data.title), xp: data.xp }));
-});
-
-window.addEventListener("lifequest_commitment_completed", (e) => {
-  const data = e.detail;
-  showToast(tp("Weekly commitment met — +{bonus} bonus points.", { bonus: data.bonus }));
-});
-
 // A save was rejected (storage full, or Safari Private Mode). Surface it once
 // so progress isn't silently lost; debounced so rapid writes don't flood toasts.
 let storageErrorToastShown = false;
@@ -592,9 +585,9 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-// Start the App. init() runs the boot maintenance (periodic quest resets,
-// weekly snapshot) that deliberately no longer happens when state.js is merely
-// imported (finding #13) — construction reads, init() writes.
+// Start the App. init() runs the boot maintenance (the weekly snapshot) that
+// deliberately no longer happens when state.js is merely imported
+// (finding #13) — construction reads, init() writes.
 window.addEventListener("DOMContentLoaded", () => {
   stateManager.init();
   initializeApp();
