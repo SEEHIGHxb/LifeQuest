@@ -224,6 +224,18 @@ header {
   }
 }
 
+/* On phones the four tabs cannot share one row; a balanced 2x2 grid beats
+   flex-wrap's stretched orphan row (three tabs up top, one full-width below). */
+@media (max-width: 540px) {
+  .nav-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .tab-btn {
+    padding: 8px 6px;
+  }
+}
+
 /* Buttons */
 .btn {
   font-family: var(--font-sans);
@@ -1274,12 +1286,27 @@ header {
   .onb-progress-fill { transition: none; }
 }
 
-/* --- Radar chart legend (you vs population average) --- */
+/* --- Wide tables scroll inside their card instead of panning the page --- */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* --- Radar chart + legend (you vs population average) --- */
+/* Column layout: the SVG on top, the legend in a centered row below it.
+   (A plain flex row squeezed the legend into a side column next to the chart.) */
+#radar-chart-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 .radar-legend {
   margin-top: 0.75rem;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 0.35rem 1.25rem;
   font-family: var(--font-sans);
   font-size: 0.78rem;
@@ -1303,5 +1330,6 @@ header {
   flex-basis: 100%;
   margin: 0.1rem 0 0;
   font-size: 0.72rem;
+  text-align: center;
   color: var(--color-text-secondary);
 }

@@ -72,6 +72,16 @@ daily ritual.
 - Aspect pages now show a "Measured Weekly" card naming exactly which review
   fields feed that aspect's score.
 
+### Fixed
+
+- Radar legend no longer renders as a squeezed side column: the chart
+  container is now a flex column, so the legend sits centered below the SVG
+  at full card width.
+- Peer Comparison table scrolls inside its card on narrow screens instead of
+  making the whole page pan sideways.
+- On phones the four nav tabs form a balanced 2x2 grid instead of three tabs
+  plus one stretched full-width orphan on a second row.
+
 ## [1.4.0] — 2026-07-17 (APP_VERSION 26)
 
 ### Added

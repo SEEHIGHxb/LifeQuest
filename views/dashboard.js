@@ -111,7 +111,7 @@ export function renderDashboard(containerId, state, onExportBackup) {
 
         <div class="card">
           <h4 class="card-header">${t("Aspect Radar")}</h4>
-          <div id="radar-chart-container" style="width: 100%; display: flex; justify-content: center; align-items: center;"></div>
+          <div id="radar-chart-container"></div>
         </div>
 
         ${suggestions.length > 0 ? `

@@ -74,6 +74,7 @@ export function renderLeaderboard(containerId, state, onRefresh) {
                 : "{n} participants added. Sample rows are marked.", { n: friends.length })}
         </p>
 
+        <div class="table-scroll">
         <table style="width: 100%; border-collapse: collapse; text-align: left;">
           <thead>
             <tr style="border-bottom: 1px solid var(--color-card-border); font-family: var(--font-serif); font-size: 1.05rem; color: var(--color-navy);">
@@ -104,6 +105,7 @@ export function renderLeaderboard(containerId, state, onRefresh) {
             }).join("")}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   `;
