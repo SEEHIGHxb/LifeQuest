@@ -81,7 +81,7 @@ export function renderMethodology(containerId, state) {
       ${aspectSection(
         t("Physical"),
         t("40% activity (IPAQ MET-minutes vs the WHO 600 guideline) + 20% Asian-BMI band + 20% sleep (Jenkins Sleep Scale + reported duration) + 20% nutrition (vegetables + water). Missing measurements are omitted and the weights renormalized — never faked."),
-        t("Activity carries the most weight because it has the strongest evidence base and is the component daily logging can move."),
+        t("Activity carries the most weight because it has the strongest evidence base and is the component your weekly review re-measures most directly."),
         ["ipaq", "jss"]
       )}
       ${aspectSection(
@@ -126,6 +126,8 @@ export function renderMethodology(containerId, state) {
       <h4 class="card-header">${t("Confidence, benchmarks, and answer quality")}</h4>
       <p class="aspect-blurb">${t("Every score carries a confidence tier: High (you answered everything), Partial, Estimated (defaults stood in), or Verified (you completed the full-length in-depth instruments).")}</p>
       <p class="aspect-blurb">${t("Society percentiles are honest approximations against cited published statistics — each benchmark names its method and sources, and the band around it is an indicative range, not a statistical confidence interval.")}</p>
+      <p class="aspect-blurb">${t("The dashed outline on the dashboard radar is a derived population average: a reference person assembled from the same cited statistics (median income, typical activity levels, published questionnaire means) is scored through the exact formulas that score you.")}</p>
+      <p class="aspect-blurb">${t("Behavior-driven aspects are re-measured by the weekly review: the quantities you report replace last week's values inside the same formulas, so a score moves exactly as much as the measured change implies — never by flat per-log bonuses.")}</p>
       <p class="aspect-blurb">${t("Answer quality is checked: a questionnaire answered with the same option on every row (despite reverse-worded questions) is not counted as a confirmed measurement until re-answered.")}</p>
     </div>
 

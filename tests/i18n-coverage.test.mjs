@@ -13,13 +13,14 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { TH } from "../th.js";
 import { INSTRUMENTS, DEEP_INSTRUMENTS, DEEP_SECTIONS } from "../surveys.js";
+import { GOAL_TEMPLATES } from "../goals.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const FILES = [
   "ui.js", "app.js", "aspects.js", "benchmarks.js",
   "suggestions.js", "state.js", "defaults.js", "sanitize.js", "scoring.js",
-  "crewcode.js", "chart.js", "validation.js",
+  "crewcode.js", "chart.js", "validation.js", "goals.js",
   // ui.js is now a barrel — the actual t()/tp() literals live in views/.
   ...readdirSync(join(root, "views")).filter(f => f.endsWith(".js")).map(f => join("views", f))
 ];
@@ -74,6 +75,13 @@ test("every survey title, item text, and option label has a Thai translation", (
   for (const section of DEEP_SECTIONS) {
     check(section.title, `DEEP_SECTIONS.${section.aspect}.title`);
     check(section.blurb, `DEEP_SECTIONS.${section.aspect}.blurb`);
+  }
+  // Pledge templates render via t(variable) too — same partial-translation
+  // hazard as the surveys, same data-walking guard.
+  for (const [id, tmpl] of Object.entries(GOAL_TEMPLATES)) {
+    check(tmpl.title, `GOAL_TEMPLATES.${id}.title`);
+    check(tmpl.desc, `GOAL_TEMPLATES.${id}.desc`);
+    check(tmpl.unit, `GOAL_TEMPLATES.${id}.unit`);
   }
   assert.equal(
     missing.length, 0,

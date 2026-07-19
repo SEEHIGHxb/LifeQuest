@@ -15,16 +15,15 @@ const WEAK_COMPONENT_THRESHOLD = 70;
 const isBangkok = p => p.region === "Bangkok";
 
 // Rule table: aspect -> component key -> builder(profile) returning
-// {title, text, actionId?}. actionId links to a preset routine so the UI
-// can point at something loggable.
+// {title, text} — concrete habit advice graded against the weakest measured
+// components.
 const RULES = {
   finance: {
     savings: (p) => ({
       title: "Grow your savings rate",
       text: p.employment === "Student" || p.employment === "Unemployed"
         ? "Even 5% of any money that comes in counts — set it aside the day you receive it, before spending."
-        : "Automate a transfer on payday so saving happens before spending — 15-20% of income maxes this component.",
-      actionId: "save_money"
+        : "Automate a transfer on payday so saving happens before spending — 15-20% of income maxes this component."
     }),
     income: (p) => ({
       title: "Raise your earning power",
@@ -37,8 +36,7 @@ const RULES = {
     }),
     cfpb: () => ({
       title: "Reduce money stress",
-      text: "Write a simple monthly budget — knowing exactly where you stand improves financial well-being even before income changes.",
-      actionId: "save_money"
+      text: "Write a simple monthly budget — knowing exactly where you stand improves financial well-being even before income changes."
     })
   },
   physical: {
@@ -46,13 +44,11 @@ const RULES = {
       title: "Move more each week",
       text: isBangkok(p)
         ? "Get off the BTS/MRT one station early or walk a park loop (Benjakitti, Lumphini) — the WHO guideline is 600 MET-min/week and brisk walking counts."
-        : "Brisk walks or cycling around your neighborhood count — the WHO guideline is 600 MET-min/week, about 150 minutes of moderate movement.",
-      actionId: "workout"
+        : "Brisk walks or cycling around your neighborhood count — the WHO guideline is 600 MET-min/week, about 150 minutes of moderate movement."
     }),
     body: () => ({
       title: "Rebalance body composition",
-      text: "Composition follows the activity and nutrition components — pair regular movement with regular meals, not crash changes.",
-      actionId: "workout"
+      text: "Composition follows the activity and nutrition components — pair regular movement with regular meals, not crash changes."
     }),
     sleep: () => ({
       title: "Protect your sleep window",
@@ -60,43 +56,37 @@ const RULES = {
     }),
     nutrition: () => ({
       title: "Hit 5 portions and 2.5L",
-      text: "Add one vegetable portion to lunch and keep a water bottle at your desk — 5 portions and 2.5L/day max this component.",
-      actionId: "eat_veggies"
+      text: "Add one vegetable portion to lunch and keep a water bottle at your desk — 5 portions and 2.5L/day max this component."
     })
   },
   mental: {
     who5: () => ({
       title: "Schedule something to look forward to",
-      text: "Low WHO-5 improves with planned positive activities — book one small enjoyable thing this week and journal how it went.",
-      actionId: "cbt_journal"
+      text: "Low WHO-5 improves with planned positive activities — book one small enjoyable thing this week and journal how it went."
     }),
     st5: () => ({
       title: "Downshift stress daily",
-      text: "Two quick nasal inhales and one long exhale (the physiological sigh) is the fastest evidence-backed stress reset — do 3 before stressful blocks.",
-      actionId: "phys_sigh"
+      text: "Two quick nasal inhales and one long exhale (the physiological sigh) is the fastest evidence-backed stress reset — do 3 before stressful blocks."
     })
   },
   relationships: {
     lsns: () => ({
       title: "Widen your circle",
-      text: "Message one relative and one friend you haven't spoken to this month — social networks grow with regular contact, not grand gestures.",
-      actionId: "call_friend"
+      text: "Message one relative and one friend you haven't spoken to this month — social networks grow with regular contact, not grand gestures."
     }),
     ucla: () => ({
       title: "Counter loneliness with contact",
-      text: "Loneliness drops fastest with voice or face time, not feeds — call one person today instead of scrolling.",
-      actionId: "call_friend"
+      text: "Loneliness drops fastest with voice or face time, not feeds — call one person today instead of scrolling."
     }),
     ras: () => ({
       title: "Invest in your relationship",
-      text: "Plan one distraction-free date this week — satisfaction tracks shared, novel experiences.",
-      actionId: "date_night"
+      text: "Plan one distraction-free date this week — satisfaction tracks shared, novel experiences."
     })
   },
   personalGoals: {
     gse: () => ({
       title: "Stack small wins",
-      text: "Self-efficacy grows from completed challenges — pick one finishable task each morning and log it done."
+      text: "Self-efficacy grows from completed challenges — pick one finishable task each morning and see it through."
     }),
     grit: () => ({
       title: "Build a streak",
@@ -104,20 +94,17 @@ const RULES = {
     }),
     learning: () => ({
       title: "Block learning hours",
-      text: "Put 2-3 recurring study blocks on your calendar — 5h/week maxes this component.",
-      actionId: "learn_future_skills"
+      text: "Put 2-3 recurring study blocks on your calendar — 5h/week maxes this component."
     })
   },
   socialContribution: {
     giving: () => ({
       title: "Give a little, regularly",
-      text: "Small recurring giving beats occasional large gifts — even 100 THB/month of merit-making or charity moves this.",
-      actionId: "make_merit"
+      text: "Small recurring giving beats occasional large gifts — even 100 THB/month of merit-making or charity moves this."
     }),
     volunteering: () => ({
       title: "Volunteer a few hours",
-      text: "4 hours a month maxes this — one weekend morning at a local temple, shelter, or community event is enough.",
-      actionId: "volunteer"
+      text: "4 hours a month maxes this — one weekend morning at a local temple, shelter, or community event is enough."
     }),
     ptm: () => ({
       title: "Practice everyday prosociality",
@@ -129,32 +116,27 @@ const RULES = {
       title: "Cut single-use plastics",
       text: isBangkok(p)
         ? "Carry a bottle and a bag — refill stations and no-bag discounts are common around Bangkok, and the Thai average is ~3 pieces/day."
-        : "Carry a reusable bottle and bag on every errand — the Thai average is ~3 single-use pieces/day; beating it is very achievable.",
-      actionId: "recycle_waste"
+        : "Carry a reusable bottle and bag on every errand — the Thai average is ~3 single-use pieces/day; beating it is very achievable."
     }),
     geb: (p) => ({
       title: "Green your commute and home",
       text: isBangkok(p)
         ? "Swap two car trips for the BTS/MRT this week and set the aircon to 25°C or higher."
-        : "Walk or cycle short errands and set the aircon to 25°C or higher — everyday habits are the whole green-behavior score.",
-      actionId: isBangkok(p) ? "public_transit" : "recycle_waste"
+        : "Walk or cycle short errands and set the aircon to 25°C or higher — everyday habits are the whole green-behavior score."
     })
   },
   humanityFuture: {
     skills: () => ({
       title: "Upskill for the future",
-      text: "One hour of AI/data study per week already scores — 4h/week maxes this component.",
-      actionId: "learn_future_skills"
+      text: "One hour of AI/data study per week already scores — 4h/week maxes this component."
     }),
     security: () => ({
       title: "Start long-term investing",
-      text: "Open an SSF/RMF or index fund with any amount — most Thai workers have no retirement savings, so starting at all puts you ahead.",
-      actionId: "save_money"
+      text: "Open an SSF/RMF or index fund with any amount — most Thai workers have no retirement savings, so starting at all puts you ahead."
     }),
     lfis: () => ({
       title: "Act with a longer horizon",
-      text: "Mentor someone or support one cause aimed at future generations this month.",
-      actionId: "mentor_someone"
+      text: "Mentor someone or support one cause aimed at future generations this month."
     })
   }
 };

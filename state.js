@@ -1,20 +1,26 @@
-// state.js - LifeQuest state manager: persistence, XP/quests, recalibration.
-// Extracted in finding #13: defaults.js (state shape + starter quests),
-// sanitize.js (untrusted-import coercion), scoring.js (pure calculators).
-// What remains is the stateful manager: load/save, XP, quests, check-ins.
+// state.js - LifeQuest state manager: persistence, XP, weekly reviews,
+// recalibration. Extracted in finding #13: defaults.js (state shape),
+// sanitize.js (untrusted-import coercion), scoring.js (pure calculators),
+// goals.js (pledge templates + grading). What remains is the stateful
+// manager: load/save, XP, weekly reviews, pledges, check-ins.
 
 import { t, tp } from "./i18n.js";
-import { DEFAULT_STATE, createDefaultQuests } from "./defaults.js";
+import { DEFAULT_STATE } from "./defaults.js";
+import {
+  createDefaultPledges, createPledge, clampPledgeTarget, goalTemplate,
+  gradeGoal, PLEDGE_LIMIT, WEEKLY_REVIEW_FIELDS
+} from "./goals.js";
 import {
   clampNumber, safeString, sanitizeAspectScores, sanitizeImportedFriend,
-  sanitizeImportedCustomAction, sanitizeImportedGoal, sanitizeProfileFields
+  sanitizeImportedGoal, sanitizeImportedReview, sanitizeProfileFields,
+  migrateV3State
 } from "./sanitize.js";
 import {
   rawSum, mentalComposite, relationshipsComposite, personalGoalsComposite,
   calculateFinanceScore, calculatePhysicalScore, calculateMentalScore,
   calculateRelationshipsScore, calculatePersonalGoalsScore,
   calculateSocialContributionScore, calculateEnvironmentScore,
-  calculateHumanityFutureScore, deepAspectScore,
+  calculateHumanityFutureScore, deepAspectScore, weeklyAspectShifts,
   rankForLevel, rankClassForLevel
 } from "./scoring.js";
 import { INSTRUMENTS, DEEP_INSTRUMENTS } from "./surveys.js";
@@ -24,17 +30,14 @@ const STORAGE_KEY = "lifequest_state";
 // A save the running code cannot read (corrupt JSON or an incompatible schema)
 // is copied here instead of being silently overwritten, so it stays recoverable.
 const RECOVERY_KEY = "lifequest_state_recovery";
-const HISTORY_LIMIT = 500;
-const DAILY_LOG_LIMIT = 5;
+const HISTORY_LIMIT = 500; // legacy pre-v4 archive cap (nothing writes it now)
 const SNAPSHOT_INTERVAL_DAYS = 7;
 const SNAPSHOT_LIMIT = 260; // ~5 years of weekly snapshots
 
-// Commitment mode: a weekly pledge to one aspect with a bonus on completion.
-const COMMIT_MIN_TARGET = 3;
-const COMMIT_MAX_TARGET = 21;
-const COMMIT_BONUS_BASE_XP = 30;
-const COMMIT_BONUS_PER_LOG_XP = 10;
-const COMMIT_BONUS_CAP_XP = 150;
+// Weekly review: ONE measured self-report per ISO week replaces the old
+// daily action logging. Base XP for showing up; met pledges add their own.
+const WEEKLY_REVIEW_XP = 60;
+const REVIEW_LIMIT = 260; // ~5 years of weekly reviews
 
 // Monthly mini re-assessment: short instruments recalibrate the survey-based
 // aspects (hybrid model). A single check-in can never swing a score by more
@@ -42,7 +45,6 @@ const COMMIT_BONUS_CAP_XP = 150;
 const CHECKIN_INTERVAL_DAYS = 28;
 const CHECKIN_MAX_SHIFT = 15;
 const CHECKIN_ACTIVITY_BONUS_CAP = 3;
-const CHECKIN_LOGS_PER_BONUS_POINT = 3;
 const CHECKIN_XP = 40;
 const CHECKIN_LIMIT = 60; // ~5 years of monthly records
 
@@ -89,9 +91,7 @@ export class GameStateManager {
   // not) explicitly. Safe to call again — every step is idempotent per period.
   init() {
     if (!this.state.onboarded) return;
-    const questsChanged = this.resetPeriodicQuests();
-    const snapshotTaken = this.maybeTakeSnapshot();
-    if (questsChanged || snapshotTaken) {
+    if (this.maybeTakeSnapshot()) {
       this.saveState();
     }
   }
@@ -125,16 +125,13 @@ export class GameStateManager {
       aspects: sanitizeAspectScores(parsed.aspects),
       history: Array.isArray(parsed.history) ? parsed.history.slice(0, HISTORY_LIMIT) : [],
       goals: Array.isArray(parsed.goals)
-        ? parsed.goals.map(sanitizeImportedGoal).filter(Boolean)
+        ? parsed.goals.map(sanitizeImportedGoal).filter(Boolean).slice(0, PLEDGE_LIMIT)
         : [],
-      customActions: Array.isArray(parsed.customActions)
-        ? parsed.customActions.map(sanitizeImportedCustomAction).filter(Boolean)
+      reviews: Array.isArray(parsed.reviews)
+        ? parsed.reviews.slice(-REVIEW_LIMIT).map(sanitizeImportedReview).filter(Boolean)
         : [],
-      dailyLimits: parsed.dailyLimits && typeof parsed.dailyLimits === "object" ? parsed.dailyLimits : {},
-      questResets: { ...defaults.questResets, ...(parsed.questResets || {}) },
       snapshots: Array.isArray(parsed.snapshots) ? parsed.snapshots.slice(-SNAPSHOT_LIMIT) : [],
       baseline: parsed.baseline && typeof parsed.baseline === "object" ? parsed.baseline : null,
-      commitment: parsed.commitment && typeof parsed.commitment === "object" ? parsed.commitment : null,
       checkins: Array.isArray(parsed.checkins) ? parsed.checkins.slice(-CHECKIN_LIMIT) : [],
       friends: Array.isArray(parsed.friends)
         ? parsed.friends.slice(0, FRIEND_LIMIT).map(sanitizeImportedFriend).filter(Boolean)
@@ -172,9 +169,15 @@ export class GameStateManager {
       this.preserveUnreadableSave(saved);
       return defaults;
     }
-    // v3 changed the measurement model (quantified logs, demographics,
-    // snapshots) — older saves restart onboarding for a clean baseline. The raw
-    // save is kept so a future export/migrate can still reach the old data.
+    // v4 (the weekly-review redesign) migrates a v3 save in place: XP, scores,
+    // baseline, and history all carry over; only the retired daily-logging
+    // machinery is dropped or converted (see migrateV3State).
+    if (parsed.schemaVersion === 3) {
+      parsed = migrateV3State(parsed);
+    }
+    // Pre-v3 saves changed the measurement model itself (quantified logs,
+    // demographics, snapshots) — those restart onboarding for a clean baseline.
+    // The raw save is kept so a future export/migrate can still reach the data.
     if (parsed.schemaVersion !== DEFAULT_STATE.schemaVersion) {
       console.info(`LifeQuest: schema v${parsed.schemaVersion || 1} save found; v${DEFAULT_STATE.schemaVersion} requires a fresh baseline. Previous data kept for recovery.`);
       this.preserveUnreadableSave(saved);
@@ -270,7 +273,11 @@ export class GameStateManager {
   // so this is the only warning a user gets before the data is simply gone.
   needsBackupNudge() {
     if (!this.state.onboarded) return false;
-    if (this.state.history.length < BACKUP_NUDGE_MIN_LOGS) return false;
+    // Worth nudging once a couple of weekly reviews exist — or, for migrated
+    // saves, once the legacy action archive alone is worth keeping.
+    const hasData = this.state.reviews.length >= 2
+      || this.state.history.length >= BACKUP_NUDGE_MIN_LOGS;
+    if (!hasData) return false;
     const days = this.daysSinceLastExport();
     return days === null || days >= BACKUP_NUDGE_DAYS;
   }
@@ -299,6 +306,10 @@ export class GameStateManager {
     }
     if (!parsed || typeof parsed !== "object" || !parsed.profile || !parsed.aspects) {
       throw new Error(t("This file is not a valid backup (missing profile/aspects)."));
+    }
+    // A v3 backup imports cleanly through the same migration as a v3 save.
+    if (parsed.schemaVersion === 3) {
+      parsed = migrateV3State(parsed);
     }
     if (parsed.schemaVersion !== DEFAULT_STATE.schemaVersion) {
       throw new Error(tp("Backup schema v{found} is not compatible with v{expected}.", {
@@ -340,78 +351,126 @@ export class GameStateManager {
     return rankClassForLevel(level);
   }
 
-  // Daily quests reset each day, weekly quests each ISO week.
-  // Returns true when anything changed (caller decides whether to save).
-  resetPeriodicQuests() {
-    const now = new Date();
-    const today = now.toDateString();
-    const week = isoWeekKey(now);
-    let changed = false;
+  // --- WEEKLY REVIEW (one measured self-report per ISO week) ---
 
-    if (this.state.questResets.daily !== today) {
-      this.state.goals.forEach(g => {
-        if (g.type === "daily") {
-          g.completed = false;
-          g.currentValue = 0;
-        }
-      });
-      this.state.questResets.daily = today;
-      changed = true;
-    }
-    if (this.state.questResets.weekly !== week) {
-      this.state.goals.forEach(g => {
-        if (g.type === "weekly") {
-          g.completed = false;
-          g.currentValue = 0;
-        }
-      });
-      // Commitments renew each week: progress restarts, bonus earnable again.
-      if (this.state.commitment) {
-        this.state.commitment = { ...this.state.commitment, week, progress: 0, completed: false };
-      }
-      this.state.questResets.weekly = week;
-      changed = true;
-    }
-    return changed;
+  lastReview() {
+    return this.state.reviews[this.state.reviews.length - 1] || null;
   }
 
-  // --- COMMITMENT MODE (weekly aspect pledge) ---
-
-  commitBonusXp(weeklyTarget) {
-    return Math.min(COMMIT_BONUS_CAP_XP, COMMIT_BONUS_BASE_XP + weeklyTarget * COMMIT_BONUS_PER_LOG_XP);
+  // Due once per ISO week. The onboarding baseline counts as that week's
+  // measurement, so the first review comes due the following week.
+  isWeeklyReviewDue() {
+    if (!this.state.onboarded || !this.state.baseline) return false;
+    const currentWeek = isoWeekKey(new Date());
+    const last = this.lastReview();
+    if (last) return last.week !== currentWeek;
+    return isoWeekKey(new Date(this.state.baseline.date)) !== currentWeek;
   }
 
-  commitToAspect(aspectKey, weeklyTarget) {
-    if (this.state.aspects[aspectKey] === undefined) return null;
-    const target = Math.max(COMMIT_MIN_TARGET, Math.min(COMMIT_MAX_TARGET, parseInt(weeklyTarget || COMMIT_MIN_TARGET)));
-    this.state.commitment = {
-      aspect: aspectKey,
-      weeklyTarget: target,
-      week: isoWeekKey(new Date()),
-      progress: 0,
-      completed: false
+  countReviewsSince(sinceIso) {
+    const since = new Date(sinceIso).getTime();
+    return this.state.reviews.filter(r => new Date(r.date).getTime() >= since).length;
+  }
+
+  // The weekly review: write the reported quantities into the profile,
+  // re-measure the behavior-driven aspects through the shared scoring
+  // formulas, grade every pledge against the measured week, and record it
+  // all. Refuses a second submission in the same ISO week (the review UI
+  // never offers one) so the base XP can't be farmed.
+  submitWeeklyReview(inputs) {
+    if (!this.state.onboarded || !this.state.baseline) return null;
+    const week = isoWeekKey(new Date());
+    const last = this.lastReview();
+    if (last && last.week === week) return null;
+
+    const p = this.state.profile;
+
+    // Only the known weekly fields are read, only finite numbers land, and
+    // the merged candidate profile is range-clamped before any math sees it.
+    const submitted = {};
+    for (const field of WEEKLY_REVIEW_FIELDS) {
+      const n = Number(inputs && inputs[field]);
+      if (Number.isFinite(n)) submitted[field] = n;
+    }
+    const newProfile = sanitizeProfileFields({ ...p, ...submitted });
+
+    // Measured re-scoring, computed BEFORE the profile is overwritten (the
+    // delta needs old vs new). Deltas preserve check-in/deep adjustments.
+    const shifts = weeklyAspectShifts(p, newProfile, this.state.baseline);
+    for (const [aspect, shift] of Object.entries(shifts)) {
+      this.state.aspects[aspect] = Math.max(0, Math.min(100, this.state.aspects[aspect] + shift));
+    }
+
+    // Write the measured values and mark them provided — a weekly-measured
+    // field is confirmed data, so confidence tiers upgrade honestly.
+    const provided = { ...(p.provided || {}) };
+    for (const field of Object.keys(submitted)) {
+      p[field] = newProfile[field];
+      provided[field] = true;
+    }
+    p.provided = provided;
+
+    // Grade every pledge against the measured week.
+    let goalXp = 0;
+    const goalResults = this.state.goals.map(goal => {
+      const graded = gradeGoal(goal, p);
+      goal.lastResult = { week, value: graded.value, met: graded.met };
+      goal.streak = graded.met ? (goal.streak || 0) + 1 : 0;
+      if (graded.met) goalXp += goalTemplate(goal.templateId).xp;
+      return { id: goal.id, templateId: goal.templateId, target: goal.target, value: graded.value, met: graded.met };
+    });
+
+    const xp = WEEKLY_REVIEW_XP + goalXp;
+    const record = {
+      date: new Date().toISOString(),
+      week,
+      inputs: submitted,
+      shifts,
+      goals: goalResults,
+      xp
     };
-    this.saveState();
-    return this.state.commitment;
-  }
-
-  clearCommitment() {
-    this.state.commitment = null;
-    this.saveState();
-  }
-
-  // Any log that positively moves the pledged aspect counts toward the week.
-  applyCommitmentProgress(impacts) {
-    const c = this.state.commitment;
-    if (!c || c.completed) return;
-    if ((impacts[c.aspect] || 0) <= 0) return;
-    c.progress += 1;
-    if (c.progress >= c.weeklyTarget) {
-      c.completed = true;
-      const bonus = this.commitBonusXp(c.weeklyTarget);
-      this.addXP(bonus);
-      dispatchAppEvent("lifequest_commitment_completed", { aspect: c.aspect, bonus });
+    this.state.reviews.push(record);
+    if (this.state.reviews.length > REVIEW_LIMIT) {
+      this.state.reviews = this.state.reviews.slice(-REVIEW_LIMIT);
     }
+    this.addXP(xp);
+    this.maybeTakeSnapshot();
+
+    // `persisted` is false when the write was rejected — the caller should not
+    // show the reward animation for progress that didn't actually save.
+    const persisted = this.saveState();
+    return { ...record, persisted };
+  }
+
+  // --- PLEDGES (weekly quantity goals) ---
+
+  addPledge(templateId, target) {
+    if (this.state.goals.length >= PLEDGE_LIMIT) {
+      return { ok: false, reason: tp("Pledge list is full (max {max}).", { max: PLEDGE_LIMIT }) };
+    }
+    if (this.state.goals.some(g => g.templateId === templateId)) {
+      return { ok: false, reason: t("You already have a pledge on that metric.") };
+    }
+    const pledge = createPledge(templateId, target);
+    if (!pledge) {
+      return { ok: false, reason: t("Unknown pledge type.") };
+    }
+    this.state.goals.push(pledge);
+    this.saveState();
+    return { ok: true, pledge };
+  }
+
+  removePledge(pledgeId) {
+    this.state.goals = this.state.goals.filter(g => g.id !== pledgeId);
+    this.saveState();
+  }
+
+  updatePledgeTarget(pledgeId, target) {
+    const goal = this.state.goals.find(g => g.id === pledgeId);
+    if (!goal) return null;
+    goal.target = clampPledgeTarget(goal.templateId, target);
+    this.saveState();
+    return goal;
   }
 
   // --- CREW ROSTER (real friends from shared Crew Codes) ---
@@ -460,16 +519,9 @@ export class GameStateManager {
     return (Date.now() - new Date(last).getTime()) / 86400000 >= CHECKIN_INTERVAL_DAYS;
   }
 
-  countPositiveLogsSince(aspectKey, sinceIso) {
-    const since = new Date(sinceIso).getTime();
-    return this.state.history.filter(h =>
-      new Date(h.timestamp).getTime() >= since && ((h.impacts || {})[aspectKey] || 0) > 0
-    ).length;
-  }
-
   // Re-runs the short survey instruments and recalibrates the survey-based
-  // aspects toward the new reading, plus a small bonus for consistent related
-  // logging since the last calibration. Shifts are capped at ±CHECKIN_MAX_SHIFT.
+  // aspects toward the new reading, plus a small bonus for consistent weekly
+  // reviews since the last calibration. Shifts are capped at ±CHECKIN_MAX_SHIFT.
   // Targets come from the shared composites in scoring.js — the SAME functions
   // onboarding uses — so a check-in can never drift from the baseline formula.
   submitCheckin(surveyData) {
@@ -494,10 +546,11 @@ export class GameStateManager {
       personalGoals: personalGoalsComposite(p, sums.gse, b.grit)
     };
 
+    // One consistent week of measurement ≈ one bonus point, capped.
+    const activityBonus = Math.min(CHECKIN_ACTIVITY_BONUS_CAP, this.countReviewsSince(since));
+
     const shifts = {};
     for (const [aspect, target] of Object.entries(targets)) {
-      const logs = this.countPositiveLogsSince(aspect, since);
-      const activityBonus = Math.min(CHECKIN_ACTIVITY_BONUS_CAP, Math.floor(logs / CHECKIN_LOGS_PER_BONUS_POINT));
       const current = this.state.aspects[aspect];
       const shift = Math.max(-CHECKIN_MAX_SHIFT, Math.min(CHECKIN_MAX_SHIFT, Math.round(target + activityBonus - current)));
       shifts[aspect] = shift;
@@ -659,135 +712,12 @@ export class GameStateManager {
     p.xp = 0;
     p.rank = this.getRank(1);
 
-    this.initializeDefaultQuests();
-    this.resetPeriodicQuests();
+    this.state.goals = createDefaultPledges();
     this.state.snapshots = [];
-    this.state.commitment = null;
     this.state.checkins = [];
+    this.state.reviews = [];
     this.maybeTakeSnapshot(); // baseline snapshot anchors the trend charts
     this.saveState();
-  }
-
-  initializeDefaultQuests() {
-    this.state.goals = createDefaultQuests();
-  }
-
-  // --- CUSTOM ROUTINES ---
-
-  addCustomAction(title, aspect, points, xp) {
-    const pts = Math.max(1, Math.min(15, parseInt(points || 5)));
-    const action = {
-      id: "custom_" + crypto.randomUUID().slice(0, 8),
-      title: String(title || "Custom Routine").trim(),
-      aspect,
-      impacts: { [aspect]: pts },
-      xp: Math.max(5, Math.min(50, parseInt(xp || 15))),
-      desc: `Custom routine (+${pts} ${aspect})`
-    };
-    this.state.customActions.push(action);
-    this.saveState();
-    return action;
-  }
-
-  removeCustomAction(actionId) {
-    this.state.customActions = this.state.customActions.filter(a => a.id !== actionId);
-    delete this.state.dailyLimits[actionId];
-    this.saveState();
-  }
-
-  // --- ACTIONS LOGGING ---
-
-  // quantity: optional {value, unit, label} with the real measured amount
-  // (e.g., {value: 30, unit: "minutes"}) — the raw data for measured scoring.
-  logAction(actionId, actionName, impacts, xpReward, quantity = null) {
-    this.resetPeriodicQuests();
-
-    const today = new Date().toDateString();
-    if (!this.state.dailyLimits[actionId]) {
-      this.state.dailyLimits[actionId] = { count: 0, lastUpdated: today };
-    }
-
-    const limit = this.state.dailyLimits[actionId];
-    if (limit.lastUpdated !== today) {
-      limit.count = 0;
-      limit.lastUpdated = today;
-    }
-
-    if (limit.count >= DAILY_LOG_LIMIT) {
-      return {
-        ok: false,
-        reason: tp('Daily limit reached for "{name}" (max {max} logs). Take a break and return tomorrow.', {
-          name: t(actionName),
-          max: DAILY_LOG_LIMIT
-        })
-      };
-    }
-
-    limit.count++;
-
-    // Apply aspect impacts (clamped between 0 and 100)
-    for (const [aspect, change] of Object.entries(impacts)) {
-      if (this.state.aspects[aspect] !== undefined) {
-        const val = this.state.aspects[aspect] + change;
-        this.state.aspects[aspect] = Math.max(0, Math.min(100, val));
-      }
-    }
-
-    this.addXP(xpReward);
-
-    const entry = {
-      id: crypto.randomUUID().slice(0, 9),
-      actionId,
-      actionName,
-      timestamp: new Date().toISOString(),
-      xpReward,
-      impacts
-    };
-    if (quantity && Number.isFinite(parseFloat(quantity.value))) {
-      entry.quantity = {
-        value: parseFloat(quantity.value),
-        unit: String(quantity.unit || ""),
-        label: String(quantity.label || "")
-      };
-    }
-    this.state.history.unshift(entry);
-    if (this.state.history.length > HISTORY_LIMIT) {
-      this.state.history.length = HISTORY_LIMIT;
-    }
-
-    this.applyGoalProgress(actionId, impacts);
-    this.applyCommitmentProgress(impacts);
-
-    // `persisted` is false when the write was rejected — the caller should not
-    // show the reward animation for progress that didn't actually save.
-    const persisted = this.saveState();
-    return { ok: true, persisted };
-  }
-
-  // Quests progress from logged actions: by explicit actionIds when present,
-  // otherwise by any positively-impacted aspect.
-  applyGoalProgress(actionId, impacts) {
-    const impactAspects = Object.entries(impacts)
-      .filter(([, change]) => change > 0)
-      .map(([aspect]) => aspect);
-
-    this.state.goals.forEach(goal => {
-      if (goal.completed) return;
-      const matches = Array.isArray(goal.actionIds) && goal.actionIds.length > 0
-        ? goal.actionIds.includes(actionId)
-        : impactAspects.includes(goal.aspect);
-      if (!matches) return;
-
-      goal.currentValue = Math.min(goal.targetValue, goal.currentValue + 1);
-      if (goal.milestones) {
-        goal.milestones.forEach(m => {
-          if (!m.completed && goal.currentValue >= m.at) m.completed = true;
-        });
-      }
-      if (goal.currentValue >= goal.targetValue) {
-        this.completeQuest(goal.id);
-      }
-    });
   }
 
   addXP(amount) {
@@ -810,22 +740,9 @@ export class GameStateManager {
       dispatchAppEvent("lifequest_levelup", { level: p.level, rank: p.rank });
     }
   }
-
-  completeQuest(goalId) {
-    const goal = this.state.goals.find(g => g.id === goalId);
-    if (goal && !goal.completed) {
-      goal.completed = true;
-      goal.currentValue = goal.targetValue;
-      if (goal.milestones) {
-        goal.milestones.forEach(m => m.completed = true);
-      }
-      this.addXP(goal.xpReward);
-      dispatchAppEvent("lifequest_quest_completed", { title: goal.title, xp: goal.xpReward });
-    }
-  }
 }
 
-// Construction only READS the saved state. The boot maintenance (quest resets,
-// weekly snapshot) runs when app.js calls stateManager.init() — importing this
+// Construction only READS the saved state. The boot maintenance (the weekly
+// snapshot) runs when app.js calls stateManager.init() — importing this
 // module never writes to storage.
 export const stateManager = new GameStateManager();

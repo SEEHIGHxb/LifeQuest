@@ -26,7 +26,7 @@ export function renderCheckin(containerId, state, onComplete) {
         <p>${t("Short instruments only • recalibrates Mental, Relationships & Personal Goals")}</p>
       </div>
       <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 20px;">
-        ${t("Answer for the recent weeks, not how you felt at onboarding. Scores shift by at most ±15 points per re-assessment, and consistent routine logging since the last one adds a small bonus. Reward: +40 points.")}
+        ${t("Answer for the recent weeks, not how you felt at onboarding. Scores shift by at most ±15 points per re-assessment, and consistent weekly reviews since the last one add a small bonus. Reward: +40 points.")}
       </p>
       <form id="checkin-form">
         ${instrumentBlock("who5")}

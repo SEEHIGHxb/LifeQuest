@@ -1,5 +1,5 @@
-// Tests for Phase 4 personalization: weekly commitments and the monthly
-// mini re-assessment recalibration (node --test)
+// Tests for Phase 4 personalization: the monthly mini re-assessment
+// recalibration and its weekly-review consistency bonus (node --test)
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { GameStateManager } from "../state.js";
@@ -32,60 +32,6 @@ function calibratedManager(overrides = {}) {
   return m;
 }
 
-// --- COMMITMENT MODE ---
-
-test("commitToAspect clamps the weekly target to 3-21", () => {
-  const m = new GameStateManager();
-  assert.equal(m.commitToAspect("physical", 1).weeklyTarget, 3);
-  assert.equal(m.commitToAspect("physical", 99).weeklyTarget, 21);
-  assert.equal(m.commitToAspect("physical", 5).weeklyTarget, 5);
-  assert.equal(m.state.commitment.progress, 0);
-  assert.equal(m.state.commitment.completed, false);
-  assert.equal(m.commitToAspect("notAnAspect", 5), null, "unknown aspects are rejected");
-});
-
-test("commitment progresses only from logs that positively move its aspect", () => {
-  const m = new GameStateManager();
-  m.commitToAspect("physical", 5);
-  m.logAction("workout", "Workout", { physical: 10, mental: 3 }, 0);
-  m.logAction("save_money", "Save", { finance: 8 }, 0);
-  m.logAction("make_merit", "Merit", { socialContribution: 10, physical: -2 }, 0);
-  assert.equal(m.state.commitment.progress, 1, "only the physical-positive log counts");
-});
-
-test("hitting the weekly target awards the bonus XP exactly once", () => {
-  const m = new GameStateManager();
-  m.commitToAspect("physical", 3); // bonus = 30 + 3*10 = 60
-  for (let i = 0; i < 3; i++) m.logAction("workout", "Workout", { physical: 5 }, 0);
-  assert.equal(m.state.commitment.completed, true);
-  assert.equal(m.state.profile.xp, 60, "bonus XP granted on completion");
-  m.logAction("workout", "Workout", { physical: 5 }, 0);
-  assert.equal(m.state.profile.xp, 60, "no double bonus after completion");
-  assert.equal(m.commitBonusXp(21), 150, "bonus caps at 150 XP");
-});
-
-test("commitments renew each ISO week with progress reset", () => {
-  const m = new GameStateManager();
-  m.commitToAspect("mental", 4);
-  m.state.commitment.progress = 4;
-  m.state.commitment.completed = true;
-  m.state.questResets.weekly = "2020-W1"; // force a week rollover
-  m.resetPeriodicQuests();
-  assert.equal(m.state.commitment.progress, 0);
-  assert.equal(m.state.commitment.completed, false);
-  assert.equal(m.state.commitment.aspect, "mental", "pledged aspect persists across weeks");
-});
-
-test("clearCommitment removes the pledge and both fields survive a reload", () => {
-  const m = new GameStateManager();
-  m.commitToAspect("finance", 6);
-  const reloaded = new GameStateManager();
-  assert.equal(reloaded.state.commitment.aspect, "finance", "commitment survives reload");
-  assert.deepEqual(reloaded.state.checkins, []);
-  m.clearCommitment();
-  assert.equal(new GameStateManager().state.commitment, null);
-});
-
 // --- MONTHLY MINI RE-ASSESSMENT ---
 
 test("isCheckinDue triggers 28 days after the last calibration", () => {
@@ -109,17 +55,19 @@ test("submitCheckin caps shifts at ±15 in both directions", () => {
   assert.equal(down.state.aspects.mental, 80);
 });
 
-test("consistent related logging adds a small capped bonus at re-sync", () => {
+test("consistent weekly reviews add a small capped bonus at re-sync", () => {
   // who5 [3x5] = 15 -> 60; st5 zeros -> 100 => mental target 80.
   const answers = { who5: [3, 3, 3, 3, 3], st5: [0, 0, 0, 0, 0], ucla: [1, 1, 1], gse: [3, 3, 3, 3, 3, 3] };
   const idle = calibratedManager({ aspects: { mental: 80 } });
-  assert.equal(idle.submitCheckin(structuredClone(answers)).mental, 0, "at target with no logs: no shift");
+  assert.equal(idle.submitCheckin(structuredClone(answers)).mental, 0, "at target with no reviews: no shift");
 
   const active = calibratedManager({ aspects: { mental: 80 } });
   for (let i = 0; i < 20; i++) {
-    active.state.history.push({ timestamp: new Date().toISOString(), impacts: { mental: 5 } });
+    active.state.reviews.push({
+      date: new Date().toISOString(), week: `2026-W${i}`, inputs: {}, shifts: {}, goals: [], xp: 60
+    });
   }
-  assert.equal(active.submitCheckin(structuredClone(answers)).mental, 3, "activity bonus caps at +3");
+  assert.equal(active.submitCheckin(structuredClone(answers)).mental, 3, "review bonus caps at +3");
 });
 
 test("submitCheckin refreshes stored sums, keeps the rest, and pays XP", () => {

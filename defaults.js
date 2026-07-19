@@ -6,7 +6,7 @@
 
 export const DEFAULT_STATE = {
   onboarded: false,
-  schemaVersion: 3,
+  schemaVersion: 4,
   profile: {
     name: "Guest",
     level: 1,
@@ -50,75 +50,16 @@ export const DEFAULT_STATE = {
     environment: 0,
     humanityFuture: 0
   },
-  history: [],
-  goals: [],
-  customActions: [],
-  dailyLimits: {},
-  questResets: { daily: "", weekly: "" },
+  history: [], // legacy pre-v4 action-log archive; nothing writes it anymore
+  goals: [], // weekly quantity pledges {id, templateId, target, streak, lastResult}
+  reviews: [], // weekly review records {date, week, inputs, shifts, goals, xp}
   snapshots: [], // weekly {date, aspects} records for trend charts
   baseline: null, // raw instrument sums from onboarding, for benchmark percentiles
-  commitment: null, // active weekly aspect pledge {aspect, weeklyTarget, week, progress, completed}
   checkins: [], // monthly mini re-assessment records {date, sums, shifts}
   friends: [], // crewmates imported from Crew Codes {id, name, level, totalPoints, aspects, addedAt}
   lastExportAt: null // ISO date of the last backup export — drives the dashboard nudge
 };
 
-// Fresh copies every call: goals are mutated in place as they progress, so a
-// shared constant would leak one user's progress into the "defaults".
-export function createDefaultQuests() {
-  return [
-    {
-      id: "daily_water",
-      title: "Stay Hydrated",
-      description: "Log your 2L+ hydration once today.",
-      aspect: "physical",
-      type: "daily",
-      actionIds: ["drink_water"],
-      targetValue: 1,
-      currentValue: 0,
-      xpReward: 15,
-      completed: false
-    },
-    {
-      id: "daily_sigh",
-      title: "Breath Control",
-      description: "Log 3 physiological sighs to reset stress.",
-      aspect: "mental",
-      type: "daily",
-      actionIds: ["phys_sigh"],
-      targetValue: 3,
-      currentValue: 0,
-      xpReward: 10,
-      completed: false
-    },
-    {
-      id: "weekly_workout",
-      title: "Active Core",
-      description: "Log at least 3 exercise sessions this week.",
-      aspect: "physical",
-      type: "weekly",
-      actionIds: ["workout"],
-      targetValue: 3,
-      currentValue: 0,
-      xpReward: 50,
-      completed: false
-    },
-    {
-      id: "epic_savings",
-      title: "Safety Deposit",
-      description: "Log a savings deposit 10 times.",
-      aspect: "finance",
-      type: "epic",
-      actionIds: ["save_money"],
-      targetValue: 10,
-      currentValue: 0,
-      xpReward: 150,
-      completed: false,
-      milestones: [
-        { text: "3 deposits logged", at: 3, completed: false },
-        { text: "6 deposits logged", at: 6, completed: false },
-        { text: "10 deposits logged", at: 10, completed: false }
-      ]
-    }
-  ];
-}
+// Starter pledges live in goals.js (createDefaultPledges): they derive from
+// GOAL_TEMPLATES, which pulls in scoring.js — and this module's whole point is
+// that reading the state SHAPE never pulls in scoring or storage.

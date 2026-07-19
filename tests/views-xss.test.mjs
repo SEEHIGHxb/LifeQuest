@@ -28,6 +28,7 @@ function installGlobals() {
       set innerHTML(v) { captured.html = v; },
       get innerHTML() { return captured.html; },
       querySelectorAll: () => [],
+      querySelector: () => null,
       addEventListener: () => {}
     })
   };
@@ -54,57 +55,51 @@ function assertEscaped(html, payload, label) {
   assert.ok(html.includes("&lt;"), `${label}: expected the payload to appear escaped`);
 }
 
-test("renderQuests escapes a hostile goal title", async () => {
+test("renderQuests escapes a hostile pledge id in the remove-button attribute", async () => {
   const { renderQuests } = await import("../views/quests.js");
   const captured = installGlobals();
   renderQuests("main-view", {
-    goals: [{
-      id: "g1", title: PAYLOAD, description: "d", aspect: "physical",
-      type: "daily", targetValue: 1, currentValue: 0, xpReward: 5, completed: false
-    }]
+    goals: [{ id: BREAKOUT, templateId: "water", target: 2, streak: 0, lastResult: null }]
   });
-  assertEscaped(captured.html, PAYLOAD, "goal title");
+  assertEscaped(captured.html, BREAKOUT, "pledge id");
 });
 
-test("renderQuests escapes goal.type — the sink t() does not protect", async () => {
-  // t() and tp() return their input unchanged for unknown keys. renderQuests
-  // prints t(goal.type.toUpperCase()) into a <span>, so before this was
-  // escaped a hostile `type` was a live injection point.
+test("renderQuests drops a pledge whose templateId names no template", async () => {
+  // Every user-facing pledge string derives from its template, so an unknown
+  // templateId has nothing safe to render as — the card is dropped whole.
   const { renderQuests } = await import("../views/quests.js");
   const captured = installGlobals();
   renderQuests("main-view", {
-    goals: [{
-      id: "g1", title: "ok", description: "d", aspect: "physical",
-      type: PAYLOAD, targetValue: 1, currentValue: 0, xpReward: 5, completed: false
-    }]
+    goals: [{ id: "g1", templateId: PAYLOAD, target: 1, streak: 0, lastResult: null }]
   });
-  assertEscaped(captured.html, PAYLOAD, "goal type");
+  assert.ok(!captured.html.includes(PAYLOAD), "hostile templateId reached innerHTML");
+  assert.ok(!/<(img|script|svg|iframe)\b/i.test(captured.html), "no unescaped tag opener");
 });
 
-test("renderQuests escapes hostile milestone text and descriptions", async () => {
+test("renderQuests escapes a hostile target — tp() interpolation does not protect", async () => {
+  // tp() substitutes params into the template verbatim, so an unescaped
+  // {target} would be a live injection point on the description line.
   const { renderQuests } = await import("../views/quests.js");
   const captured = installGlobals();
   renderQuests("main-view", {
-    goals: [{
-      id: "g1", title: "ok", description: BREAKOUT, aspect: "physical",
-      type: "epic", targetValue: 3, currentValue: 1, xpReward: 5, completed: false,
-      milestones: [{ text: PAYLOAD, at: 1, completed: false }]
-    }]
+    goals: [{ id: "g1", templateId: "water", target: PAYLOAD, streak: 0, lastResult: null }]
   });
-  assertEscaped(captured.html, PAYLOAD, "milestone text");
+  assertEscaped(captured.html, PAYLOAD, "pledge target");
 });
 
-test("renderQuests escapes hostile titles on completed goals too", async () => {
-  // The completed branch is separate markup — it needs its own coverage.
+test("renderQuests escapes a hostile last-result value in both graded branches", async () => {
+  // Met and missed render separate markup — each needs its own coverage.
   const { renderQuests } = await import("../views/quests.js");
-  const captured = installGlobals();
-  renderQuests("main-view", {
-    goals: [{
-      id: "g1", title: PAYLOAD, description: "d", aspect: "physical",
-      type: "daily", targetValue: 1, currentValue: 1, xpReward: 5, completed: true
-    }]
-  });
-  assertEscaped(captured.html, PAYLOAD, "completed goal");
+  for (const met of [true, false]) {
+    const captured = installGlobals();
+    renderQuests("main-view", {
+      goals: [{
+        id: "g1", templateId: "water", target: 2, streak: 0,
+        lastResult: { week: "2026-W28", value: PAYLOAD, met }
+      }]
+    });
+    assertEscaped(captured.html, PAYLOAD, `last-result value (met=${met})`);
+  }
 });
 
 test("escapeHtml neutralises every HTML-significant character", async () => {

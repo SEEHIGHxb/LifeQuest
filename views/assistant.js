@@ -25,5 +25,5 @@ export function getLumiTip(aspects) {
     humanityFuture: "Long-term security grows from consistent habits — saving and upskilling both anchor your future."
   };
 
-  return t(dialogs[lowestAspect] || "Log a routine today to keep your assessment current and track your progress.");
+  return t(dialogs[lowestAspect] || "Complete your weekly review to keep your assessment current and track your progress.");
 }
