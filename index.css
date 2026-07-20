@@ -1194,6 +1194,137 @@ header {
 .band-around { color: var(--color-text-secondary); }
 .band-below, .band-bottom { color: var(--color-gold-light); }
 
+/* --- Letter grades (Phase L1) ---
+   Same chip geometry as the confidence and percentile chips, one step larger
+   because a single letter needs the weight to read at a glance.
+   Only A is filled: a filled F would shout, and the app's duty-of-care stance
+   is that a low grade is information, not an alarm. C is deliberately neutral
+   ink rather than a warning color — the C band is the typical middle, where
+   most people honestly are. */
+.grade-badge {
+  display: inline-block;
+  vertical-align: middle;
+  min-width: 1.55rem;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  line-height: 1.5;
+}
+.grade-a {
+  color: #fff;
+  background: var(--color-nectar);
+  border-color: var(--color-nectar);
+}
+.grade-b { color: var(--color-nectar); }
+.grade-c { color: var(--color-text-secondary); }
+.grade-d { color: var(--color-gold); }
+.grade-f { color: var(--color-crimson); }
+.grade-none {
+  color: var(--color-text-secondary);
+  border-style: dashed;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* Keeps the grade chip and the score % on one baseline in a dashboard row. */
+.aspect-row-figures {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.grade-explainer p {
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+  margin-bottom: 6px;
+}
+.grade-explainer p:last-child { margin-bottom: 0; }
+.grade-explainer-note {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+/* --- Balance Index (Phase L1) --- */
+.balance-index {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.balance-index-figure {
+  flex-shrink: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.balance-index-value {
+  font-family: var(--font-serif);
+  font-size: 2.6rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-navy);
+}
+.balance-index-max {
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+.balance-index-body { min-width: 0; }
+.balance-index-title {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-navy);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.balance-index-caption {
+  font-size: 0.76rem;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
+.balance-index-weakest {
+  font-size: 0.8rem;
+  color: var(--color-gold);
+  font-weight: 600;
+  margin-top: 4px;
+}
+.balance-band {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  line-height: 1.5;
+}
+.band-strong { color: var(--color-nectar); }
+.band-steady { color: var(--color-gold); }
+.band-uneven { color: var(--color-gold-light); }
+.band-strained { color: var(--color-crimson); }
+
+/* Stack the index on narrow screens so the caption keeps a readable measure. */
+@media (max-width: 480px) {
+  .balance-index {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}
+
 /* --- Deep (in-depth) assessment --- */
 .deep-banner {
   display: flex;

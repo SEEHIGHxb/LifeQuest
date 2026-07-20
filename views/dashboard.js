@@ -8,10 +8,11 @@ import { AVERAGE_ASPECT_SCORES } from "../averages.js";
 import { getAllBenchmarks, collectSources } from "../benchmarks.js";
 import { getAspectConfidence, ASPECT_KEYS, isAspectDeepVerified } from "../aspects.js";
 import { getTopSuggestions, getMentalHealthNotice } from "../suggestions.js";
+import { balanceIndex, balanceBand, weakestAspect, gradeAllAspects } from "../grades.js";
 import { t, tp, dateLocale } from "../i18n.js";
 import {
   escapeHtml, aspectLabel, confidenceBadge, benchmarkStanding, methodTag,
-  estimatedAspects, mentalHealthNotice, CHECKIN_ASPECTS
+  estimatedAspects, mentalHealthNotice, gradeBadge, balanceIndexBlock, CHECKIN_ASPECTS
 } from "./helpers.js";
 
 // Shared markup for one suggestion entry.
@@ -36,6 +37,10 @@ export function renderDashboard(containerId, state, onExportBackup) {
   const xpPercent = Math.round((p.xp / xpNeeded) * 100);
   const benchmarks = getAllBenchmarks(state);
   const benchmarkSources = collectSources(benchmarks);
+  const grades = gradeAllAspects(benchmarks);
+  const index = balanceIndex(state.aspects);
+  const indexBand = balanceBand(index);
+  const weakest = weakestAspect(state.aspects);
   const suggestions = getTopSuggestions(state, 3);
   const checkinDue = stateManager.isCheckinDue();
   const reviewDue = stateManager.isWeeklyReviewDue();
@@ -110,6 +115,10 @@ export function renderDashboard(containerId, state, onExportBackup) {
         </div>
 
         <div class="card">
+          ${balanceIndexBlock(index, indexBand, weakest)}
+        </div>
+
+        <div class="card">
           <h4 class="card-header">${t("Aspect Radar")}</h4>
           <div id="radar-chart-container"></div>
         </div>
@@ -135,7 +144,7 @@ export function renderDashboard(containerId, state, onExportBackup) {
                 <a href="#/aspect/${key}" class="aspect-row" aria-label="${tp("Open {aspect} details", { aspect: aspectLabel(key) })}">
                   <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 500; margin-bottom: 2px;">
                     <span>${aspectLabel(key)} ${confidenceBadge(getAspectConfidence(state, key))} <span class="aspect-row-arrow">&rsaquo;</span></span>
-                    <span class="text-gold" style="font-family: var(--font-mono); font-weight: bold;">${val}%</span>
+                    <span class="aspect-row-figures">${gradeBadge(grades[key])} <span class="text-gold" style="font-family: var(--font-mono); font-weight: bold;">${val}%</span></span>
                   </div>
                   <div class="xp-bar-container" style="height: 5px; margin-top: 0;" role="progressbar" aria-label="${aspectLabel(key)}" aria-valuenow="${val}" aria-valuemin="0" aria-valuemax="100">
                     <div class="xp-bar-fill" style="width: ${val}%; background-color: var(--color-gold);"></div>

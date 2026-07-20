@@ -14,6 +14,8 @@ import { dirname, join } from "node:path";
 import { TH } from "../th.js";
 import { INSTRUMENTS, DEEP_INSTRUMENTS, DEEP_SECTIONS } from "../surveys.js";
 import { GOAL_TEMPLATES } from "../goals.js";
+import { PERCENTILE_BANDS } from "../benchmarks.js";
+import { GRADE_BANDS, BALANCE_BANDS } from "../grades.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -82,6 +84,16 @@ test("every survey title, item text, and option label has a Thai translation", (
     check(tmpl.title, `GOAL_TEMPLATES.${id}.title`);
     check(tmpl.desc, `GOAL_TEMPLATES.${id}.desc`);
     check(tmpl.unit, `GOAL_TEMPLATES.${id}.unit`);
+  }
+  // Band labels are canonical English constants localized at render time with
+  // t(band.label) — a dynamic call the literal scanner above cannot see, so
+  // without this walk a new band would silently render English in Thai mode.
+  for (const [name, bands] of [
+    ["PERCENTILE_BANDS", PERCENTILE_BANDS],
+    ["GRADE_BANDS", GRADE_BANDS],
+    ["BALANCE_BANDS", BALANCE_BANDS]
+  ]) {
+    for (const band of bands) check(band.label, `${name} label`);
   }
   assert.equal(
     missing.length, 0,

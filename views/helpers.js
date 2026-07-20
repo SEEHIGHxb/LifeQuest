@@ -52,6 +52,45 @@ export function componentConfidenceChip(tier) {
   return `<span class="component-confidence confidence-${tier}">${CONFIDENCE_LABELS()[tier]}</span>`;
 }
 
+// --- GRADES (Phase L1) ---
+
+// Letter-grade chip for one aspect. `null` means the aspect has no benchmark
+// yet (the survey instruments were never answered) and renders as an explicit
+// "not graded" chip — NOT as an F. An unanswered questionnaire is missing
+// data, and showing it as a failing grade would be the app inventing a verdict
+// it has no measurement for.
+export function gradeBadge(grade) {
+  if (!grade) {
+    return `<span class="grade-badge grade-none" title="${escapeHtml(t("Answer this aspect's questionnaires to unlock its grade."))}">${t("Not graded")}</span>`;
+  }
+  const title = tp("Grade {letter} — {band} of people like you (percentile {pct}).", {
+    letter: grade.grade, band: t(grade.label), pct: grade.percentile
+  });
+  return `<span class="grade-badge grade-${grade.grade.toLowerCase()}" title="${escapeHtml(title)}">${escapeHtml(grade.grade)}</span>`;
+}
+
+// The Balance Index headline block for a personal page. `index` is the
+// harmonic mean from grades.js; `weakest` is its {aspect, score} drag point.
+//
+// The caption is deliberate: this number is the app's own aggregate, not a
+// published measure, and every surface that shows it says so. Removing that
+// line would put an uncited construct next to eight cited ones with nothing
+// to tell them apart.
+export function balanceIndexBlock(index, band, weakest) {
+  return `
+    <div class="balance-index">
+      <div class="balance-index-figure">
+        <span class="balance-index-value">${index}</span>
+        <span class="balance-index-max">/100</span>
+      </div>
+      <div class="balance-index-body">
+        <p class="balance-index-title">${t("Balance Index")} <span class="balance-band band-${band.key}">${t(band.label)}</span></p>
+        <p class="balance-index-caption">${t("A harmonic mean of your eight aspects — it rises fastest when your lowest aspect rises. This is this app's own summary figure, not a published measure.")}</p>
+        ${weakest ? `<p class="balance-index-weakest">${tp("Lifting {aspect} would move it most.", { aspect: aspectLabel(weakest.aspect) })}</p>` : ""}
+      </div>
+    </div>`;
+}
+
 // --- FRIENDLIER PERCENTILE PRESENTATION ---
 //
 // A percentile is jargon; most people read "ahead of ~62% of people like you"

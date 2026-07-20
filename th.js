@@ -913,6 +913,44 @@ export const TH = {
   "Below average": "ต่ำกว่าค่าเฉลี่ย",
   "Bottom 25%": "25% ล่าง",
 
+  // --- Letter grades and the Balance Index (Phase L1) ---
+  // Grade band labels (GRADE_BANDS in grades.js) — rendered via t(variable),
+  // so the data-walking guard in tests/i18n-coverage.test.mjs pins them.
+  "Top 30%": "30% แรก",
+  "Typical range": "ช่วงทั่วไป",
+  "Below typical": "ต่ำกว่าทั่วไป",
+  "Bottom 10%": "10% ล่าง",
+  // Balance Index band labels (BALANCE_BANDS in grades.js).
+  "Strong balance": "สมดุลดีมาก",
+  "Steady balance": "สมดุลมั่นคง",
+  "Uneven balance": "สมดุลไม่สม่ำเสมอ",
+  "Strained balance": "สมดุลตึงเครียด",
+
+  "Grade {letter}": "เกรด {letter}",
+  "Not graded": "ยังไม่ให้เกรด",
+  "Not graded yet.": "ยังไม่ให้เกรด",
+  "Balance Index": "ดัชนีสมดุล",
+  "Grades and the Balance Index": "เกรดและดัชนีสมดุล",
+  "Grade {letter} — {band} of people like you (percentile {pct}).":
+    "เกรด {letter} — {band} ของคนที่คล้ายคุณ (เปอร์เซ็นไทล์ที่ {pct})",
+  "{band} of people like you, from the population comparison below.":
+    "{band} ของคนที่คล้ายคุณ จากการเทียบกับประชากรด้านล่าง",
+  "Grades come from the cited percentile, not from the 0-100 score — the score is this app's own composite, while the percentile is the part that compares you with real published data.":
+    "เกรดมาจากเปอร์เซ็นไทล์ที่อ้างอิงแหล่งข้อมูล ไม่ได้มาจากคะแนน 0-100 เพราะคะแนนเป็นค่าที่แอปนี้ประกอบขึ้นเอง ส่วนเปอร์เซ็นไทล์คือส่วนที่เทียบคุณกับข้อมูลที่เผยแพร่จริง",
+  "This aspect is graded from its population comparison, which needs its questionnaires answered first.":
+    "ด้านนี้ให้เกรดจากการเทียบกับประชากร ซึ่งต้องตอบแบบสอบถามของด้านนี้ก่อน",
+  "Answer this aspect's questionnaires to unlock its grade.":
+    "ตอบแบบสอบถามของด้านนี้เพื่อปลดล็อกเกรด",
+  "A harmonic mean of your eight aspects — it rises fastest when your lowest aspect rises. This is this app's own summary figure, not a published measure.":
+    "ค่าเฉลี่ยฮาร์มอนิกของทั้งแปดด้าน — จะขยับขึ้นเร็วที่สุดเมื่อด้านที่ต่ำที่สุดของคุณดีขึ้น นี่เป็นตัวเลขสรุปที่แอปนี้สร้างขึ้นเอง ไม่ใช่มาตรวัดที่มีการเผยแพร่",
+  "Lifting {aspect} would move it most.": "การยกระดับด้าน{aspect}จะทำให้ค่านี้ขยับมากที่สุด",
+  "A letter grade (A-F) comes from an aspect's population percentile, never from its 0-100 score: A is the top 10%, B the top 30%, C the typical middle (30th-69th), D below typical, and F the bottom 10%. The percentile is the part of an aspect that compares you with published data, so it is the only part worth grading. An aspect whose questionnaires you have not answered is shown as “not graded” — never as an F, because missing data is not a failing result.":
+    "เกรด (A-F) มาจากเปอร์เซ็นไทล์เทียบประชากรของแต่ละด้าน ไม่ได้มาจากคะแนน 0-100: A คือ 10% แรก, B คือ 30% แรก, C คือช่วงกลางทั่วไป (เปอร์เซ็นไทล์ที่ 30-69), D คือต่ำกว่าทั่วไป และ F คือ 10% ล่าง เปอร์เซ็นไทล์คือส่วนของคะแนนที่เทียบคุณกับข้อมูลที่เผยแพร่จริง จึงเป็นส่วนเดียวที่ควรนำมาให้เกรด ด้านที่คุณยังไม่ได้ตอบแบบสอบถามจะแสดงว่า “ยังไม่ให้เกรด” ไม่ใช่ F เพราะการไม่มีข้อมูลไม่ใช่ผลลัพธ์ที่ล้มเหลว",
+  "The Balance Index is this app's own summary figure, not a published or validated measure — unlike the eight aspect scores and their percentiles, no research proposes it and nothing outside this app uses it. It is the harmonic mean of your eight aspect scores, which means your lowest aspect pulls it down hardest: eight scores of 70 give an index of 70, while seven scores near 79 with one at 10 give 42, even though both average 70. That is deliberate — a single number that rewarded a high average would reward neglecting an aspect entirely, and this app is about balance.":
+    "ดัชนีสมดุลเป็นตัวเลขสรุปที่แอปนี้สร้างขึ้นเอง ไม่ใช่มาตรวัดที่มีการเผยแพร่หรือผ่านการตรวจสอบความตรง ต่างจากคะแนนทั้งแปดด้านและเปอร์เซ็นไทล์ของมัน ไม่มีงานวิจัยใดเสนอค่านี้ และไม่มีที่ใดนอกแอปนี้ใช้มัน ค่านี้คือค่าเฉลี่ยฮาร์มอนิกของคะแนนทั้งแปดด้าน ซึ่งหมายความว่าด้านที่ต่ำที่สุดจะดึงค่านี้ลงแรงที่สุด: คะแนน 70 ทั้งแปดด้านได้ดัชนี 70 ขณะที่เจ็ดด้านราว 79 กับอีกหนึ่งด้านที่ 10 ได้ดัชนี 42 ทั้งที่ค่าเฉลี่ยเท่ากับ 70 เหมือนกัน นี่เป็นความตั้งใจ เพราะตัวเลขเดียวที่ให้รางวัลกับค่าเฉลี่ยสูง ย่อมให้รางวัลกับการละเลยบางด้านไปเลย และแอปนี้ว่าด้วยเรื่องสมดุล",
+  "Because the index is dominated by your weakest aspect, raising a low score moves it far more than raising an already-high one. Treat it as a prompt about where attention is missing, not as a verdict on your life.":
+    "เพราะดัชนีนี้ถูกกำหนดโดยด้านที่อ่อนที่สุดของคุณเป็นหลัก การยกคะแนนที่ต่ำจึงทำให้ดัชนีขยับมากกว่าการยกคะแนนที่สูงอยู่แล้วมาก ให้มองว่านี่เป็นสัญญาณว่าคุณกำลังละเลยด้านไหน ไม่ใช่คำตัดสินชีวิตของคุณ",
+
   // Deep section titles & blurbs
   "Finance — in depth": "การเงิน — เชิงลึก",
   "Physical — in depth": "ร่างกาย — เชิงลึก",

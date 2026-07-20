@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Two version numbers, on purpose
 
-- **`APP_VERSION`** (`version.js`, currently `27`) is a monotonic **cache-bust
+- **`APP_VERSION`** (`version.js`, currently `28`) is a monotonic **cache-bust
   counter**, not semver. It appears in the `?v=N` query on every versioned
   asset and in the service worker's `CACHE_NAME`. Bump it on *any* release that
   changes a shipped file. `tests/consistency.test.mjs` fails CI if the sites
@@ -15,6 +15,62 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 They are deliberately independent: a one-character CSS fix needs a cache bust
 but not a minor version.
+
+## [1.6.0] — 2026-07-21 (APP_VERSION 28)
+
+Letter grades per aspect, and a single Balance Index summarising all eight.
+Additive only — no schema change, no existing number moves.
+
+### Added
+
+- **Letter grades (A–F) per aspect**, shown on the dashboard rows and each
+  aspect page. Grades derive from the aspect's **population percentile** — the
+  cited comparison in `benchmarks.js` — never from its 0–100 score. The score
+  is this app's own composite; the percentile is the part that compares you
+  with published data, so it is the only part worth grading. Bands are
+  percentile floors: A ≥ 90th, B ≥ 70th, C ≥ 30th, D ≥ 10th, F below.
+- **The C band is deliberately wide** (30th–69th). Most people are typical, and
+  a scale handing out D's at the 35th percentile would misrepresent an
+  ordinary life.
+- **"Not graded" instead of F for unanswered aspects.** `mental`,
+  `relationships` and `personalGoals` have no benchmark until their baseline
+  questionnaires are answered, so they render an explicit *not graded* chip
+  with a prompt. Missing data is not a failing result, and grading those three
+  off the raw score would have put them on a different basis from the other
+  five.
+- **Balance Index** — the harmonic mean of the eight aspect scores, on the
+  dashboard. It is dominated by your *lowest* aspect: eight scores of 70 give
+  70, while seven near 79 plus one at 10 give 42, though both average 70. That
+  is the point — a summary that rewarded a high average would reward
+  abandoning an aspect, and lifting a neglected aspect moves it far more than
+  polishing a strong one. The block names the weakest aspect for that reason.
+- **Methodology page** gains a "Grades and the Balance Index" section stating
+  plainly that the Balance Index is **this app's own summary figure, not a
+  published or validated measure** — unlike the eight aspect scores and their
+  percentiles, no research proposes it. The app cites everything it can; a
+  headline number that merely *looked* equally sourced would have quietly
+  broken that.
+- New `grades.js` (pure module) and `tests/grades.test.mjs` (16 tests, 100%
+  line and function coverage), pinning band edges, the balanced-beats-spiky
+  property, and zero/missing-score guards.
+
+### Fixed
+
+- **i18n coverage gap.** Band labels reach `t()` as variables (`t(band.label)`),
+  which the literal scanner in `tests/i18n-coverage.test.mjs` cannot see, so a
+  new band could ship untranslated and silently render English in Thai mode.
+  The data-walking guard already used for surveys and pledge templates now
+  also walks `PERCENTILE_BANDS`, `GRADE_BANDS` and `BALANCE_BANDS`.
+
+### Notes
+
+- A bottom-decile grade on Mental Health always renders with the existing
+  support notice attached — never a bare "F". The WHO-5 cutoffs make this
+  structural (every raw score that grades F also trips
+  `getMentalHealthNotice()`), and a test asserts it so the two cutoffs cannot
+  drift apart.
+- Grades are personal-page only. They are deliberately absent from the
+  comparison board and the shareable code.
 
 ## [1.5.0] — 2026-07-18 (APP_VERSION 27)
 

@@ -6,8 +6,9 @@ import { renderTrendChart } from "../chart.js";
 import { getAspectDetail } from "../aspects.js";
 import { getAspectSuggestions, getMentalHealthNotice } from "../suggestions.js";
 import { t, tp } from "../i18n.js";
+import { gradeForBenchmark } from "../grades.js";
 import {
-  escapeHtml, confidenceBadge, componentConfidenceChip,
+  escapeHtml, confidenceBadge, componentConfidenceChip, gradeBadge,
   benchmarkStanding, methodTag, mentalHealthNotice, CHECKIN_ASPECTS
 } from "./helpers.js";
 
@@ -32,6 +33,7 @@ export function renderAspectPage(containerId, state, aspectKey) {
   if (!detail) return;
 
   const b = detail.benchmark;
+  const grade = gradeForBenchmark(b);
   const suggestions = getAspectSuggestions(state, aspectKey);
 
   container.innerHTML = `
@@ -52,8 +54,22 @@ export function renderAspectPage(containerId, state, aspectKey) {
       <div class="aspect-score-badge">
         <span class="aspect-score-value">${detail.score}</span>
         <span class="aspect-score-max">/100</span>
+        ${gradeBadge(grade)}
       </div>
     </div>
+
+    ${grade ? `
+      <div class="card grade-explainer">
+        <p><strong>${tp("Grade {letter}", { letter: grade.grade })}</strong> — ${tp("{band} of people like you, from the population comparison below.", { band: t(grade.label) })}</p>
+        <p class="grade-explainer-note">${t("Grades come from the cited percentile, not from the 0-100 score — the score is this app's own composite, while the percentile is the part that compares you with real published data.")}</p>
+      </div>` : `
+      <div class="card grade-explainer">
+        <p><strong>${t("Not graded yet.")}</strong> ${t("This aspect is graded from its population comparison, which needs its questionnaires answered first.")}${
+          CHECKIN_ASPECTS.includes(aspectKey) && state.baseline
+            ? ` <a href="#/checkin">${t("Start Re-assessment")}</a>`
+            : ""
+        }</p>
+      </div>`}
 
     ${detail.confidence && detail.confidence.tier === "estimated" ? `
       <div class="quickstart-note completeness-note">
