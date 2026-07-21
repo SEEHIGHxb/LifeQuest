@@ -536,20 +536,28 @@ function triggerLumiMessage(message, { announce = false } = {}) {
 // --- EVENT LISTENERS (LEVEL UP MODAL) ---
 // openDialog supplies the WCAG dialog behavior (role/aria-modal, focus trap,
 // Escape, focus restore) that this overlay used to lack (review finding).
+// Only a birthday fires this now — XP never levels anyone up. The copy is
+// celebratory and carries no grading: a birthday is not an achievement to be
+// scored, and the year that just closed is shown as FILED, never as wiped.
 window.addEventListener("lifequest_levelup", (e) => {
   const data = e.detail;
+  const filed = stateManager.state.levelYears.slice(-(data.years || 1));
 
   const { overlay, close } = openDialog({
-    label: t("Level Up"),
+    label: t("Happy birthday"),
     html: `
     <div class="popup-card">
-      <div style="font-size: 3rem; margin-bottom: 10px;">🏆</div>
-      <h2 class="popup-title" style="font-family: var(--font-serif); font-weight: bold;">${t("Level Up")}</h2>
-      <p style="font-size: 1.1rem; margin-bottom: 15px;">${t("Your overall progress level has increased.")}</p>
+      <div style="font-size: 3rem; margin-bottom: 10px;">🎂</div>
+      <h2 class="popup-title" style="font-family: var(--font-serif); font-weight: bold;">${t("Happy birthday")}</h2>
+      <p style="font-size: 1.1rem; margin-bottom: 15px;">${t("A new year starts today. Your points reset for the year ahead — last year is saved below, not lost.")}</p>
       <div style="background: var(--color-astral-glow); border: 1.5px solid var(--color-astral-dark); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-        <span style="font-family: var(--font-mono); font-size: 1.4rem; font-weight: bold; color: var(--color-navy);">${tp("LEVEL {n}", { n: data.level })}</span>
-        <br>
-        <span class="text-gold" style="font-family: var(--font-serif); font-weight: 600; font-size: 1.1rem;">${tp("Rank: {rank}", { rank: t(data.rank) })}</span>
+        <span style="font-family: var(--font-mono); font-size: 1.4rem; font-weight: bold; color: var(--color-navy);">${tp("AGE {n}", { n: data.level })}</span>
+        ${filed.map(y => `
+          <br>
+          <span class="text-gold" style="font-family: var(--font-serif); font-weight: 600; font-size: 0.95rem;">${tp("Year {level} filed: {xp} points", { level: y.level, xp: y.xp })}</span>`).join("")}
+        ${data.shifts && data.shifts.finance
+          ? `<br><span style="font-family: var(--font-serif); font-size: 0.85rem; color: var(--color-text-secondary);">${t("Your age band changed, so the finance score was recalculated.")}</span>`
+          : ""}
       </div>
       <button class="btn btn-primary btn-close-levelup" style="width: 120px;">${t("Continue")}</button>
     </div>

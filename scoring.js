@@ -377,6 +377,26 @@ export function weeklyAspectShifts(oldProfile, newProfile, baseline) {
   return shifts;
 }
 
+// The CFPB financial well-being table is age-banded (18-61 vs 62+), so a
+// birthday that crosses 62 genuinely changes the finance score.
+//
+// Returned as a DELTA, never a recompute. The stored score carries every
+// check-in and deep-assessment adjustment the user has accumulated; rebuilding
+// it from the profile would silently discard all of them, and the user would
+// see months of re-assessment vanish on a birthday with no explanation. Same
+// reasoning, same shape as weeklyAspectShifts above.
+//
+// Wrapping the stored sum as [sum] is the established idiom here: rawSum of a
+// one-element array is that element, so a stored total feeds a calculator that
+// expects raw answers.
+export function ageBandShifts(profile, oldAge, newAge, baseline) {
+  const cfpb = [Number(baseline && baseline.cfpb) || 0];
+  const delta = calculateFinanceScore({ ...profile, age: newAge }, cfpb)
+    - calculateFinanceScore({ ...profile, age: oldAge }, cfpb);
+  const rounded = Math.round(delta);
+  return rounded === 0 ? {} : { finance: rounded };
+}
+
 // --- LEVEL RANKS (progression labels — pure lookups on level) ---
 
 export function rankForLevel(level) {

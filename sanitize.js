@@ -228,11 +228,16 @@ export function sanitizeBirthday(month, day) {
 export function sanitizeSeason(raw) {
   const src = raw && typeof raw === "object" ? raw : {};
   const startDate = safeString(src.startDate, 40);
+  // lastAccrualWeek is the "YYYY-MM-DD" Monday of the last charged week, and
+  // accrual subtracts dates from it. An unparseable value would make that
+  // subtraction NaN, carry NaN into possibleXp, and render NaN across the
+  // whole status card — so it is validated, not merely length-capped.
+  const accrual = safeString(src.lastAccrualWeek, 12);
   return {
     startDate: Number.isFinite(new Date(startDate).getTime()) ? startDate : null,
     earnedXp: Math.round(clampNumber(src.earnedXp, 0, 100000000, 0)),
     possibleXp: Math.round(clampNumber(src.possibleXp, 0, 100000000, 0)),
-    lastAccrualWeek: safeString(src.lastAccrualWeek, 12) || null
+    lastAccrualWeek: Number.isFinite(new Date(accrual).getTime()) ? accrual : null
   };
 }
 

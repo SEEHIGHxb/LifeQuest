@@ -76,12 +76,15 @@ export const TH = {
   "Activity recorded: +{xp} points{detail}.": "บันทึกกิจกรรมแล้ว: +{xp} คะแนน{detail}",
   "Re-assessment complete: {parts} (+40 points)": "ประเมินซ้ำเสร็จสิ้น: {parts} (+40 คะแนน)",
   "Re-assessment needs a baseline — complete the initial assessment first.": "การประเมินซ้ำต้องมีข้อมูลพื้นฐานก่อน — กรุณาทำแบบประเมินเริ่มต้นให้เสร็จก่อน",
-  "Level Up": "เลเวลเพิ่มขึ้น",
-  "Your overall progress level has increased.": "ความก้าวหน้าโดยรวมของคุณเพิ่มขึ้นแล้ว",
-  "LEVEL {n}": "เลเวล {n}",
-  // {rank} already arrives translated as "ระดับ S" — repeating the label
-  // would render the doubled "ระดับ: ระดับ S".
-  "Rank: {rank}": "{rank}",
+  // Level is the user's age now, so this moment is a birthday, not an
+  // achievement. The copy carries no grading and no "you earned this".
+  "Happy birthday": "สุขสันต์วันเกิด",
+  "A new year starts today. Your points reset for the year ahead — last year is saved below, not lost.":
+    "ปีใหม่ของคุณเริ่มต้นวันนี้ คะแนนจะเริ่มนับใหม่สำหรับปีที่กำลังมาถึง — ปีที่ผ่านมาถูกบันทึกไว้ด้านล่าง ไม่ได้หายไป",
+  "AGE {n}": "อายุ {n}",
+  "Year {level} filed: {xp} points": "บันทึกปีอายุ {level}: {xp} คะแนน",
+  "Your age band changed, so the finance score was recalculated.":
+    "ช่วงอายุของคุณเปลี่ยนไป คะแนนด้านการเงินจึงถูกคำนวณใหม่",
   "Continue": "ดำเนินการต่อ",
   'Goal completed: "{title}" (+{xp} points)': 'บรรลุเป้าหมาย: "{title}" (+{xp} คะแนน)',
 

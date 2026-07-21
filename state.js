@@ -13,16 +13,20 @@ import {
 import {
   clampNumber, safeString, sanitizeAspectScores, sanitizeImportedFriend,
   sanitizeImportedGoal, sanitizeImportedReview, sanitizeProfileFields,
-  migrateV3State, migrateV4State,
+  migrateV3State, migrateV4State, LEVEL_YEAR_LIMIT,
   sanitizeSeason, sanitizeLastLevelUp, sanitizeBirthday, sanitizeLevelYears
 } from "./sanitize.js";
+import {
+  isoWeekKey, accrueSeason, closeSeason, openSeason,
+  mostRecentBirthday, birthdaysSince
+} from "./season.js";
 import {
   rawSum, mentalComposite, relationshipsComposite, personalGoalsComposite,
   calculateFinanceScore, calculatePhysicalScore, calculateMentalScore,
   calculateRelationshipsScore, calculatePersonalGoalsScore,
   calculateSocialContributionScore, calculateEnvironmentScore,
   calculateHumanityFutureScore, deepAspectScore, weeklyAspectShifts,
-  rankForLevel, rankClassForLevel
+  ageBandShifts, clamp100, rankForLevel, rankClassForLevel
 } from "./scoring.js";
 import { INSTRUMENTS, DEEP_INSTRUMENTS } from "./surveys.js";
 import { isStraightLined } from "./validation.js";
@@ -70,16 +74,6 @@ function dispatchAppEvent(name, detail) {
   }
 }
 
-function isoWeekKey(date) {
-  // Thursday-based ISO week number, keyed as "YYYY-Www"
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
-  return `${d.getUTCFullYear()}-W${weekNo}`;
-}
-
 export class GameStateManager {
   // Construction only READS the save — no writes, no mutations. The boot
   // maintenance (period resets, weekly snapshot) is an explicit init() so that
@@ -90,11 +84,88 @@ export class GameStateManager {
 
   // Run-once boot maintenance. app.js calls this at startup; tests call it (or
   // not) explicitly. Safe to call again — every step is idempotent per period.
-  init() {
+  //
+  // Birthdays are processed BEFORE accrual on purpose: a level-up opens a fresh
+  // season, and accruing first would charge the closing season for weeks the
+  // user spent in it before the feature could measure them, then file that
+  // season on a ratio it never had a chance to earn.
+  init(now = new Date()) {
     if (!this.state.onboarded) return;
-    if (this.maybeTakeSnapshot()) {
-      this.saveState();
+    const changed = [
+      this.processBirthdays(now),
+      this.accruePossibleXp(now),
+      this.maybeTakeSnapshot()
+    ];
+    if (changed.some(Boolean)) this.saveState();
+  }
+
+  // --- AGE-AS-LEVEL (birthdays advance the level; XP never does) ---
+
+  // What a fully-met week is worth: showing up, plus every active pledge.
+  weeklyXpEnvelope() {
+    return this.state.goals.reduce(
+      (sum, goal) => sum + (goalTemplate(goal.templateId)?.xp || 0),
+      WEEKLY_REVIEW_XP
+    );
+  }
+
+  accruePossibleXp(now = new Date()) {
+    const season = this.state.profile.season;
+    const result = accrueSeason(season, this.weeklyXpEnvelope(), now);
+    if (result.weeks === 0 && result.lastAccrualWeek === season.lastAccrualWeek) return false;
+    season.possibleXp = result.possibleXp;
+    season.lastAccrualWeek = result.lastAccrualWeek;
+    return true;
+  }
+
+  processBirthdays(now = new Date()) {
+    const p = this.state.profile;
+    // No birthday, no level-ups. The prompt to set one is a soft ask, never a
+    // blocking modal — an unanswered question must not freeze the app.
+    if (!p.birthMonth || !p.birthDay) return false;
+
+    // First time the birthday is known: anchor to the most recent past
+    // occurrence WITHOUT levelling up. The user's level already equals their
+    // age, so that birthday is already counted — firing here would hand them a
+    // year they have not lived.
+    if (!p.lastLevelUp) {
+      p.lastLevelUp = {
+        date: mostRecentBirthday(now, p.birthMonth, p.birthDay).toISOString(),
+        lifetimeXpAt: p.lifetimeXp
+      };
+      return true;
     }
+
+    const elapsed = birthdaysSince(new Date(p.lastLevelUp.date), now, p.birthMonth, p.birthDay);
+    if (elapsed.length === 0) return false;
+
+    const oldAge = p.age;
+    for (const date of elapsed) {
+      // The whole current season closes into the FIRST birthday crossed. With
+      // a multi-year gap the later years file empty, which is honest: the app
+      // was not running, so it has nothing to say about those years.
+      this.state.levelYears.push(closeSeason(p.level, p.season));
+      p.level += 1;
+      p.age += 1;
+      p.season = openSeason(date);
+      p.lastLevelUp = { date: date.toISOString(), lifetimeXpAt: p.lifetimeXp };
+    }
+    if (this.state.levelYears.length > LEVEL_YEAR_LIMIT) {
+      this.state.levelYears = this.state.levelYears.slice(-LEVEL_YEAR_LIMIT);
+    }
+    p.rank = this.getRank(p.level);
+
+    // Crossing the CFPB 62 band changes the finance score. Applied as a delta
+    // so the user's accumulated check-in and deep adjustments survive.
+    const shifts = ageBandShifts(p, oldAge, p.age, this.state.baseline);
+    for (const [aspect, delta] of Object.entries(shifts)) {
+      this.state.aspects[aspect] = clamp100(this.state.aspects[aspect] + delta);
+    }
+
+    dispatchAppEvent("lifequest_levelup", {
+      level: p.level, rank: p.rank, years: elapsed.length, shifts
+    });
+    return true;
   }
 
   // Merge parsed data over defaults so saves survive new same-schema fields.

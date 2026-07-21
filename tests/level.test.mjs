@@ -7,7 +7,11 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { GameStateManager } from "../state.js";
-import { seasonPace, closeSeason, openSeason, PACE_THRESHOLD } from "../season.js";
+import {
+  seasonPace, closeSeason, openSeason, PACE_THRESHOLD,
+  isLeapYear, birthdayInYear, weeksBetween
+} from "../season.js";
+import { ageBandShifts, calculateFinanceScore } from "../scoring.js";
 import {
   migrateV4State, sanitizeBirthday, sanitizeSeason,
   sanitizeLastLevelUp, sanitizeLevelYears, LEVEL_YEAR_LIMIT
@@ -117,7 +121,8 @@ test("hostile season/level-year data is coerced, not trusted", () => {
   // an Infinity reaching the pace ratio would render NaN across the card.
   assert.equal(season.earnedXp, 0, "Infinity collapses to the fallback, never leaks");
   assert.equal(season.possibleXp, 0, "negatives floor at 0");
-  assert.equal(season.lastAccrualWeek.length, 12, "week key length-capped");
+  assert.equal(season.lastAccrualWeek, null,
+    "an unparseable accrual anchor is dropped — it would make possibleXp NaN");
 
   assert.equal(sanitizeLastLevelUp({ date: "not-a-date" }), null,
     "a garbage stamp would either freeze the level or fire a hundred level-ups");
@@ -167,6 +172,217 @@ test("beating the envelope reports the real ratio but a capped bar", () => {
   const over = seasonPace({ earnedXp: 9000, possibleXp: 7280 });
   assert.equal(over.percent, 100, "bar geometry caps");
   assert.ok(over.ratio > 1, "the figure itself does not");
+});
+
+// --- BIRTHDAY PROCESSING ---
+
+// Birthdays are stored as an ISO instant of LOCAL midnight, so slicing the
+// string would read back the UTC date (a day early anywhere east of Greenwich).
+// Assert the day the user actually experiences.
+function localYMD(iso) {
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// A loaded, onboarded v5 manager with a known birthday.
+function birthdayManager(overrides = {}) {
+  localStorage.setItem("lifequest_state", JSON.stringify({
+    ...V4_SAVE,
+    profile: { ...V4_SAVE.profile, ...(overrides.profile || {}) },
+    goals: overrides.goals || []
+  }));
+  const m = new GameStateManager();
+  Object.assign(m.state.profile, { birthMonth: 3, birthDay: 14 }, overrides.after || {});
+  return m;
+}
+
+test("learning the birthday anchors it without inventing a level-up", () => {
+  const m = birthdayManager();
+  const level = m.state.profile.level;
+  // Level already equals the age, so the most recent birthday is already
+  // counted. Firing here would hand the user a year they have not lived.
+  m.processBirthdays(new Date(2026, 6, 21));
+  assert.equal(m.state.profile.level, level, "no level-up on first learning the date");
+  assert.equal(localYMD(m.state.profile.lastLevelUp.date), "2026-03-14",
+    "anchored to the most recent PAST birthday");
+  assert.deepEqual(m.state.levelYears, [], "nothing archived");
+});
+
+test("no birthday set means no processing and no crash", () => {
+  const m = birthdayManager();
+  m.state.profile.birthMonth = null;
+  m.state.profile.birthDay = null;
+  assert.equal(m.processBirthdays(new Date(2026, 6, 21)), false);
+  assert.equal(m.state.profile.lastLevelUp, null, "an unanswered question freezes nothing");
+});
+
+test("a birthday advances the level and files the season", () => {
+  const m = birthdayManager();
+  m.state.profile.lastLevelUp = { date: new Date(2026, 2, 14).toISOString(), lifetimeXpAt: 2140 };
+  m.state.profile.season = { startDate: new Date(2026, 2, 14).toISOString(), earnedXp: 6200, possibleXp: 7280, lastAccrualWeek: null };
+
+  m.processBirthdays(new Date(2027, 2, 20)); // past the 2027 birthday
+
+  assert.equal(m.state.profile.level, 35, "34 -> 35");
+  assert.equal(m.state.profile.age, 35, "age tracks the level, or the CFPB band goes stale");
+  assert.equal(m.state.levelYears.length, 1);
+  assert.deepEqual(m.state.levelYears[0], { level: 34, xp: 6200, possible: 7280, ratio: m.state.levelYears[0].ratio });
+  assert.ok(Math.abs(m.state.levelYears[0].ratio - 0.8516) < 0.001, "the closed season keeps its real ratio");
+  assert.equal(m.state.profile.season.earnedXp, 0, "the new season starts empty");
+  assert.equal(m.state.profile.lifetimeXp, 2140, "lifetime points never reset");
+});
+
+test("processing is idempotent — a second boot the same day does not re-level", () => {
+  const m = birthdayManager();
+  m.state.profile.lastLevelUp = { date: new Date(2026, 2, 14).toISOString(), lifetimeXpAt: 0 };
+  const now = new Date(2027, 2, 20);
+  m.processBirthdays(now);
+  const after = m.state.profile.level;
+  assert.equal(m.processBirthdays(now), false, "nothing left to do");
+  assert.equal(m.state.profile.level, after, "level unchanged on the second pass");
+  assert.equal(m.state.levelYears.length, 1, "and no duplicate archive entry");
+});
+
+test("a backup imported after a multi-year gap levels up once per birthday", () => {
+  const m = birthdayManager();
+  m.state.profile.lastLevelUp = { date: new Date(2024, 2, 14).toISOString(), lifetimeXpAt: 0 };
+  m.state.profile.season = { startDate: new Date(2024, 2, 14).toISOString(), earnedXp: 900, possibleXp: 1000, lastAccrualWeek: null };
+
+  m.processBirthdays(new Date(2027, 5, 1)); // 2025, 2026, 2027 birthdays all passed
+
+  assert.equal(m.state.profile.level, 37, "34 + 3 — losing those years would be worse than replaying them");
+  assert.equal(m.state.levelYears.length, 3);
+  assert.equal(m.state.levelYears[0].xp, 900, "the running season files into the first year crossed");
+  assert.equal(m.state.levelYears[1].xp, 0, "the app was not running for the rest; they file empty");
+  assert.equal(m.state.levelYears[2].xp, 0);
+  assert.equal(localYMD(m.state.profile.season.startDate), "2027-03-14", "season opens on the latest birthday");
+});
+
+test("a Feb 29 birthday is observed on Mar 1 in common years", () => {
+  assert.equal(birthdayInYear(2028, 2, 29).getMonth(), 1, "2028 is a leap year — real Feb 29");
+  assert.equal(birthdayInYear(2028, 2, 29).getDate(), 29);
+  // Observing on Feb 28 would fire before the birthday exists; skipping the
+  // year would leave leap-day users younger than they are 3 years in 4.
+  assert.equal(birthdayInYear(2027, 2, 29).getMonth(), 2, "2027 is common — observed in March");
+  assert.equal(birthdayInYear(2027, 2, 29).getDate(), 1);
+  assert.equal(isLeapYear(2000), true, "divisible by 400");
+  assert.equal(isLeapYear(1900), false, "divisible by 100 but not 400");
+
+  const m = birthdayManager();
+  m.state.profile.birthMonth = 2;
+  m.state.profile.birthDay = 29;
+  m.state.profile.lastLevelUp = { date: new Date(2026, 2, 1).toISOString(), lifetimeXpAt: 0 };
+  m.processBirthdays(new Date(2027, 2, 2)); // Mar 2 2027, just past the observed date
+  assert.equal(m.state.profile.level, 35, "a leap-day user still ages in a common year");
+});
+
+test("init() processes birthdays BEFORE accrual, so a closed season is not back-charged", () => {
+  const m = birthdayManager();
+  const lastBirthday = new Date(2026, 2, 14);
+  m.state.profile.lastLevelUp = { date: lastBirthday.toISOString(), lifetimeXpAt: 0 };
+  m.state.profile.season = { startDate: lastBirthday.toISOString(), earnedXp: 500, possibleXp: 0, lastAccrualWeek: null };
+
+  m.init(new Date(2027, 3, 11)); // four weeks past the 2027 birthday
+
+  // Were accrual to run first, it would charge a year of possible XP to the
+  // season about to close and file it on a ratio it never had a chance to earn.
+  assert.equal(m.state.levelYears.length, 1);
+  assert.equal(m.state.levelYears[0].possible, 0, "the closed season files with the possible it actually had");
+  assert.equal(m.state.levelYears[0].xp, 500, "and the XP it actually earned");
+  assert.equal(m.state.levelYears[0].ratio, 0);
+
+  const fresh = m.state.profile.season;
+  assert.equal(fresh.earnedXp, 0, "the new season starts empty");
+  assert.equal(fresh.possibleXp, weeksBetween(new Date(2027, 2, 14), new Date(2027, 3, 11)) * 60,
+    "and accrues only from the birthday forward");
+  assert.ok(fresh.possibleXp > 0, "the accrual really ran — this assertion is not vacuous");
+});
+
+test("init() does nothing before onboarding", () => {
+  const m = birthdayManager();
+  m.state.onboarded = false;
+  m.state.profile.lastLevelUp = null;
+  m.init(new Date(2027, 2, 20));
+  assert.equal(m.state.profile.lastLevelUp, null, "no birthday anchoring on a state with no user yet");
+  assert.deepEqual(m.state.levelYears, []);
+});
+
+// --- CFPB AGE BAND (the delta that must not become a recompute) ---
+
+test("crossing the CFPB 62 band shifts finance without wiping adjustments", () => {
+  const m = birthdayManager({ profile: { age: 61, level: 61 } });
+  m.state.profile.lastLevelUp = { date: new Date(2026, 2, 14).toISOString(), lifetimeXpAt: 0 };
+  // A stored score no fresh recompute would ever produce: it carries months of
+  // check-in and deep-assessment adjustment on top of the base formula.
+  m.state.aspects.finance = 88;
+  const cfpb = [Number(m.state.baseline.cfpb) || 0];
+  const expected = ageBandShifts(m.state.profile, 61, 62, m.state.baseline);
+
+  m.processBirthdays(new Date(2027, 2, 20));
+
+  assert.equal(m.state.profile.age, 62, "now in the older CFPB band");
+  assert.notDeepEqual(expected, {}, "the 62 band really does move the score — this test is not vacuous");
+  assert.equal(m.state.aspects.finance, 88 + expected.finance, "stored value plus the delta");
+  assert.notEqual(
+    m.state.aspects.finance,
+    calculateFinanceScore(m.state.profile, cfpb),
+    "NOT a fresh recompute — that would silently discard every check-in adjustment"
+  );
+});
+
+test("a birthday that changes no age band leaves every score alone", () => {
+  const m = birthdayManager();
+  m.state.profile.lastLevelUp = { date: new Date(2026, 2, 14).toISOString(), lifetimeXpAt: 0 };
+  const before = { ...m.state.aspects };
+  m.processBirthdays(new Date(2027, 2, 20)); // 34 -> 35, well inside the 18-61 band
+  assert.deepEqual(m.state.aspects, before, "ageing is not a score event by itself");
+});
+
+// --- possibleXp ACCRUAL ---
+
+test("possible XP accrues for missed weeks, so skipping does not flatter the ratio", () => {
+  const m = birthdayManager({ goals: [] });
+  const start = new Date(2026, 5, 1); // Mon 1 Jun 2026
+  m.state.profile.season = { startDate: start.toISOString(), earnedXp: 0, possibleXp: 0, lastAccrualWeek: null };
+
+  m.accruePossibleXp(new Date(2026, 5, 29)); // four weeks later, no reviews submitted
+  assert.equal(m.state.profile.season.possibleXp, 4 * 60, "4 weeks x the 60-point review envelope");
+  assert.equal(m.state.profile.season.lastAccrualWeek, "2026-06-29", "anchored to this week's Monday");
+
+  // Were missed weeks not charged, the denominator would shrink and a user who
+  // did less would show a better ratio than one who did more.
+  assert.equal(seasonPace(m.state.profile.season).ratio, 0);
+});
+
+test("the current week is never charged — you cannot be behind on a week still running", () => {
+  const m = birthdayManager();
+  const monday = new Date(2026, 5, 1);
+  m.state.profile.season = { startDate: monday.toISOString(), earnedXp: 0, possibleXp: 0, lastAccrualWeek: null };
+  m.accruePossibleXp(new Date(2026, 5, 3)); // Wednesday of the same week
+  assert.equal(m.state.profile.season.possibleXp, 0);
+  assert.equal(seasonPace(m.state.profile.season).ratio, null, "still 'just started', not 'behind'");
+});
+
+test("the accrual envelope counts active pledges, not just showing up", () => {
+  const m = birthdayManager();
+  m.state.goals = [{ id: "g1", templateId: "water", target: 2, streak: 0, lastResult: null }];
+  assert.equal(m.weeklyXpEnvelope(), 60 + 25, "review 60 + water pledge 25");
+});
+
+test("accrual is idempotent within a week and survives a corrupt anchor", () => {
+  const m = birthdayManager();
+  m.state.profile.season = { startDate: new Date(2026, 5, 1).toISOString(), earnedXp: 0, possibleXp: 0, lastAccrualWeek: null };
+  const now = new Date(2026, 5, 29);
+  m.accruePossibleXp(now);
+  const charged = m.state.profile.season.possibleXp;
+  m.accruePossibleXp(now);
+  assert.equal(m.state.profile.season.possibleXp, charged, "a second boot the same week charges nothing");
+
+  m.state.profile.season.lastAccrualWeek = "not-a-date";
+  m.state.profile.season.startDate = null;
+  m.accruePossibleXp(now);
+  assert.ok(Number.isFinite(m.state.profile.season.possibleXp), "no NaN reaches the pace ratio");
 });
 
 test("closing a season archives it; opening one starts empty", () => {
