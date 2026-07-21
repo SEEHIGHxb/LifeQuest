@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { GameStateManager } from "../state.js";
 import {
   seasonPace, closeSeason, openSeason, PACE_THRESHOLD,
-  isLeapYear, birthdayInYear, weeksBetween
+  isLeapYear, birthdayInYear, weeksBetween, nextBirthday, daysUntil
 } from "../season.js";
 import { ageBandShifts, calculateFinanceScore } from "../scoring.js";
 import {
@@ -395,4 +395,121 @@ test("closing a season archives it; opening one starts empty", () => {
   assert.deepEqual(opened, {
     startDate: "2026-03-14T00:00:00.000Z", earnedXp: 0, possibleXp: 0, lastAccrualWeek: null
   });
+});
+
+// --- THE COUNTDOWN (L2c) ---
+
+test("nextBirthday looks forward, and the birthday itself is not skipped a year", () => {
+  assert.equal(localYMD(nextBirthday(new Date(2026, 6, 21), 3, 14)), "2027-03-14",
+    "already passed this year -> next year");
+  assert.equal(localYMD(nextBirthday(new Date(2026, 0, 5), 3, 14)), "2026-03-14",
+    "still to come this year -> this year");
+  // Strictly-after is what makes "closes in 0 days" reachable at all.
+  assert.equal(localYMD(nextBirthday(new Date(2026, 2, 14, 9, 0), 3, 14)), "2027-03-14");
+  assert.equal(daysUntil(new Date(2026, 2, 14, 9, 0), new Date(2026, 2, 14)), 0,
+    "on the day itself the countdown reads zero, never a negative");
+});
+
+test("nextBirthday moves a leap-day birthday to Mar 1 in a common year", () => {
+  assert.equal(localYMD(nextBirthday(new Date(2026, 0, 5), 2, 29)), "2026-03-01");
+  assert.equal(localYMD(nextBirthday(new Date(2028, 0, 5), 2, 29)), "2028-02-29",
+    "and back to the real date when the year has one");
+});
+
+test("daysUntil counts whole calendar days and never goes negative", () => {
+  assert.equal(daysUntil(new Date(2026, 6, 21), new Date(2026, 6, 28)), 7);
+  assert.equal(daysUntil(new Date(2026, 6, 21, 23, 59), new Date(2026, 6, 22, 0, 1)), 1,
+    "two minutes apart but a calendar day apart — the calendar wins");
+  assert.equal(daysUntil(new Date(2026, 6, 28), new Date(2026, 6, 21)), 0,
+    "a past date clamps to 0 rather than rendering '-7 days from now'");
+});
+
+// --- SETTING THE BIRTHDAY (L2c) ---
+
+test("setBirthday stores the date and anchors it WITHOUT levelling up", () => {
+  const m = birthdayManager({ after: { birthMonth: null, birthDay: null } });
+  const levelBefore = m.state.profile.level;
+  assert.equal(m.setBirthday(3, 14, new Date(2026, 6, 21)), true);
+  assert.equal(m.state.profile.birthMonth, 3);
+  assert.equal(m.state.profile.birthDay, 14);
+  assert.equal(m.state.profile.level, levelBefore,
+    "answering the question is not a birthday — the level already equals the age");
+  assert.equal(localYMD(m.state.profile.lastLevelUp.date), "2026-03-14",
+    "anchored to the most recent PAST occurrence");
+  assert.deepEqual(m.state.levelYears, [], "and nothing was filed");
+});
+
+// The bug this guards: clamping instead of rejecting. Month 13 clamped to 12
+// would store a real December birthday the user never typed and then fire a
+// genuine level-up on it.
+test("an impossible date is refused, leaving the birthday untouched", () => {
+  const m = birthdayManager({ after: { birthMonth: null, birthDay: null } });
+  assert.equal(m.setBirthday(13, 1), false, "month 13 is rejected, not clamped to December");
+  assert.equal(m.setBirthday(2, 31), false, "31 February is rejected, not clamped to the 28th");
+  assert.equal(m.setBirthday("", ""), false);
+  assert.equal(m.state.profile.birthMonth, null, "nothing was stored on any of those");
+  assert.equal(m.state.profile.lastLevelUp, null, "and no anchor was invented");
+});
+
+// Correcting a typo must not replay years already counted, nor take a level
+// back: re-anchoring to the most recent PAST occurrence of the NEW date does
+// both at once.
+test("changing the birthday re-anchors without levelling or un-levelling", () => {
+  const m = birthdayManager();
+  m.setBirthday(3, 14, new Date(2026, 6, 21));
+  const level = m.state.profile.level;
+  const filed = m.state.levelYears.length;
+
+  m.setBirthday(6, 2, new Date(2026, 6, 21));
+  assert.equal(m.state.profile.level, level, "no level-up from the correction");
+  assert.equal(m.state.levelYears.length, filed, "and no season filed");
+  assert.equal(localYMD(m.state.profile.lastLevelUp.date), "2026-06-02",
+    "the anchor moved to the new date's most recent past occurrence");
+});
+
+test("declining the question is remembered, so the prompt asks only once", () => {
+  const m = birthdayManager({ after: { birthMonth: null, birthDay: null } });
+  assert.equal(m.state.profile.birthdayPromptDismissed, false);
+  m.dismissBirthdayPrompt();
+  assert.equal(m.state.profile.birthdayPromptDismissed, true);
+  // Persisted, not merely in memory: the dashboard reads this on every boot.
+  assert.equal(new GameStateManager().state.profile.birthdayPromptDismissed, true);
+  assert.equal(m.state.profile.birthMonth, null, "and declining stores no date");
+});
+
+test("a hostile save cannot pre-dismiss the prompt with a truthy non-boolean", () => {
+  const s = load({ ...V4_SAVE, profile: { ...V4_SAVE.profile, birthdayPromptDismissed: "yes" } });
+  assert.equal(s.profile.birthdayPromptDismissed, false,
+    "strict === true: only a real boolean silences the question that makes level-ups work");
+});
+
+// A complete payload: submitOnboarding scores all eight aspects, so every
+// instrument array has to be present or the calculators throw.
+const ONBOARDING_SURVEY = {
+  name: "New", age: "30", gender: "male", region: "Bangkok",
+  employment: "Student", relationshipStatus: "Single",
+  income: 20000, savingsRate: 10, height: 170, weight: 60, sleepHours: 7,
+  vegetablePortions: 2, waterLiters: 1.5, weeklyVigorousDays: 0, weeklyVigorousMins: 0,
+  weeklyModerateDays: 0, weeklyModerateMins: 0, weeklyWalkingDays: 3, weeklyWalkingMins: 20,
+  weeklyLearningHours: 2, digitalLiteracy: 50, monthlyDonations: 0, volunteeringHours: 0,
+  singleUsePlastics: 5, longTermInvestments: "false",
+  cfpb: [2, 2, 2, 2, 2], jss: [0, 0, 0, 0], st5: [0, 0, 0, 0, 0], who5: [3, 3, 3, 3, 3],
+  lsns: [3, 3, 3, 3, 3, 3], ucla: [1, 1, 1], ras: [3, 3, 3], gse: [3, 3, 3, 3, 3, 3],
+  grit: [4, 3, 4, 4], ptm: [2, 1, 2, 2, 3], geb: [2, 2, 3, 3, 2, 2], lfis: [3, 2, 2, 3, 2]
+};
+
+test("onboarding accepts a birthday and anchors it; declining leaves it null", () => {
+  const survey = { ...ONBOARDING_SURVEY, birthMonth: "3", birthDay: "14" };
+  const m = new GameStateManager();
+  m.submitOnboarding(survey, true);
+  assert.equal(m.state.profile.birthMonth, 3);
+  assert.equal(m.state.profile.level, 30, "level is the stated age");
+  assert.ok(m.state.profile.lastLevelUp, "anchored at onboarding");
+  assert.deepEqual(m.state.levelYears, [], "anchoring files nothing");
+
+  const declined = new GameStateManager();
+  declined.submitOnboarding({ ...survey, birthMonth: "", birthDay: "" }, true);
+  assert.equal(declined.state.profile.birthMonth, null);
+  assert.equal(declined.state.profile.lastLevelUp, null,
+    "no birthday, no anchor — and no level-ups until it is answered");
 });

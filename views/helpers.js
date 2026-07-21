@@ -4,7 +4,7 @@
 
 import { percentileBand } from "../benchmarks.js";
 import { getAspectConfidence, ASPECT_KEYS } from "../aspects.js";
-import { t, tp, percentileLabel } from "../i18n.js";
+import { t, tp, percentileLabel, dateLocale } from "../i18n.js";
 
 // Escape user-provided strings before inserting into innerHTML.
 export const escapeHtml = (value) => String(value).replace(/[&<>"']/g, c => ({
@@ -26,6 +26,40 @@ export const ASPECT_LABELS = {
 // Escaped: an unknown key (e.g. from an imported save) falls through to `key`
 // itself, which would otherwise be echoed raw into innerHTML.
 export const aspectLabel = key => escapeHtml(t(ASPECT_LABELS[key] || key));
+
+// --- BIRTHDAY FIELDS ---
+
+// The month/day pair, shared by onboarding and the year-review screen so the
+// two can never phrase or bound the same question differently.
+//
+// Month names come from Intl rather than a translated list: twelve hand-written
+// keys per language is twelve chances to drift, and the browser already knows
+// the Thai names. The year 2001 is an arbitrary non-leap year — only the month
+// name is read off it.
+//
+// Deliberately month + day with NO year field. The year is what would make this
+// a date of birth; without it this is only "when does your year turn".
+export function birthdayFields({ idPrefix, month = null, day = null }) {
+  const options = Array.from({ length: 12 }, (_, i) => {
+    const name = new Date(2001, i, 1).toLocaleDateString(dateLocale(), { month: "long" });
+    return `<option value="${i + 1}"${month === i + 1 ? " selected" : ""}>${escapeHtml(name)}</option>`;
+  }).join("");
+  return `
+    <div class="grid-2">
+      <div class="form-group">
+        <label for="${idPrefix}-month">${t("Birth month")}</label>
+        <select id="${idPrefix}-month" class="form-control">
+          <option value="">${t("Prefer not to say")}</option>
+          ${options}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="${idPrefix}-day">${t("Day of month")}</label>
+        <input type="number" id="${idPrefix}-day" class="form-control" min="1" max="31"
+          inputmode="numeric" value="${day === null ? "" : escapeHtml(day)}">
+      </div>
+    </div>`;
+}
 
 // --- CONFIDENCE UI (Phase 2) ---
 

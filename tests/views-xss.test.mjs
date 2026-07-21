@@ -102,6 +102,69 @@ test("renderQuests escapes a hostile last-result value in both graded branches",
   }
 });
 
+// --- YEAR REVIEW (L2c) ---
+
+// The season/archive numbers are sanitized on import, but the view escapes at
+// the sink regardless — that is the project's stated belt-and-braces posture,
+// and it keeps the view safe if a future write path ever skips sanitizing.
+const YEAR_STATE = (overrides = {}) => ({
+  profile: {
+    level: 35, birthMonth: 3, birthDay: 14, birthdayPromptDismissed: true,
+    season: { startDate: "2026-03-13T17:00:00.000Z", earnedXp: 6200, possibleXp: 7280, lastAccrualWeek: null },
+    ...(overrides.profile || {})
+  },
+  aspects: { finance: 60, physical: 55, mental: 70, relationships: 65, personalGoals: 50, socialContribution: 30, environment: 45, humanityFuture: 40 },
+  snapshots: overrides.snapshots || [],
+  levelYears: overrides.levelYears || []
+});
+
+test("renderYearReview escapes a hostile archived level and point total", async () => {
+  const { renderYearReview } = await import("../views/yearreview.js");
+  const captured = installGlobals();
+  renderYearReview("main-view", YEAR_STATE({
+    levelYears: [{ level: PAYLOAD, xp: BREAKOUT, possible: 7280, ratio: 0.85 }]
+  }));
+  assertEscaped(captured.html, PAYLOAD, "archived level");
+  assert.ok(!captured.html.includes(BREAKOUT), "archived xp reached innerHTML verbatim");
+});
+
+test("renderYearReview escapes a hostile season total on the pace line", async () => {
+  const { renderYearReview } = await import("../views/yearreview.js");
+  const captured = installGlobals();
+  renderYearReview("main-view", YEAR_STATE({
+    profile: { season: { startDate: "2026-03-13T17:00:00.000Z", earnedXp: PAYLOAD, possibleXp: 7280 } }
+  }));
+  // seasonPace coerces non-finite XP to 0, so the payload must not survive at
+  // all — asserting on its absence, not on an escaped form.
+  assert.ok(!captured.html.includes(PAYLOAD), "hostile earnedXp reached innerHTML");
+  assert.ok(!/<(img|script|svg|iframe)\b/i.test(captured.html), "no unescaped tag opener");
+});
+
+test("renderYearReview asks for the birthday when unknown, and never offers a year field", async () => {
+  const { renderYearReview } = await import("../views/yearreview.js");
+  const captured = installGlobals();
+  renderYearReview("main-view", YEAR_STATE({ profile: { birthMonth: null, birthDay: null } }));
+  assert.ok(captured.html.includes("year-birthday-month"), "the month field is rendered");
+  assert.ok(captured.html.includes("year-birthday-day"), "the day field is rendered");
+  // The whole privacy claim of this feature is that no birth YEAR is collected.
+  // A stray year input would quietly turn month+day into a full identifier.
+  assert.ok(!/id="year-birthday-year"/.test(captured.html), "no birth-year field exists");
+  assert.ok(!captured.html.includes("Closes on"), "no countdown without a date to count to");
+});
+
+test("renderYearReview counts down and keeps the archive visible once the birthday is known", async () => {
+  const { renderYearReview } = await import("../views/yearreview.js");
+  const captured = installGlobals();
+  renderYearReview("main-view", YEAR_STATE({
+    levelYears: [{ level: 34, xp: 6200, possible: 7280, ratio: 0.85 }]
+  }));
+  assert.ok(/Closes on|closes today/.test(captured.html), "the countdown line is present");
+  assert.ok(captured.html.includes("6200"), "the filed year's points are shown, not wiped");
+  // Never-punitive check: the screen reports, it does not grade.
+  assert.ok(!/behind|failed|missed|you should/i.test(captured.html),
+    "the year screen renders numbers and runway, never a verdict");
+});
+
 test("escapeHtml neutralises every HTML-significant character", async () => {
   const { escapeHtml } = await import("../views/helpers.js");
   assert.equal(escapeHtml(`<>&"'`), "&lt;&gt;&amp;&quot;&#39;");

@@ -166,6 +166,23 @@ export function mostRecentBirthday(now, month, day) {
   return thisYear <= now ? thisYear : birthdayInYear(now.getFullYear() - 1, month, day);
 }
 
+// The next birthday strictly after `now` — what the year-review screen counts
+// down to. The mirror of mostRecentBirthday: strictly after, so the day itself
+// reads as "closes in 0 days" rather than jumping a full year early.
+export function nextBirthday(now, month, day) {
+  const thisYear = birthdayInYear(now.getFullYear(), month, day);
+  return thisYear > now ? thisYear : birthdayInYear(now.getFullYear() + 1, month, day);
+}
+
+// Whole days between two dates, by their local calendar days. Rounded for the
+// same reason weeksBetween is: across a DST boundary two calendar days apart
+// are 23 or 25 hours, and truncating would lose a day twice a year.
+export function daysUntil(from, to) {
+  const a = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const b = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+  return Math.max(0, Math.round((b - a) / 86400000));
+}
+
 // Every birthday strictly after `lastDate` and no later than `now`, oldest
 // first. Returns more than one when a backup is imported after a multi-year
 // gap — losing those years would be worse than replaying them.

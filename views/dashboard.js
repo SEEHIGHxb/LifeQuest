@@ -44,6 +44,10 @@ export function renderDashboard(containerId, state, onExportBackup) {
   const suggestions = getTopSuggestions(state, 3);
   const checkinDue = stateManager.isCheckinDue();
   const reviewDue = stateManager.isWeeklyReviewDue();
+  // A soft ask, shown once until it is answered or waved off. Without a
+  // birthday the level can never advance, so the question matters — but a
+  // blocking modal over someone's own wellbeing data would be the wrong trade.
+  const askBirthday = !p.birthMonth && !p.birthdayPromptDismissed;
   const needsBackup = stateManager.needsBackupNudge();
   const daysSinceExport = stateManager.daysSinceLastExport();
 
@@ -53,6 +57,14 @@ export function renderDashboard(containerId, state, onExportBackup) {
       <div class="checkin-banner">
         <p><strong>${t("Weekly review open.")}</strong> ${t("Two minutes of rough weekly numbers keep every score measured — no daily logging.")}</p>
         <a href="#/review" class="btn btn-primary" style="white-space: nowrap;">${t("Start Weekly Review")}</a>
+      </div>` : ""}
+    ${askBirthday ? `
+      <div class="checkin-banner">
+        <p><strong>${t("When does your year turn?")}</strong> ${t("Your level is your age. Tell the app the day and it can close each year and open the next — month and day only, never the year you were born.")}</p>
+        <span style="display: flex; gap: 8px; white-space: nowrap;">
+          <a href="#/year" class="btn btn-primary">${t("Answer")}</a>
+          <button type="button" id="birthday-prompt-dismiss" class="btn">${t("Not now")}</button>
+        </span>
       </div>` : ""}
     ${checkinDue ? `
       <div class="checkin-banner">
@@ -113,6 +125,7 @@ export function renderDashboard(containerId, state, onExportBackup) {
                 : `<span>${tp("Points: {xp} / {possible}", { xp: escapeHtml(pace.earned), possible: pace.possible })}</span>
                    <span>${tp("Progress: {pct}%", { pct: pace.percent })}</span>`}
             </div>
+            <a href="#/year" style="display: inline-block; margin-top: 6px; font-size: 0.75rem; font-weight: 600;">${t("Your year")} &rsaquo;</a>
           </div>
         </div>
 
@@ -198,6 +211,14 @@ export function renderDashboard(containerId, state, onExportBackup) {
   `;
 
   renderRadarChart("radar-chart-container", state.aspects, { average: AVERAGE_ASPECT_SCORES });
+
+  // Removing the node rather than re-rendering: the flag is persisted either
+  // way, and a full re-render would scroll the user back to the top of the
+  // dashboard as a reward for declining a question.
+  document.getElementById("birthday-prompt-dismiss")?.addEventListener("click", (e) => {
+    stateManager.dismissBirthdayPrompt();
+    e.target.closest(".checkin-banner")?.remove();
+  });
 
   if (needsBackup && typeof onExportBackup === "function") {
     document.getElementById("backup-nudge-export")

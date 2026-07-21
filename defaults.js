@@ -23,6 +23,10 @@ export const DEFAULT_STATE = {
     // while never holding the identifier a full DOB would be. Null until asked.
     birthMonth: null, // 1-12
     birthDay: null, // 1-31
+    // Whether the soft dashboard ask has been answered or waved off. Additive
+    // with a safe default, so no schemaVersion bump: mergeSavedState spreads
+    // defaults beneath the save, and an older save simply arrives as false.
+    birthdayPromptDismissed: false,
     // Set when a birthday advances the level; birthday processing counts
     // elapsed birthdays from here, so a backup imported after two birthdays
     // levels up twice instead of losing a year.

@@ -10,6 +10,7 @@ export { renderAspectPage } from "./views/aspect.js";
 export { renderCheckin, renderDeepAssessment } from "./views/assessments.js";
 export { renderMethodology } from "./views/methodology.js";
 export { renderReview } from "./views/review.js";
+export { renderYearReview } from "./views/yearreview.js";
 export { renderQuests } from "./views/quests.js";
 export { renderLeaderboard } from "./views/leaderboard.js";
 export { getLumiTip } from "./views/assistant.js";

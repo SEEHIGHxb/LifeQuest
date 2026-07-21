@@ -118,6 +118,34 @@ export class GameStateManager {
     return true;
   }
 
+  // The single write path for the birthday. Returns false on a date that is not
+  // real (month 13, 31 February) rather than storing a corrected one:
+  // sanitizeBirthday rejects instead of clamping, because a clamped birthday
+  // would fire a genuine level-up on a day the user never typed.
+  setBirthday(month, day, now = new Date()) {
+    const birthday = sanitizeBirthday(month, day);
+    if (!birthday.birthMonth || !birthday.birthDay) return false;
+    const p = this.state.profile;
+    p.birthMonth = birthday.birthMonth;
+    p.birthDay = birthday.birthDay;
+    p.birthdayPromptDismissed = true; // answering the question also settles it
+    // Dropping the anchor re-anchors to the most recent PAST occurrence of the
+    // new date without levelling up (see processBirthdays). That is what makes
+    // correcting a typo safe: no replayed years, and no level taken back.
+    p.lastLevelUp = null;
+    this.processBirthdays(now);
+    this.saveState();
+    return true;
+  }
+
+  // The prompt is a soft ask, so "not now" has to mean it. The year-review
+  // screen stays reachable from the status card, so dismissing is never a dead
+  // end — it just stops the dashboard asking.
+  dismissBirthdayPrompt() {
+    this.state.profile.birthdayPromptDismissed = true;
+    this.saveState();
+  }
+
   processBirthdays(now = new Date()) {
     const p = this.state.profile;
     // No birthday, no level-ups. The prompt to set one is a soft ask, never a
@@ -189,6 +217,10 @@ export class GameStateManager {
     const birthday = sanitizeBirthday(profile.birthMonth, profile.birthDay);
     profile.birthMonth = birthday.birthMonth;
     profile.birthDay = birthday.birthDay;
+    // Strict === true: any other value (missing, "false", 1) leaves the prompt
+    // showing. Erring toward asking once too often beats a stray truthy import
+    // silently burying the only question that makes level-ups work.
+    profile.birthdayPromptDismissed = profile.birthdayPromptDismissed === true;
     delete profile.xp; // v4 field; its balance lives in season.earnedXp
     profile.rank = this.getRank(profile.level);
     sanitizeProfileFields(profile);
@@ -807,12 +839,23 @@ export class GameStateManager {
       lastAccrualWeek: null
     };
     p.lastLevelUp = null;
-
     this.state.levelYears = [];
     this.state.goals = createDefaultPledges();
     this.state.snapshots = [];
     this.state.checkins = [];
     this.state.reviews = [];
+
+    // Last, once levelYears is empty and the season is open. Blank or
+    // impossible input leaves the birthday null: the question is optional, and
+    // declining it costs only future level-ups, never the assessment itself.
+    // With a date, processBirthdays ANCHORS to the most recent past birthday
+    // without levelling — the level already equals the stated age, so firing
+    // here would hand out a year the user has not lived.
+    const birthday = sanitizeBirthday(surveyData.birthMonth, surveyData.birthDay);
+    p.birthMonth = birthday.birthMonth;
+    p.birthDay = birthday.birthDay;
+    this.processBirthdays();
+
     this.maybeTakeSnapshot(); // baseline snapshot anchors the trend charts
     this.saveState();
   }

@@ -4,6 +4,7 @@
 import { stateManager } from "../state.js";
 import { validateProfile, buildProvidedFlags, buildAnsweredFlags } from "../validation.js";
 import { numberField, instrumentBlock, collectInstrument } from "./instrument-forms.js";
+import { birthdayFields } from "./helpers.js";
 import { t, tp } from "../i18n.js";
 
 // Maps each validated numeric field (validation.js FIELD_CONSTRAINTS keys) to
@@ -46,6 +47,10 @@ export function renderOnboarding(containerId, onComplete) {
             </select>
           </div>
         </div>
+        ${birthdayFields({ idPrefix: "onb-birthday" })}
+        <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin: -6px 0 12px;">
+          ${t("Optional — month and day only, so the app knows when your year turns. Your birth year is never asked for and never stored.")}
+        </p>
         <div class="form-group">
           <label for="onb-region">${t("Primary Region (Cost of Living Mapping)")}</label>
           <select id="onb-region" class="form-control">
@@ -268,6 +273,10 @@ export function renderOnboarding(containerId, onComplete) {
       const surveyData = {
         name: val("onb-name"),
         age: val("onb-age"),
+        // Blank when declined; submitOnboarding sanitizes and leaves the
+        // birthday null, which simply means no level-ups until it is answered.
+        birthMonth: val("onb-birthday-month"),
+        birthDay: val("onb-birthday-day"),
         gender: val("onb-gender"),
         region: val("onb-region"),
         employment: val("onb-employment"),

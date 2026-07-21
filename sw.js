@@ -40,6 +40,7 @@ const APP_SHELL = [
   "./views/assessments.js",
   "./views/methodology.js",
   "./views/review.js",
+  "./views/yearreview.js",
   "./views/quests.js",
   "./views/leaderboard.js",
   "./chart.js",

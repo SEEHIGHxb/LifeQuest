@@ -5,6 +5,7 @@ import {
   renderOnboarding,
   renderDashboard,
   renderReview,
+  renderYearReview,
   renderQuests,
   renderLeaderboard,
   renderAspectPage,
@@ -44,6 +45,12 @@ function routeFromHash() {
   }
   if (path === "methodology") {
     return { type: "methodology" };
+  }
+  // Not a tab: the level-year screen is occasional (one birthday a year, plus
+  // the one-off birthday question), so it is reached from the status card
+  // rather than taking a permanent fifth slot in a four-wide mobile tab grid.
+  if (path === "year") {
+    return { type: "year" };
   }
   return { type: "tab", tab: TABS.includes(path) ? path : DEFAULT_TAB };
 }
@@ -226,6 +233,8 @@ function renderActiveTab() {
     renderDeepAssessment("main-view", state, handleDeepComplete);
   } else if (route.type === "methodology") {
     renderMethodology("main-view", state);
+  } else if (route.type === "year") {
+    renderYearReview("main-view", state, renderActiveTab);
   } else if (activeTab === "dashboard") {
     renderDashboard("main-view", state, downloadBackup);
   } else if (activeTab === "review") {
@@ -250,6 +259,7 @@ function announceRoute(route) {
   else if (route.type === "checkin") label = t("Re-assessment");
   else if (route.type === "deep") label = t("In-depth assessment");
   else if (route.type === "methodology") label = t("Methodology");
+  else if (route.type === "year") label = t("Your year");
   else label = t(tabNames[route.tab] || "Overview");
   el.textContent = tp("{view} view", { view: label });
 }

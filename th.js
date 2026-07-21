@@ -461,6 +461,39 @@ export const TH = {
   "Year just started": "ปีนี้เพิ่งเริ่ม",
   "Points: {xp} / {possible}": "คะแนน: {xp} / {possible}",
   "Progress: {pct}%": "ความคืบหน้า: {pct}%",
+
+  // --- Level-year screen (#/year) + the birthday question ---
+  "Your year": "ปีของคุณ",
+  "Birth month": "เดือนเกิด",
+  "Day of month": "วันที่",
+  "Save": "บันทึก",
+  "When does your year turn?": "ปีของคุณเปลี่ยนวันไหน?",
+  "Your level is your age. Tell the app the day and it can close each year and open the next — month and day only, never the year you were born.":
+    "เลเวลของคุณคืออายุ บอกวันให้แอปรู้ แล้วแอปจะปิดปีเก่าและเปิดปีใหม่ให้ — ระบุเพียงเดือนและวันที่ ไม่เก็บปีเกิด",
+  "Answer": "ตอบคำถาม",
+  "Not now": "ไว้ก่อน",
+  "Your level is simply your age — a fact about you, not a score you earned. Tell the app which day your year turns and it can close each year and open the next one for you.":
+    "เลเวลของคุณคืออายุ — เป็นข้อเท็จจริงเกี่ยวกับตัวคุณ ไม่ใช่คะแนนที่ต้องไขว่คว้า บอกแอปว่าปีของคุณเปลี่ยนวันไหน แล้วแอปจะปิดปีเก่าและเปิดปีใหม่ให้คุณ",
+  "Month and day only. Your birth year is never asked for and never stored.":
+    "ระบุเพียงเดือนและวันที่ ไม่มีการถามหรือเก็บปีเกิดของคุณ",
+  "Optional — month and day only, so the app knows when your year turns. Your birth year is never asked for and never stored.":
+    "ไม่บังคับ — ระบุเพียงเดือนและวันที่ เพื่อให้แอปรู้ว่าปีของคุณเปลี่ยนวันไหน ไม่มีการถามหรือเก็บปีเกิดของคุณ",
+  "Year {level}": "ปีอายุ {level}",
+  "This year closes today.": "ปีนี้ปิดวันนี้",
+  "Closes on {date} — {days} days from now.": "ปิดวันที่ {date} — อีก {days} วัน",
+  "This year has only just opened — there is nothing to measure yet.": "ปีนี้เพิ่งเปิด — ยังไม่มีอะไรให้วัด",
+  "{xp} points earned of the {possible} your pledges have offered so far.":
+    "ได้รับ {xp} คะแนน จาก {possible} คะแนนที่คำมั่นของคุณเปิดโอกาสไว้จนถึงตอนนี้",
+  "{weeks} weeks still to run.": "ยังเหลืออีก {weeks} สัปดาห์",
+  "Change the day your year turns": "เปลี่ยนวันที่ปีของคุณเปลี่ยน",
+  "Movement this year": "ความเปลี่ยนแปลงในปีนี้",
+  "Measured against your closest recorded snapshot, {date}.": "วัดเทียบกับบันทึกภาพรวมที่ใกล้ที่สุดของคุณ วันที่ {date}",
+  "Your scores have held steady so far.": "คะแนนของคุณยังคงที่จนถึงตอนนี้",
+  "Years filed": "ปีที่บันทึกไว้",
+  "Nothing filed yet — your first year closes on your next birthday.":
+    "ยังไม่มีปีที่บันทึกไว้ — ปีแรกของคุณจะปิดในวันเกิดครั้งถัดไป",
+  "{xp} / {possible} points": "{xp} / {possible} คะแนน",
+  "That date doesn't exist — check the day of the month.": "ไม่มีวันที่นี้จริง — โปรดตรวจสอบวันที่ของเดือน",
   "Weekly Commitment": "คำมั่นประจำสัปดาห์",
   "Aspect Radar": "เรดาร์รายด้าน",
   "Recommendations": "คำแนะนำ",
