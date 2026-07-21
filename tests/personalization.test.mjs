@@ -79,7 +79,7 @@ test("submitCheckin refreshes stored sums, keeps the rest, and pays XP", () => {
   assert.equal(m.state.baseline.gse, 21);
   assert.equal(m.state.baseline.lsns, 17, "LSNS not re-asked, kept from baseline");
   assert.equal(m.state.baseline.ras, null, "single users keep ras null");
-  assert.equal(m.state.profile.xp, 40, "re-sync pays +40 XP");
+  assert.equal(m.state.profile.season.earnedXp, 40, "re-sync pays +40 XP into the season");
   assert.equal(m.state.checkins.length, 1);
   assert.deepEqual(m.state.checkins[0].shifts, shifts);
   assert.equal(m.isCheckinDue(), false, "check-in date becomes the new calibration point");

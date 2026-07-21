@@ -184,6 +184,7 @@ export function migrateV3State(parsed) {
   const out = { ...parsed };
   out.schemaVersion = 4;
   out.reviews = [];
+  out.levelYears = [];
   out.goals = (Array.isArray(parsed.goals) ? parsed.goals : [])
     .map(g => (g && typeof g.id === "string" && Object.hasOwn(V3_GOAL_MAP, g.id)) ? V3_GOAL_MAP[g.id] : null)
     .filter(Boolean)
@@ -192,6 +193,118 @@ export function migrateV3State(parsed) {
   delete out.customActions;
   delete out.dailyLimits;
   delete out.questResets;
+  return out;
+}
+
+// --- v4 -> v5 MIGRATION (age-as-level + seasonal XP) ---
+
+// Days per month with February at 29: the leap day is a real birthday and must
+// survive validation. Whether THIS year has a Feb 29 is a level-up question,
+// not a storage question — birthday processing resolves it to Mar 1 in common
+// years. Rejecting it here would lock those users out of ever levelling up.
+const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+export const LEVEL_YEAR_LIMIT = 120; // one archived season per year of a life
+
+// A birth month/day pair, or nulls. Both must be present and name a real
+// calendar day — a half-set birthday (month with no day) would make birthday
+// processing compare against an unanswerable date.
+// NOT clamped: an out-of-range value is rejected outright. Clamping month 13
+// to 12 would turn a garbled or hostile input into a valid December birthday
+// and then fire a real level-up on it — silently inventing a fact about the
+// user rather than declining to store one.
+export function sanitizeBirthday(month, day) {
+  const m = Number(month);
+  const d = Number(day);
+  const none = { birthMonth: null, birthDay: null };
+  if (!Number.isInteger(m) || !Number.isInteger(d)) return none;
+  if (m < 1 || m > 12) return none;
+  if (d < 1 || d > DAYS_IN_MONTH[m - 1]) return none;
+  return { birthMonth: m, birthDay: d };
+}
+
+// The current level-year. A season that can't be trusted restarts empty rather
+// than carrying a hostile number into the pace ratio the dashboard renders.
+export function sanitizeSeason(raw) {
+  const src = raw && typeof raw === "object" ? raw : {};
+  const startDate = safeString(src.startDate, 40);
+  return {
+    startDate: Number.isFinite(new Date(startDate).getTime()) ? startDate : null,
+    earnedXp: Math.round(clampNumber(src.earnedXp, 0, 100000000, 0)),
+    possibleXp: Math.round(clampNumber(src.possibleXp, 0, 100000000, 0)),
+    lastAccrualWeek: safeString(src.lastAccrualWeek, 12) || null
+  };
+}
+
+// { date, lifetimeXpAt } or null. An unparseable date is dropped whole: birthday
+// processing counts elapsed birthdays FROM this date, so a garbage stamp would
+// either freeze the level forever or fire a hundred level-ups at once.
+export function sanitizeLastLevelUp(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const date = safeString(raw.date, 40);
+  if (!Number.isFinite(new Date(date).getTime())) return null;
+  return { date, lifetimeXpAt: Math.round(clampNumber(raw.lifetimeXpAt, 0, 100000000, 0)) };
+}
+
+// Archived seasons. Rebuilt field by field — these render as the level-up
+// trend, and `ratio` drives a bar width, so a hostile value would escape the
+// chart geometry rather than the markup.
+export function sanitizeLevelYears(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(-LEVEL_YEAR_LIMIT).map(y => {
+    if (!y || typeof y !== "object") return null;
+    return {
+      level: Math.round(clampNumber(y.level, 1, 999, 1)),
+      xp: Math.round(clampNumber(y.xp, 0, 100000000, 0)),
+      possible: Math.round(clampNumber(y.possible, 0, 100000000, 0)),
+      ratio: clampNumber(y.ratio, 0, 1, 0)
+    };
+  }).filter(Boolean);
+}
+
+// One-way. Level becomes the user's age; `lifetimeXp` — the number the
+// comparison code shares and the one a user reads as "everything I've done" —
+// is carried across untouched. The old per-level `xp` becomes the opening
+// balance of the first season, so nothing visibly vanishes.
+//
+// The season starts NOW rather than at the user's original baseline: anchoring
+// it to a two-year-old start date would accrue two years of possibleXp against
+// a single season's earnings and open the new model on a ratio near zero.
+export function migrateV4State(parsed, now = new Date()) {
+  const out = { ...parsed };
+  out.schemaVersion = 5;
+  out.levelYears = sanitizeLevelYears(parsed.levelYears);
+
+  const p = { ...(parsed.profile || {}) };
+
+  // Saves predating the lifetime counter (finding #11) reconstruct it from the
+  // OLD earned level plus current xp — each level i cost i*100. This MUST run
+  // before `level` is overwritten with the age below: afterwards the same
+  // formula would be reading a birthday count as an XP ladder and would invent
+  // ~56,000 lifetime points for a 34-year-old who had earned none.
+  if (!Number.isFinite(p.lifetimeXp)) {
+    const earnedLevel = Math.round(clampNumber(p.level, 1, 999, 1));
+    p.lifetimeXp = Math.round((100 * (earnedLevel - 1) * earnedLevel) / 2)
+      + Math.round(clampNumber(p.xp, 0, 100000000, 0));
+  }
+
+  // A save whose age is unusable keeps the level it had rather than resetting
+  // to 1; the birthday prompt sets it properly once the user answers.
+  const age = Number(p.age);
+  if (Number.isFinite(age) && age >= 1 && age <= 120) p.level = Math.round(age);
+
+  p.season = {
+    startDate: now.toISOString(),
+    earnedXp: Math.round(clampNumber(p.xp, 0, 100000000, 0)),
+    possibleXp: 0,
+    lastAccrualWeek: null // the first init() anchors accrual to the current week
+  };
+  delete p.xp;
+  const birthday = sanitizeBirthday(p.birthMonth, p.birthDay);
+  p.birthMonth = birthday.birthMonth;
+  p.birthDay = birthday.birthDay;
+  p.lastLevelUp = sanitizeLastLevelUp(p.lastLevelUp);
+  out.profile = p;
   return out;
 }
 

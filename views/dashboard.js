@@ -9,6 +9,7 @@ import { getAllBenchmarks, collectSources } from "../benchmarks.js";
 import { getAspectConfidence, ASPECT_KEYS, isAspectDeepVerified } from "../aspects.js";
 import { getTopSuggestions, getMentalHealthNotice } from "../suggestions.js";
 import { balanceIndex, balanceBand, weakestAspect, gradeAllAspects } from "../grades.js";
+import { seasonPace } from "../season.js";
 import { t, tp, dateLocale } from "../i18n.js";
 import {
   escapeHtml, aspectLabel, confidenceBadge, benchmarkStanding, methodTag,
@@ -33,8 +34,7 @@ export function renderDashboard(containerId, state, onExportBackup) {
   if (!container) return;
 
   const p = state.profile;
-  const xpNeeded = p.level * 100;
-  const xpPercent = Math.round((p.xp / xpNeeded) * 100);
+  const pace = seasonPace(p.season);
   const benchmarks = getAllBenchmarks(state);
   const benchmarkSources = collectSources(benchmarks);
   const grades = gradeAllAspects(benchmarks);
@@ -104,12 +104,14 @@ export function renderDashboard(containerId, state, onExportBackup) {
             <p style="font-family: var(--font-sans); font-size: 0.82rem; color: var(--color-gold); font-weight: 600;">
               ${escapeHtml(t(p.rank))} &bull; ${escapeHtml(t(p.employment))} (${escapeHtml(t(p.region))})
             </p>
-            <div class="xp-bar-container" role="progressbar" aria-label="${t("Experience progress")}" aria-valuenow="${xpPercent}" aria-valuemin="0" aria-valuemax="100">
-              <div class="xp-bar-fill" style="width: ${xpPercent}%;"></div>
+            <div class="xp-bar-container" role="progressbar" aria-label="${t("This year's points")}" aria-valuenow="${pace.percent}" aria-valuemin="0" aria-valuemax="100">
+              <div class="xp-bar-fill" style="width: ${pace.percent}%;"></div>
             </div>
             <div style="display: flex; justify-content: space-between; font-family: var(--font-serif); font-size: 0.75rem; margin-top: 4px; color: var(--color-text-secondary);">
-              <span>${tp("Points: {xp} / {needed}", { xp: escapeHtml(p.xp), needed: xpNeeded })}</span>
-              <span>${tp("Progress: {pct}%", { pct: xpPercent })}</span>
+              ${pace.ratio === null
+                ? `<span>${tp("{xp} points this year", { xp: escapeHtml(pace.earned) })}</span><span>${t("Year just started")}</span>`
+                : `<span>${tp("Points: {xp} / {possible}", { xp: escapeHtml(pace.earned), possible: pace.possible })}</span>
+                   <span>${tp("Progress: {pct}%", { pct: pace.percent })}</span>`}
             </div>
           </div>
         </div>

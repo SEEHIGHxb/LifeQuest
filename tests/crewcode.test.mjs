@@ -123,11 +123,23 @@ test("addXP accumulates lifetimeXp; old saves backfill from level + xp (#11)", (
   m.addXP(40);
   m.addXP(60);
   assert.equal(m.state.profile.lifetimeXp, before + 100, "every award adds to the lifetime counter");
-  // Legacy save without the counter -> reconstruct from level (each i costs
-  // i*100 to clear) + current xp: 100*(4*5)/2 + 30 = 1030.
-  const merged = m.mergeSavedState({ schemaVersion: 3, profile: { name: "Old", level: 5, xp: 30 } });
-  assert.equal(merged.profile.lifetimeXp, 1030);
+
+  // The backfill moved into migrateV4State, where the pre-v5 EARNED level is
+  // still readable — after migration `level` means age, and the same formula
+  // would read a birthday count as an XP ladder. Load through the real chain
+  // (as loadState does) rather than calling mergeSavedState directly, so this
+  // test can still catch that ordering breaking.
+  const load = raw => {
+    localStorage.setItem("lifequest_state", JSON.stringify(raw));
+    return new GameStateManager().state;
+  };
+  // Legacy save without the counter -> reconstruct from the earned level (each
+  // i costs i*100 to clear) + current xp: 100*(4*5)/2 + 30 = 1030.
+  const migrated = load({ schemaVersion: 4, profile: { name: "Old", level: 5, xp: 30, age: 34 } });
+  assert.equal(migrated.profile.lifetimeXp, 1030, "backfilled from the earned level, not from the age");
+  assert.equal(migrated.profile.level, 34, "level becomes the age");
   // A genuine counter already on the save is preserved untouched.
-  const kept = m.mergeSavedState({ schemaVersion: 3, profile: { name: "New", level: 5, xp: 30, lifetimeXp: 9999 } });
+  const kept = load({ schemaVersion: 4, profile: { name: "New", level: 5, xp: 30, lifetimeXp: 9999, age: 34 } });
   assert.equal(kept.profile.lifetimeXp, 9999);
+  assert.equal(kept.profile.season.earnedXp, 30, "the old per-level xp opens the first season");
 });

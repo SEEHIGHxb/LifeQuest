@@ -263,7 +263,7 @@ test("a v3 save migrates in place: XP, scores, baseline, and archive all carry o
   installMockStorage({ lifequest_state: JSON.stringify(V3_SAVE) });
   const m = new GameStateManager();
   assert.equal(m.state.onboarded, true, "no fresh start");
-  assert.equal(m.state.schemaVersion, 4);
+  assert.equal(m.state.schemaVersion, 5, "a v3 save chains v3 -> v4 -> v5 in one load");
   assert.equal(m.state.profile.name, "Migrator");
   assert.equal(m.state.profile.level, 7);
   assert.equal(m.state.profile.lifetimeXp, 2140, "lifetime points survive");
@@ -302,7 +302,7 @@ test("a v3 backup imports through the same migration", () => {
   const m = new GameStateManager();
   m.importState(JSON.stringify(V3_SAVE));
   assert.equal(m.state.onboarded, true);
-  assert.equal(m.state.schemaVersion, 4);
+  assert.equal(m.state.schemaVersion, 5, "a v3 save chains v3 -> v4 -> v5 in one load");
   assert.equal(m.state.goals.length, 3);
   assert.equal(m.state.profile.lifetimeXp, 2140);
 });

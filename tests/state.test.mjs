@@ -133,11 +133,17 @@ test("physical still includes body composition when weight/height are present (#
   );
 });
 
-test("addXP handles multiple level-ups in one grant", () => {
+test("XP never moves the level — only birthdays do", () => {
   const m = new GameStateManager();
-  m.addXP(350); // level 1 needs 100, level 2 needs 200 -> should land on level 3 with 50 xp
-  assert.equal(m.state.profile.level, 3);
-  assert.equal(m.state.profile.xp, 50);
+  m.state.profile.level = 34;
+  const before = m.state.profile.level;
+  // 350 would have cleared three levels under the old xp >= level*100 ladder.
+  // Level is the user's age now, so no amount of XP may touch it: a Level that
+  // climbs with app usage is a fact about the app, not about the person.
+  m.addXP(350);
+  assert.equal(m.state.profile.level, before, "grinding XP must not age the user");
+  assert.equal(m.state.profile.season.earnedXp, 350, "XP lands in the season instead");
+  assert.equal(m.state.profile.lifetimeXp, 350, "and still counts toward the lifetime total");
 });
 
 test("addPledge validates the template, clamps the target, and blocks duplicates", () => {
@@ -305,7 +311,8 @@ test("importing hostile fields is coerced to safe shapes (#3 XSS hardening)", ()
   assert.equal(s.aspects.physical, 100, "out-of-range aspect clamped");
   // Profile scalars coerced; rank derived from level, so it is always a known enum.
   assert.equal(typeof s.profile.level, "number");
-  assert.equal(s.profile.xp, 0, "non-numeric xp coerced to 0");
+  assert.equal(s.profile.xp, undefined, "the retired v4 xp field does not survive import");
+  assert.equal(s.profile.season.earnedXp, 0, "non-numeric season XP coerced to 0");
   assert.equal(s.profile.rank, m.getRank(s.profile.level), "rank recomputed, not trusted");
   // Friend id reduced to a safe token; level/points coerced to numbers.
   assert.match(s.friends[0].id, /^[A-Za-z0-9_-]+$/, "friend id stripped to a safe token");

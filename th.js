@@ -453,7 +453,10 @@ export const TH = {
   "Re-run the short well-being instruments so your scores track your real standing, not last month's.":
     "ทำแบบประเมินชุดสั้นอีกครั้ง เพื่อให้คะแนนสะท้อนสถานะจริงของคุณ ไม่ใช่ของเดือนที่แล้ว",
   "Start Re-assessment": "เริ่มประเมินซ้ำ",
-  "Experience progress": "ความคืบหน้าคะแนน",
+  "This year's points": "คะแนนปีนี้",
+  "{xp} points this year": "{xp} คะแนนในปีนี้",
+  "Year just started": "ปีนี้เพิ่งเริ่ม",
+  "Points: {xp} / {possible}": "คะแนน: {xp} / {possible}",
   "Progress: {pct}%": "ความคืบหน้า: {pct}%",
   "Weekly Commitment": "คำมั่นประจำสัปดาห์",
   "Aspect Radar": "เรดาร์รายด้าน",

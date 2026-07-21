@@ -13,7 +13,8 @@ import {
 import {
   clampNumber, safeString, sanitizeAspectScores, sanitizeImportedFriend,
   sanitizeImportedGoal, sanitizeImportedReview, sanitizeProfileFields,
-  migrateV3State
+  migrateV3State, migrateV4State,
+  sanitizeSeason, sanitizeLastLevelUp, sanitizeBirthday, sanitizeLevelYears
 } from "./sanitize.js";
 import {
   rawSum, mentalComposite, relationshipsComposite, personalGoalsComposite,
@@ -106,15 +107,18 @@ export class GameStateManager {
     // derive rank from level so it is always a known enum, never trusted input.
     const profile = { ...defaults.profile, ...(parsed.profile || {}) };
     profile.name = safeString(profile.name, 60).trim() || "Guest";
+    // Level is the user's age now, so it no longer has an XP ladder underneath
+    // it. The lifetime-XP backfill for pre-counter saves moved into
+    // migrateV4State, where the old earned level is still readable — see the
+    // ordering note there.
     profile.level = Math.round(clampNumber(profile.level, 1, 999, 1));
-    profile.xp = Math.round(clampNumber(profile.xp, 0, 100000000, 0));
-    // Backfill the never-truncated lifetime-XP counter for saves that predate
-    // it (finding #11): reconstruct total XP earned from level + current xp
-    // (each level i costs i*100), since real history is capped. A genuine
-    // counter already on the save is kept as-is.
-    profile.lifetimeXp = (parsed.profile && Number.isFinite(parsed.profile.lifetimeXp))
-      ? Math.round(clampNumber(parsed.profile.lifetimeXp, 0, 100000000, 0))
-      : Math.round((100 * (profile.level - 1) * profile.level) / 2) + profile.xp;
+    profile.lifetimeXp = Math.round(clampNumber(profile.lifetimeXp, 0, 100000000, 0));
+    profile.season = sanitizeSeason(profile.season);
+    profile.lastLevelUp = sanitizeLastLevelUp(profile.lastLevelUp);
+    const birthday = sanitizeBirthday(profile.birthMonth, profile.birthDay);
+    profile.birthMonth = birthday.birthMonth;
+    profile.birthDay = birthday.birthDay;
+    delete profile.xp; // v4 field; its balance lives in season.earnedXp
     profile.rank = this.getRank(profile.level);
     sanitizeProfileFields(profile);
 
@@ -123,6 +127,7 @@ export class GameStateManager {
       ...parsed,
       profile,
       aspects: sanitizeAspectScores(parsed.aspects),
+      levelYears: sanitizeLevelYears(parsed.levelYears),
       history: Array.isArray(parsed.history) ? parsed.history.slice(0, HISTORY_LIMIT) : [],
       goals: Array.isArray(parsed.goals)
         ? parsed.goals.map(sanitizeImportedGoal).filter(Boolean).slice(0, PLEDGE_LIMIT)
@@ -174,6 +179,12 @@ export class GameStateManager {
     // machinery is dropped or converted (see migrateV3State).
     if (parsed.schemaVersion === 3) {
       parsed = migrateV3State(parsed);
+    }
+    // v5 (age-as-level) migrates a v4 save in place. Chained after the v3 step
+    // above, so a v3 save walks v3 -> v4 -> v5 in one load rather than being
+    // discarded for being two versions behind.
+    if (parsed.schemaVersion === 4) {
+      parsed = migrateV4State(parsed);
     }
     // Pre-v3 saves changed the measurement model itself (quantified logs,
     // demographics, snapshots) — those restart onboarding for a clean baseline.
@@ -307,9 +318,14 @@ export class GameStateManager {
     if (!parsed || typeof parsed !== "object" || !parsed.profile || !parsed.aspects) {
       throw new Error(t("This file is not a valid backup (missing profile/aspects)."));
     }
-    // A v3 backup imports cleanly through the same migration as a v3 save.
+    // A v3 or v4 backup imports cleanly through the same migration chain as a
+    // save of that vintage — same functions, same order, so an import and a
+    // reload can never disagree about what a given backup means.
     if (parsed.schemaVersion === 3) {
       parsed = migrateV3State(parsed);
+    }
+    if (parsed.schemaVersion === 4) {
+      parsed = migrateV4State(parsed);
     }
     if (parsed.schemaVersion !== DEFAULT_STATE.schemaVersion) {
       throw new Error(tp("Backup schema v{found} is not compatible with v{expected}.", {
@@ -708,10 +724,20 @@ export class GameStateManager {
 
     this.state.onboarded = true;
     p.assessmentComplete = !express;
-    p.level = 1;
-    p.xp = 0;
-    p.rank = this.getRank(1);
+    // Level opens at the user's real age — nobody starts life at 1 — and the
+    // first season opens with it. lifetimeXp is deliberately NOT reset here:
+    // it survives a re-onboard the same way it survives a migration.
+    p.level = Math.round(clampNumber(p.age, 1, 999, 1));
+    p.rank = this.getRank(p.level);
+    p.season = {
+      startDate: new Date().toISOString(),
+      earnedXp: 0,
+      possibleXp: 0,
+      lastAccrualWeek: null
+    };
+    p.lastLevelUp = null;
 
+    this.state.levelYears = [];
     this.state.goals = createDefaultPledges();
     this.state.snapshots = [];
     this.state.checkins = [];
@@ -720,25 +746,17 @@ export class GameStateManager {
     this.saveState();
   }
 
+  // XP no longer causes level-ups — birthdays do (see defaults.js). The old
+  // `while (xp >= level*100)` loop is gone entirely: it made Level a measure of
+  // how much the app had been used, which is a fact about the app rather than
+  // about the person.
   addXP(amount) {
     const p = this.state.profile;
-    p.xp += amount;
     // Never-truncated lifetime total (finding #11): the shareable "points" read
-    // from this, not the capped action history, so quest/commitment/check-in/
-    // deep-assessment XP all count and the number never shrinks.
+    // from this, not the capped action history, so review/check-in/deep-
+    // assessment XP all count and the number never shrinks.
     p.lifetimeXp = (Number.isFinite(p.lifetimeXp) ? p.lifetimeXp : 0) + amount;
-    let leveled = false;
-    let xpNeeded = p.level * 100;
-    while (p.xp >= xpNeeded) {
-      p.xp -= xpNeeded;
-      p.level += 1;
-      leveled = true;
-      xpNeeded = p.level * 100;
-    }
-    if (leveled) {
-      p.rank = this.getRank(p.level);
-      dispatchAppEvent("lifequest_levelup", { level: p.level, rank: p.rank });
-    }
+    p.season.earnedXp += amount;
   }
 }
 

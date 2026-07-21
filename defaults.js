@@ -6,14 +6,36 @@
 
 export const DEFAULT_STATE = {
   onboarded: false,
-  schemaVersion: 4,
+  schemaVersion: 5,
   profile: {
     name: "Guest",
-    level: 1,
-    xp: 0,
+    // Level IS the user's age — a fact about the person, not a claim about
+    // them. XP no longer causes level-ups; birthdays do. See the plan's "Why":
+    // every developmental-stage instrument needs a trained human rater, and ego
+    // stages are empirically reversible, so a monotonic earned Level would be
+    // asserting something the measurement cannot support.
+    level: 1, // replaced by the real age at onboarding / migration
     lifetimeXp: 0, // never-truncated total XP ever earned — drives shareable points (finding #11)
     rank: "Foundational",
     assessmentComplete: true, // false only after a quick-start (express) baseline
+
+    // Month + day only, NOT a full date of birth: enough to drive level-ups,
+    // while never holding the identifier a full DOB would be. Null until asked.
+    birthMonth: null, // 1-12
+    birthDay: null, // 1-31
+    // Set when a birthday advances the level; birthday processing counts
+    // elapsed birthdays from here, so a backup imported after two birthdays
+    // levels up twice instead of losing a year.
+    lastLevelUp: null, // { date: ISO, lifetimeXpAt: n }
+    // The current level-year ("season"). XP is unlimited within a season and
+    // resets at level-up — the archived seasons in state.levelYears are what
+    // make the reset read as "filed", not "wiped".
+    season: {
+      startDate: null,
+      earnedXp: 0,
+      possibleXp: 0, // accrues per elapsed ISO week whether or not a review was submitted
+      lastAccrualWeek: null // ISO week key, e.g. "2026-W30"
+    },
 
     age: 25,
     gender: "unspecified", // male, female, unspecified — for benchmark norm selection
@@ -50,6 +72,7 @@ export const DEFAULT_STATE = {
     environment: 0,
     humanityFuture: 0
   },
+  levelYears: [], // archived seasons {level, xp, possible, ratio} — the level-up trend
   history: [], // legacy pre-v4 action-log archive; nothing writes it anymore
   goals: [], // weekly quantity pledges {id, templateId, target, streak, lastResult}
   reviews: [], // weekly review records {date, week, inputs, shifts, goals, xp}

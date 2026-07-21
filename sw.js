@@ -27,6 +27,7 @@ const APP_SHELL = [
   "./state.js",
   "./defaults.js",
   "./grades.js",
+  "./season.js",
   "./sanitize.js",
   "./scoring.js",
   "./ui.js",
