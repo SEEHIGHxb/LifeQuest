@@ -298,7 +298,7 @@ test("importing hostile fields is coerced to safe shapes (#3 XSS hardening)", ()
   const m = new GameStateManager();
   const hostile = {
     schemaVersion: 4,
-    profile: { name: "<img src=x onerror=alert(1)>", level: "<script>", xp: "abc", rank: "<b>evil</b>" },
+    profile: { name: "<img src=x onerror=alert(1)>", level: "<script>", xp: "abc" },
     aspects: { finance: 55, "<img onerror=alert(1)>": 90, physical: 999 },
     friends: [{ id: '"><script>', name: "Mallory", level: "<x>", totalPoints: "NaN", aspects: {} }],
     goals: [{ id: '"><img>', templateId: "<script>alert(1)</script>", target: 2 }]
@@ -309,15 +309,15 @@ test("importing hostile fields is coerced to safe shapes (#3 XSS hardening)", ()
   assert.equal(Object.keys(s.aspects).length, 8);
   assert.equal(s.aspects["<img onerror=alert(1)>"], undefined, "injected aspect key dropped");
   assert.equal(s.aspects.physical, 100, "out-of-range aspect clamped");
-  // Profile scalars coerced; rank derived from level, so it is always a known enum.
+  // Profile scalars coerced to safe shapes.
   assert.equal(typeof s.profile.level, "number");
   assert.equal(s.profile.xp, undefined, "the retired v4 xp field does not survive import");
   assert.equal(s.profile.season.earnedXp, 0, "non-numeric season XP coerced to 0");
-  assert.equal(s.profile.rank, m.getRank(s.profile.level), "rank recomputed, not trusted");
-  // Friend id reduced to a safe token; level/points coerced to numbers.
+  // Friend id reduced to a safe token; level/points are no longer carried at all
+  // — v2 comparison codes hold only a name and the eight aspect scores.
   assert.match(s.friends[0].id, /^[A-Za-z0-9_-]+$/, "friend id stripped to a safe token");
-  assert.equal(typeof s.friends[0].level, "number");
-  assert.equal(typeof s.friends[0].totalPoints, "number");
+  assert.equal(s.friends[0].level, undefined, "no level survives the import");
+  assert.equal(s.friends[0].totalPoints, undefined, "no point total survives the import");
   // A pledge whose templateId names no real template is dropped whole — every
   // user-facing pledge string derives from its template, so there is nothing
   // safe to render an unknown one as.

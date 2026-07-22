@@ -114,7 +114,7 @@ export function renderDashboard(containerId, state, onExportBackup) {
           <div style="flex-grow: 1;">
             <h3 style="font-family: var(--font-serif); font-size: 1.4rem; font-weight: bold; color: var(--color-navy);">${escapeHtml(p.name)}</h3>
             <p style="font-family: var(--font-sans); font-size: 0.82rem; color: var(--color-gold); font-weight: 600;">
-              ${escapeHtml(t(p.rank))} &bull; ${escapeHtml(t(p.employment))} (${escapeHtml(t(p.region))})
+              ${escapeHtml(t(p.employment))} (${escapeHtml(t(p.region))})
             </p>
             <div class="xp-bar-container" role="progressbar" aria-label="${t("This year's points")}" aria-valuenow="${pace.percent}" aria-valuemin="0" aria-valuemax="100">
               <div class="xp-bar-fill" style="width: ${pace.percent}%;"></div>

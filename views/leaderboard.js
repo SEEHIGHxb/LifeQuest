@@ -1,19 +1,24 @@
 // views/leaderboard.js - the Peer Comparison tab: comparison codes and the
-// rankings table. Moved verbatim from the old monolithic ui.js.
+// rankings table. The board ranks on the Balance Index (harmonic mean of the
+// eight aspect scores) — no age, no points appear anywhere on it.
 
 import { stateManager } from "../state.js";
-import { encodeCrewCode, decodeCrewCode, crewPoints } from "../crewcode.js";
+import { encodeComparisonCode, decodeComparisonCode } from "../comparison-code.js";
+import { balanceIndex, balanceBand } from "../grades.js";
 import { t, tp } from "../i18n.js";
 import { escapeHtml } from "./helpers.js";
 
-// Sample profiles that populate the peer-comparison board until real codes are added
+// Sample profiles that fill the board until real codes are added. They carry
+// aspect scores (not a level or a point total) because the board ranks on the
+// Balance Index derived from those scores. Chosen to spread monotonically from
+// a strong all-rounder to a low, spiky profile so the ordering reads clearly.
 const MOCK_COMPETITORS = [
-  { name: "Nadia", level: 48, totalPoints: 4850 },
-  { name: "Marcus", level: 42, totalPoints: 4280 },
-  { name: "Priya", level: 31, totalPoints: 3150 },
-  { name: "Kenji", level: 24, totalPoints: 2420 },
-  { name: "Sofia", level: 19, totalPoints: 1950 },
-  { name: "Liam", level: 12, totalPoints: 1280 }
+  { name: "Nadia", aspects: { finance: 72, physical: 80, mental: 78, relationships: 82, personalGoals: 70, socialContribution: 60, environment: 65, humanityFuture: 58 } },
+  { name: "Marcus", aspects: { finance: 68, physical: 75, mental: 70, relationships: 72, personalGoals: 66, socialContribution: 40, environment: 55, humanityFuture: 50 } },
+  { name: "Priya", aspects: { finance: 55, physical: 58, mental: 60, relationships: 57, personalGoals: 54, socialContribution: 50, environment: 55, humanityFuture: 48 } },
+  { name: "Kenji", aspects: { finance: 50, physical: 55, mental: 52, relationships: 48, personalGoals: 45, socialContribution: 35, environment: 50, humanityFuture: 40 } },
+  { name: "Sofia", aspects: { finance: 45, physical: 48, mental: 50, relationships: 42, personalGoals: 40, socialContribution: 38, environment: 44, humanityFuture: 35 } },
+  { name: "Liam", aspects: { finance: 40, physical: 42, mental: 38, relationships: 35, personalGoals: 30, socialContribution: 25, environment: 38, humanityFuture: 28 } }
 ];
 
 // 5. RENDER LEADERBOARD
@@ -24,31 +29,34 @@ export function renderLeaderboard(containerId, state, onRefresh) {
   const friends = state.friends || [];
   const userEntry = {
     name: tp("{name} (You)", { name: state.profile.name }),
-    level: state.profile.level,
-    totalPoints: crewPoints(state),
+    aspects: state.aspects,
     isUser: true
   };
   const friendEntries = friends.map(f => ({ ...f, isFriend: true }));
-  // NPCs pad the board until real crewmates are added.
+  // Sample rows pad the board until real participants are added.
   const npcEntries = MOCK_COMPETITORS.map(pl => ({ ...pl, isNpc: true }));
 
+  // Rank on the Balance Index alone — the only board metric now.
   const allPlayers = [...npcEntries, ...friendEntries, userEntry]
-    .map(pl => ({ ...pl, rankClass: stateManager.getRankClass(pl.level) }))
-    .sort((a, b) => b.totalPoints - a.totalPoints);
+    .map(pl => {
+      const balance = balanceIndex(pl.aspects || {});
+      return { ...pl, balance, band: balanceBand(balance) };
+    })
+    .sort((a, b) => b.balance - a.balance);
 
-  const myCode = encodeCrewCode(state);
+  const myCode = encodeComparisonCode(state);
 
   container.innerHTML = `
     <div style="max-width: 650px; margin: 0 auto;">
       <div class="card">
         <h3 class="card-header">${t("Comparison Codes")}</h3>
         <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 12px;">
-          ${t("Peer comparison uses <strong>real people</strong>: share your code with others over LINE or Discord, and paste theirs below. Codes carry only your name, level, points, and aspect scores — nothing private. Re-paste a newer code any time to update a participant.")}
+          ${t("Peer comparison uses <strong>real people</strong>: share your code with others over LINE or Discord, and paste theirs below. A code carries only your name and the eight aspect scores — no age, no points, nothing else. Re-paste a newer code any time to update a participant.")}
         </p>
         <div class="form-group">
-          <label for="my-crew-code">${t("Your Comparison Code")}</label>
+          <label for="my-comparison-code">${t("Your Comparison Code")}</label>
           <div style="display: flex; gap: 8px;">
-            <input type="text" id="my-crew-code" class="form-control" value="${myCode}" readonly style="font-family: var(--font-mono); font-size: 0.75rem;">
+            <input type="text" id="my-comparison-code" class="form-control" value="${myCode}" readonly style="font-family: var(--font-mono); font-size: 0.75rem;">
             <button type="button" id="btn-copy-code" class="btn btn-primary" style="white-space: nowrap;">${t("Copy")}</button>
           </div>
         </div>
@@ -80,8 +88,7 @@ export function renderLeaderboard(containerId, state, onRefresh) {
             <tr style="border-bottom: 1px solid var(--color-card-border); font-family: var(--font-serif); font-size: 1.05rem; color: var(--color-navy);">
               <th style="padding: 10px;">${t("Rank")}</th>
               <th style="padding: 10px;">${t("Participant")}</th>
-              <th style="padding: 10px; text-align: center;">${t("Level")}</th>
-              <th style="padding: 10px; text-align: right;">${t("Total Points")}</th>
+              <th style="padding: 10px; text-align: center;">${t("Balance")}</th>
               <th style="padding: 10px; text-align: center;">${t("Tier")}</th>
             </tr>
           </thead>
@@ -97,9 +104,8 @@ export function renderLeaderboard(containerId, state, onRefresh) {
                     ${player.isNpc ? `<span class="npc-tag">${t("Sample")}</span>` : ""}
                     ${player.isFriend ? `<button type="button" class="friend-remove" data-friend-id="${escapeHtml(player.id)}" aria-label="${tp("Remove {name}", { name: escapeHtml(player.name) })}" title="${t("Remove participant")}">✕</button>` : ""}
                   </td>
-                  <td style="padding: 12px 10px; text-align: center; font-family: var(--font-mono);">${escapeHtml(player.level)}</td>
-                  <td style="padding: 12px 10px; text-align: right; font-family: var(--font-mono);">${escapeHtml(player.totalPoints)}</td>
-                  <td style="padding: 12px 10px; text-align: center;"><span class="holo-badge">${escapeHtml(t(player.rankClass))}</span></td>
+                  <td style="padding: 12px 10px; text-align: center; font-family: var(--font-mono);">${escapeHtml(player.balance)}</td>
+                  <td style="padding: 12px 10px; text-align: center;"><span class="holo-badge">${escapeHtml(t(player.band.label))}</span></td>
                 </tr>
               `;
             }).join("")}
@@ -112,7 +118,7 @@ export function renderLeaderboard(containerId, state, onRefresh) {
 
   // Copy own code (clipboard API with select-fallback for older browsers).
   document.getElementById("btn-copy-code").addEventListener("click", async () => {
-    const input = document.getElementById("my-crew-code");
+    const input = document.getElementById("my-comparison-code");
     input.select();
     try {
       await navigator.clipboard.writeText(myCode);
@@ -129,7 +135,7 @@ export function renderLeaderboard(containerId, state, onRefresh) {
     const errorEl = document.getElementById("friend-error");
     errorEl.classList.add("d-none");
     try {
-      const friend = decodeCrewCode(document.getElementById("friend-code").value);
+      const friend = decodeComparisonCode(document.getElementById("friend-code").value);
       const result = stateManager.addFriend(friend);
       if (!result.ok) throw new Error(result.reason);
       if (onRefresh) onRefresh();

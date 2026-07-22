@@ -15,8 +15,7 @@ export const DEFAULT_STATE = {
     // stages are empirically reversible, so a monotonic earned Level would be
     // asserting something the measurement cannot support.
     level: 1, // replaced by the real age at onboarding / migration
-    lifetimeXp: 0, // never-truncated total XP ever earned — drives shareable points (finding #11)
-    rank: "Foundational",
+    lifetimeXp: 0, // never-truncated total XP ever earned (finding #11)
     assessmentComplete: true, // false only after a quick-start (express) baseline
 
     // Month + day only, NOT a full date of birth: enough to drive level-ups,
@@ -83,7 +82,7 @@ export const DEFAULT_STATE = {
   snapshots: [], // weekly {date, aspects} records for trend charts
   baseline: null, // raw instrument sums from onboarding, for benchmark percentiles
   checkins: [], // monthly mini re-assessment records {date, sums, shifts}
-  friends: [], // crewmates imported from Crew Codes {id, name, level, totalPoints, aspects, addedAt}
+  friends: [], // participants imported from Comparison Codes {id, name, aspects, addedAt}
   lastExportAt: null // ISO date of the last backup export — drives the dashboard nudge
 };
 

@@ -580,8 +580,8 @@ export const TH = {
 
   // --- Rankings / Crew Codes ---
   "Comparison Codes": "รหัสเปรียบเทียบ",
-  "Peer comparison uses <strong>real people</strong>: share your code with others over LINE or Discord, and paste theirs below. Codes carry only your name, level, points, and aspect scores — nothing private. Re-paste a newer code any time to update a participant.":
-    "การเปรียบเทียบกับผู้อื่นใช้<strong>คนจริง</strong>: แชร์รหัสของคุณให้ผู้อื่นทาง LINE หรือ Discord แล้วนำรหัสของพวกเขามาวางด้านล่าง รหัสมีแค่ชื่อ เลเวล คะแนน และคะแนนรายด้าน — ไม่มีข้อมูลส่วนตัว วางรหัสใหม่ได้ทุกเมื่อเพื่ออัปเดตผู้เข้าร่วม",
+  "Peer comparison uses <strong>real people</strong>: share your code with others over LINE or Discord, and paste theirs below. A code carries only your name and the eight aspect scores — no age, no points, nothing else. Re-paste a newer code any time to update a participant.":
+    "การเปรียบเทียบกับผู้อื่นใช้<strong>คนจริง</strong>: แชร์รหัสของคุณให้ผู้อื่นทาง LINE หรือ Discord แล้วนำรหัสของพวกเขามาวางด้านล่าง รหัสมีแค่ชื่อและคะแนนรายด้านทั้งแปด — ไม่มีอายุ ไม่มีคะแนนสะสม ไม่มีอย่างอื่น วางรหัสใหม่ได้ทุกเมื่อเพื่ออัปเดตผู้เข้าร่วม",
   "Your Comparison Code": "รหัสเปรียบเทียบของคุณ",
   "Copy": "คัดลอก",
   "Copied!": "คัดลอกแล้ว!",
@@ -594,6 +594,7 @@ export const TH = {
   "Participant": "ผู้เข้าร่วม",
   "Level": "เลเวล",
   "Total Points": "คะแนนรวม",
+  "Balance": "ดัชนีสมดุล",
   "Tier": "ระดับ",
   "Sample": "ตัวอย่าง",
   "{name} (You)": "{name} (คุณ)",

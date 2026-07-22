@@ -397,26 +397,6 @@ export function ageBandShifts(profile, oldAge, newAge, baseline) {
   return rounded === 0 ? {} : { finance: rounded };
 }
 
-// --- LEVEL RANKS (progression labels — pure lookups on level) ---
-
-export function rankForLevel(level) {
-  if (level >= 56) return "Exemplary";
-  if (level >= 46) return "Distinguished";
-  if (level >= 36) return "Advanced";
-  if (level >= 26) return "Proficient";
-  if (level >= 16) return "Progressing";
-  if (level >= 6) return "Developing";
-  return "Foundational";
-}
-
-export function rankClassForLevel(level) {
-  if (level >= 36) return "S-Rank";
-  if (level >= 26) return "A-Rank";
-  if (level >= 16) return "B-Rank";
-  if (level >= 6) return "C-Rank";
-  return "D-Rank";
-}
-
 // --- DEEP (LONG-FORM) INSTRUMENTS ---
 
 // Deep raw sum -> 0-100. Shared by deepAspectScore below and the component

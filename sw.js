@@ -51,7 +51,7 @@ const APP_SHELL = [
   "./aspects.js",
   "./validation.js",
   "./suggestions.js",
-  "./crewcode.js",
+  "./comparison-code.js",
   "./i18n.js",
   "./th.js",
   "./manifest.webmanifest",

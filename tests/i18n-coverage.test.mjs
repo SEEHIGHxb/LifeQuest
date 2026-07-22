@@ -22,7 +22,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FILES = [
   "ui.js", "app.js", "aspects.js", "benchmarks.js",
   "suggestions.js", "state.js", "defaults.js", "sanitize.js", "scoring.js",
-  "crewcode.js", "chart.js", "validation.js", "goals.js",
+  "comparison-code.js", "chart.js", "validation.js", "goals.js",
   // ui.js is now a barrel — the actual t()/tp() literals live in views/.
   ...readdirSync(join(root, "views")).filter(f => f.endsWith(".js")).map(f => join("views", f))
 ];

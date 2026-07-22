@@ -1,16 +1,25 @@
-// crewcode.js - Shareable "Crew Codes" for real user-vs-user rankings.
+// comparison-code.js - Shareable Comparison Codes for real, backend-free peer
+// comparison.
 //
-// A crew code packs a player's public stats (name, level, total points,
-// aspect scores) into a compact base64url string with an "LQ1-" prefix.
-// Friends exchange codes over chat and paste them into the Rankings tab —
-// real people, no backend, works on any static host. Pure module: no DOM.
+// A comparison code packs a participant's public snapshot — their name and the
+// eight aspect scores — into a compact base64url string with an "LQ1-" prefix.
+// Participants exchange codes over chat and paste them into the Peer Comparison
+// tab: real people, no backend, works on any static host. Pure module: no DOM.
+//
+// The board ranks on the Balance Index, which is derived from the aspect scores
+// alone — so the code deliberately carries NO age/level and NO points. Age would
+// disclose a fact the participant never chose to share; points measured tenure
+// with the app, not anything about the person.
+//
+// Format history:
+//   v2 (current) — { v:2, n:name, a:[8 aspect scores] }
+//   v1 (legacy)  — also carried l:level and p:points. Still DECODED (l/p simply
+//                  ignored) so codes shared before this release keep working.
 
 import { t, tp } from "./i18n.js";
 
 const CODE_PREFIX = "LQ1-";
 const NAME_MAX_LENGTH = 20;
-const LEVEL_MAX = 999;
-const POINTS_MAX = 10000000;
 const ASPECT_COUNT = 8;
 
 // Aspect order is part of the code format — do not reorder.
@@ -18,19 +27,6 @@ const ASPECT_ORDER = [
   "finance", "physical", "mental", "relationships",
   "personalGoals", "socialContribution", "environment", "humanityFuture"
 ];
-
-// Same points formula the Rankings table uses. Prefers the never-truncated
-// lifetime-XP counter (finding #11) so quest/commitment/check-in/deep XP all
-// count and the number never shrinks as the capped action history rotates.
-// Saves predating the counter fall back to the history sum (undercounts, but
-// degrades gracefully).
-export function crewPoints(state) {
-  const profile = state.profile || {};
-  const base = Number.isFinite(profile.lifetimeXp)
-    ? profile.lifetimeXp
-    : (state.history || []).reduce((sum, h) => sum + (h.xpReward || 0), 0);
-  return base + (profile.level || 1) * 150;
-}
 
 // TextEncoder-based base64url so Thai and other non-Latin names survive.
 function toBase64Url(str) {
@@ -46,19 +42,17 @@ function fromBase64Url(b64url) {
   return new TextDecoder().decode(bytes);
 }
 
-export function encodeCrewCode(state) {
+export function encodeComparisonCode(state) {
   const payload = {
-    v: 1,
+    v: 2,
     n: String(state.profile.name || "Guest").trim().slice(0, NAME_MAX_LENGTH) || "Guest",
-    l: Math.max(1, Math.min(LEVEL_MAX, parseInt(state.profile.level || 1))),
-    p: Math.max(0, Math.min(POINTS_MAX, crewPoints(state))),
     a: ASPECT_ORDER.map(key => Math.round(Math.max(0, Math.min(100, (state.aspects || {})[key] || 0))))
   };
   return CODE_PREFIX + toBase64Url(JSON.stringify(payload));
 }
 
 // Throws a user-friendly Error on anything malformed or out of range.
-export function decodeCrewCode(code) {
+export function decodeComparisonCode(code) {
   const trimmed = String(code || "").trim();
   if (!trimmed.startsWith(CODE_PREFIX)) {
     throw new Error(tp('Comparison codes start with "{prefix}".', { prefix: CODE_PREFIX }));
@@ -69,28 +63,20 @@ export function decodeCrewCode(code) {
   } catch {
     throw new Error(t("That code is damaged — ask the participant to copy it again."));
   }
-  if (!payload || payload.v !== 1) {
+  // Both formats are accepted. A v1 code still carries l/p; they are read past,
+  // not validated — the board no longer uses them and they leave no trace.
+  if (!payload || (payload.v !== 1 && payload.v !== 2)) {
     throw new Error(t("Unsupported comparison code version."));
   }
   const name = typeof payload.n === "string" ? payload.n.trim().slice(0, NAME_MAX_LENGTH) : "";
-  const level = parseInt(payload.l);
-  const points = parseInt(payload.p);
   const aspects = payload.a;
   if (!name) throw new Error(t("Comparison code is missing a name."));
-  if (!Number.isInteger(level) || level < 1 || level > LEVEL_MAX) {
-    throw new Error(t("Comparison code has an invalid level."));
-  }
-  if (!Number.isInteger(points) || points < 0 || points > POINTS_MAX) {
-    throw new Error(t("Comparison code has invalid points."));
-  }
   if (!Array.isArray(aspects) || aspects.length !== ASPECT_COUNT
     || !aspects.every(v => Number.isFinite(v) && v >= 0 && v <= 100)) {
     throw new Error(t("Comparison code has invalid aspect scores."));
   }
   return {
     name,
-    level,
-    totalPoints: points,
     aspects: Object.fromEntries(ASPECT_ORDER.map((key, i) => [key, Math.round(aspects[i])]))
   };
 }

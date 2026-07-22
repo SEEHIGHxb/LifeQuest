@@ -116,7 +116,7 @@ Headings are set in **Source Serif 4**, body text in **Inter**, and Thai in
 | `benchmarks.js` | Population percentile benchmarks with cited sources |
 | `aspects.js` | Per-aspect detail: component breakdowns and trend series |
 | `suggestions.js` | Rule-based, profile-aware recommendation engine |
-| `crewcode.js` | Shareable comparison codes for real user-vs-user comparison |
+| `comparison-code.js` | Shareable comparison codes (name + aspect scores) for real peer comparison |
 | `i18n.js` / `th.js` | EN/TH localization layer and the Thai dictionary |
 | `sw.js` / `manifest.webmanifest` | PWA: offline service worker and install manifest |
 | `surveys.js` | Survey instrument question banks and option scales |

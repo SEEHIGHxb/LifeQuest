@@ -26,7 +26,7 @@ import {
   calculateRelationshipsScore, calculatePersonalGoalsScore,
   calculateSocialContributionScore, calculateEnvironmentScore,
   calculateHumanityFutureScore, deepAspectScore, weeklyAspectShifts,
-  ageBandShifts, clamp100, rankForLevel, rankClassForLevel
+  ageBandShifts, clamp100
 } from "./scoring.js";
 import { INSTRUMENTS, DEEP_INSTRUMENTS } from "./surveys.js";
 import { isStraightLined } from "./validation.js";
@@ -181,7 +181,6 @@ export class GameStateManager {
     if (this.state.levelYears.length > LEVEL_YEAR_LIMIT) {
       this.state.levelYears = this.state.levelYears.slice(-LEVEL_YEAR_LIMIT);
     }
-    p.rank = this.getRank(p.level);
 
     // Crossing the CFPB 62 band changes the finance score. Applied as a delta
     // so the user's accumulated check-in and deep adjustments survive.
@@ -191,7 +190,7 @@ export class GameStateManager {
     }
 
     dispatchAppEvent("lifequest_levelup", {
-      level: p.level, rank: p.rank, years: elapsed.length, shifts
+      level: p.level, years: elapsed.length, shifts
     });
     return true;
   }
@@ -202,8 +201,8 @@ export class GameStateManager {
   mergeSavedState(parsed) {
     const defaults = structuredClone(DEFAULT_STATE);
 
-    // Coerce the profile fields the UI prints unescaped (name/level/xp) and
-    // derive rank from level so it is always a known enum, never trusted input.
+    // Coerce the profile fields the UI prints unescaped (name/level/xp) back to
+    // known shapes so an imported backup can't smuggle in markup.
     const profile = { ...defaults.profile, ...(parsed.profile || {}) };
     profile.name = safeString(profile.name, 60).trim() || "Guest";
     // Level is the user's age now, so it no longer has an XP ladder underneath
@@ -222,7 +221,6 @@ export class GameStateManager {
     // silently burying the only question that makes level-ups work.
     profile.birthdayPromptDismissed = profile.birthdayPromptDismissed === true;
     delete profile.xp; // v4 field; its balance lives in season.earnedXp
-    profile.rank = this.getRank(profile.level);
     sanitizeProfileFields(profile);
 
     return {
@@ -458,16 +456,6 @@ export class GameStateManager {
   resetState() {
     this.state = structuredClone(DEFAULT_STATE);
     this.saveState();
-  }
-
-  // Thin delegates kept for API stability (leaderboard + tests call them on
-  // the instance); the lookups themselves live with the other pure functions.
-  getRank(level) {
-    return rankForLevel(level);
-  }
-
-  getRankClass(level) {
-    return rankClassForLevel(level);
   }
 
   // --- WEEKLY REVIEW (one measured self-report per ISO week) ---
@@ -831,7 +819,6 @@ export class GameStateManager {
     // first season opens with it. lifetimeXp is deliberately NOT reset here:
     // it survives a re-onboard the same way it survives a migration.
     p.level = Math.round(clampNumber(p.age, 1, 999, 1));
-    p.rank = this.getRank(p.level);
     p.season = {
       startDate: new Date().toISOString(),
       earnedXp: 0,

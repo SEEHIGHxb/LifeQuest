@@ -80,8 +80,11 @@ export function sanitizeAspectScores(raw) {
   return out;
 }
 
-// Rebuild an imported crewmate to a known, type-safe shape (its id/level/points
-// are rendered into the leaderboard without escaping upstream of here).
+// Rebuild an imported participant to a known, type-safe shape. Comparison codes
+// v2 carry only a name and the eight aspect scores; the board ranks on the
+// Balance Index derived from those scores, so no level or point total is kept
+// (a v1 code's l/p were already dropped by the decoder). The id reaches the
+// leaderboard as a data-attribute, so it is reduced to a safe token here.
 export function sanitizeImportedFriend(f) {
   if (!f || typeof f !== "object") return null;
   const name = safeString(f.name, 40).trim();
@@ -89,8 +92,6 @@ export function sanitizeImportedFriend(f) {
   return {
     id: safeId(f.id, "crew"),
     name,
-    level: Math.round(clampNumber(f.level, 1, 999, 1)),
-    totalPoints: Math.round(clampNumber(f.totalPoints, 0, 10000000, 0)),
     aspects: sanitizeAspectScores(f.aspects),
     addedAt: safeString(f.addedAt, 40) || new Date().toISOString()
   };
