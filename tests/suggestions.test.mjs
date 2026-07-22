@@ -1,7 +1,10 @@
 // Tests for the rule-based, profile-aware suggestion engine (node --test)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { getAspectSuggestions, getTopSuggestions, getMentalHealthNotice } from "../suggestions.js";
+import {
+  getAspectSuggestions, getTopSuggestions, getMentalHealthNotice,
+  rankPledgesByGrade, isPriorityPledge
+} from "../suggestions.js";
 import { ASPECT_KEYS } from "../aspects.js";
 
 // A deliberately weak profile/baseline so every aspect has low components.
@@ -112,6 +115,44 @@ test("getTopSuggestions caps the list and dedupes by aspect", () => {
   assert.equal(new Set(aspects).size, aspects.length, "one suggestion per aspect");
   const values = top.map(s => s.componentValue);
   assert.deepEqual(values, [...values].sort((a, b) => a - b), "weakest aspects surface first");
+});
+
+// --- Grade-driven pledge ordering (Phase 4) ---
+// Templates carry an `aspect`; grades score each aspect A–F; the ranker joins
+// them so a D/F aspect surfaces its pledges first. These pin the join without
+// a DOM. Tagged aspects: savings→finance, plastics→environment, water/sleep/
+// veg→physical, learning→personalGoals, donations→socialContribution.
+
+test("rankPledgesByGrade surfaces pledges for the lowest-graded aspects first", () => {
+  const grades = {
+    finance: { grade: "A" }, physical: { grade: "B" }, environment: { grade: "F" },
+    socialContribution: { grade: "C" }, personalGoals: { grade: "B" }
+  };
+  // Attention: plastics(F=5) > donations(C=2) > water(B=1) > savings(A=0).
+  const ranked = rankPledgesByGrade(["savings", "water", "plastics", "donations"], grades);
+  assert.deepEqual(ranked, ["plastics", "donations", "water", "savings"]);
+});
+
+test("rankPledgesByGrade is stable within a tie and passes through with no grades", () => {
+  const ids = ["water", "sleep", "veg"]; // all physical — always tied
+  assert.deepEqual(rankPledgesByGrade(ids, { physical: { grade: "C" } }), ids);
+  assert.deepEqual(rankPledgesByGrade(ids, {}), ids, "no grades keeps catalog order");
+  assert.deepEqual(rankPledgesByGrade(ids, null), ids, "null grades keeps catalog order");
+});
+
+test("an ungraded aspect ranks as typical, never ahead of a graded-weak one", () => {
+  // personalGoals not yet assessed (null) must not jump ahead of a D aspect.
+  const grades = { environment: { grade: "D" }, personalGoals: null };
+  assert.deepEqual(rankPledgesByGrade(["learning", "plastics"], grades), ["plastics", "learning"]);
+});
+
+test("isPriorityPledge flags only pledges for D/F aspects", () => {
+  assert.equal(isPriorityPledge("plastics", { environment: { grade: "F" } }), true);
+  assert.equal(isPriorityPledge("plastics", { environment: { grade: "D" } }), true);
+  assert.equal(isPriorityPledge("plastics", { environment: { grade: "C" } }), false);
+  assert.equal(isPriorityPledge("savings", { finance: { grade: "A" } }), false);
+  assert.equal(isPriorityPledge("learning", { personalGoals: null }), false, "ungraded is not priority");
+  assert.equal(isPriorityPledge("notATemplate", {}), false, "an unknown template is never priority");
 });
 
 // --- Finding #4: duty-of-care mental-health notice ---

@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Two version numbers, on purpose
 
-- **`APP_VERSION`** (`version.js`, currently `28`) is a monotonic **cache-bust
+- **`APP_VERSION`** (`version.js`, currently `29`) is a monotonic **cache-bust
   counter**, not semver. It appears in the `?v=N` query on every versioned
   asset and in the service worker's `CACHE_NAME`. Bump it on *any* release that
   changes a shipped file. `tests/consistency.test.mjs` fails CI if the sites
@@ -15,6 +15,68 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 They are deliberately independent: a one-character CSS fix needs a cache bust
 but not a minor version.
+
+## [2.0.0] — 2026-07-22 (APP_VERSION 29)
+
+**Breaking release.** Level now means your age, XP resets each year, and the
+shareable comparison code drops the fields that leaked age and tenure. Existing
+saves migrate automatically (schemaVersion 4 → 5) with no data loss — your
+aspect scores, baseline, history, and lifetime XP all carry over.
+
+### Why level = age
+
+The old level was XP-derived (`xpNeeded = level × 100`), so it measured time
+spent tapping the app, not anything about the person. There is no honest,
+self-scorable measure of "developmental level" — every validated instrument
+needs a trained human rater, ego stages are empirically reversible, and ~80% of
+adults sit in three adjacent stages (near-zero discrimination). Age is a fact,
+not a claim, and it sidesteps all of that.
+
+### Added
+
+- **Level = your age.** It starts at your current age and ticks up by one on
+  your birthday — never down. Existing users jump from ~level 6 to their real
+  age on first load; that is intended, and reads as a gift rather than a reset.
+- **Seasonal XP.** XP now accrues *within* a level-year and resets at each
+  birthday. Each closed year is filed to a **season archive** (`levelYears`)
+  with its earned/possible ratio, so the reset reads as "year closed", never
+  "progress wiped". Lifetime XP is preserved across the change.
+- **Year review** (`#/year`, opens on the 1st of your birth month) — a
+  forward-looking screen with the runway still left in the year, your season
+  pace, per-aspect movement, and the `levelYears` trend. No pass/fail language
+  anywhere.
+- **Pace bar** on the dashboard: season XP earned vs. what your configured
+  pledges make possible (`PACE_THRESHOLD = 0.55`, a tunable, not a researched
+  figure — revisit after a real year).
+- **Grade-driven pledge order.** The *Add a Pledge* catalog now leads with
+  pledges for the aspects you are graded lowest on — a join of the existing
+  A–F grades (`grades.js`) with each pledge's `aspect` tag. A D or F aspect
+  surfaces its pledge first; nothing new is stored.
+
+### Changed
+
+- **Comparison code is now v2.** A shared code carries only your name and the
+  eight aspect scores — **no level (age) and no points**. The board ranks on
+  the **Balance Index** alone; the age-derived "rank" is gone. Codes shared
+  before this release (v1) still decode — their level/points are simply read
+  past and dropped.
+- The dashboard status card shows level = age and the XP bar as season progress
+  against the pace bar, not a climb to the next level.
+- Crossing a CFPB age band (e.g. turning 62) recalculates finance as a **delta**
+  applied to your current score, so accumulated check-in and deep-assessment
+  adjustments survive; the year review names the recalculation.
+
+### Migration (schemaVersion 4 → 5, automatic, zero data loss)
+
+- Adds `birthMonth`/`birthDay` (asked once via a soft, non-blocking prompt —
+  month and day only, never the year you were born), `season`, `lastLevelUp`,
+  and `levelYears: []`.
+- Sets `level := your age` (falls back to the existing level if age is
+  unavailable); moves the current `xp` into `season.earnedXp`; preserves
+  `lifetimeXp` intact.
+- `possibleXp` accrues for every ISO week elapsed since the last accrual,
+  whether or not a review was submitted, using the *current* pledge config for
+  missed weeks (a documented approximation).
 
 ## [1.6.0] — 2026-07-21 (APP_VERSION 28)
 

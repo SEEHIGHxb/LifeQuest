@@ -6,6 +6,9 @@
 import { stateManager } from "../state.js";
 import { t, tp } from "../i18n.js";
 import { GOAL_TEMPLATES, goalTemplate, PLEDGE_LIMIT } from "../goals.js";
+import { getAllBenchmarks } from "../benchmarks.js";
+import { gradeAllAspects } from "../grades.js";
+import { rankPledgesByGrade, isPriorityPledge } from "../suggestions.js";
 import { escapeHtml, aspectLabel } from "./helpers.js";
 
 function pledgeCard(goal) {
@@ -44,9 +47,19 @@ export function renderQuests(containerId, state, onChange) {
   if (!container) return;
 
   const pledges = state.goals;
-  const available = Object.entries(GOAL_TEMPLATES)
-    .filter(([id]) => !pledges.some(g => g.templateId === id));
+  // Order the catalog so pledges for the user's lowest-graded aspects lead —
+  // the neediest one is first, and so pre-selected in the form. Grades come
+  // from the same benchmarks the dashboard grades on. A bare state (no
+  // profile, e.g. hostile-input tests) grades nothing, so the order is the
+  // plain catalog order.
+  const grades = state.profile ? gradeAllAspects(getAllBenchmarks(state)) : {};
+  const availableIds = rankPledgesByGrade(
+    Object.keys(GOAL_TEMPLATES).filter(id => !pledges.some(g => g.templateId === id)),
+    grades
+  );
+  const available = availableIds.map(id => [id, goalTemplate(id)]);
   const canAdd = pledges.length < PLEDGE_LIMIT && available.length > 0;
+  const hasPriorityPledge = availableIds.some(id => isPriorityPledge(id, grades));
 
   container.innerHTML = `
     <div class="dashboard-grid">
@@ -69,6 +82,10 @@ export function renderQuests(containerId, state, onChange) {
       <div>
         <div class="card">
           <h3 class="card-header">${t("Add a Pledge")}</h3>
+          ${canAdd && hasPriorityPledge ? `
+            <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: 12px;">
+              ${t("Pledges for the aspects you're graded lowest on are listed first.")}
+            </p>` : ""}
           ${canAdd ? `
             <form id="pledge-form">
               <div class="form-group">

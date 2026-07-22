@@ -2,7 +2,8 @@
 
 A formal, static self-assessment dashboard. Complete a scientifically-grounded baseline
 assessment, then check in ONCE A WEEK with rough measured quantities to track eight life
-aspects, accrue points, advance proficiency tiers, and keep weekly pledges — no daily
+aspects, see A–F grades and a single Balance Index, level up each birthday, and keep
+weekly pledges — no daily
 logging ritual. Pure static HTML/JS/CSS — no build step, no backend; all data lives in
 your browser's localStorage.
 
@@ -57,9 +58,19 @@ set in Sarabun.
 - **Hash routing** (`#/dashboard`, `#/review`, `#/aspect/<key>`, `#/checkin`, ...) — browser back/forward work
 - **Radar chart**: dependency-free SVG rendering of the 8 aspects
 - **Peer comparison (comparison codes)**: share your `LQ1-...` code with
-  others and paste theirs to compare against real users — codes carry only name,
-  level, points, and aspect scores; no backend, no accounts. Sample profiles pad
-  the board until you add participants
+  others and paste theirs to compare against real users — a code carries only
+  your name and the eight aspect scores (no age, no points), and the board ranks
+  on the Balance Index; no backend, no accounts. Codes shared before v2.0 still
+  decode. Sample profiles pad the board until you add participants
+- **Age as level, seasonal XP**: your level is simply your age (a fact, not a
+  claim), ticking up on your birthday. XP accrues within each level-year and
+  resets at the birthday, with every closed year filed to a season archive — the
+  dashboard shows a pace bar, not a climb to an arbitrary next level
+- **Letter grades + Balance Index**: each aspect gets an A–F grade from its
+  cited population percentile (personal pages only, never on a shared code), and
+  a single **Balance Index** — the harmonic mean of the eight scores — summarises
+  overall balance. The *Add a Pledge* catalog leads with pledges for your
+  lowest-graded aspects
 - **PWA**: installable with offline support — a network-first service worker
   always serves fresh files online and the cached shell offline
 - **Bilingual (EN / ไทย)**: a header toggle re-renders the whole app in

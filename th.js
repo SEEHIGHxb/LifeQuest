@@ -634,6 +634,7 @@ export const TH = {
   "A pledge is a weekly quantity target. Your weekly review grades every pledge automatically — nothing to log day to day.": "คำมั่นคือเป้าหมายเชิงปริมาณรายสัปดาห์ การทบทวนรายสัปดาห์จะตรวจทุกคำมั่นให้อัตโนมัติ — ไม่ต้องบันทึกอะไรรายวัน",
   "No pledges yet — add one from the catalog.": "ยังไม่มีคำมั่น — เพิ่มจากรายการได้เลย",
   "Add a Pledge": "เพิ่มคำมั่นใหม่",
+  "Pledges for the aspects you're graded lowest on are listed first.": "คำมั่นสำหรับด้านที่คุณได้เกรดต่ำที่สุดจะแสดงก่อน",
   "Pledge type": "ประเภทคำมั่น",
   "Weekly target": "เป้าหมายรายสัปดาห์",
   "Add Pledge": "เพิ่มคำมั่น",
@@ -990,6 +991,8 @@ export const TH = {
     "ดัชนีสมดุลเป็นตัวเลขสรุปที่แอปนี้สร้างขึ้นเอง ไม่ใช่มาตรวัดที่มีการเผยแพร่หรือผ่านการตรวจสอบความตรง ต่างจากคะแนนทั้งแปดด้านและเปอร์เซ็นไทล์ของมัน ไม่มีงานวิจัยใดเสนอค่านี้ และไม่มีที่ใดนอกแอปนี้ใช้มัน ค่านี้คือค่าเฉลี่ยฮาร์มอนิกของคะแนนทั้งแปดด้าน ซึ่งหมายความว่าด้านที่ต่ำที่สุดจะดึงค่านี้ลงแรงที่สุด: คะแนน 70 ทั้งแปดด้านได้ดัชนี 70 ขณะที่เจ็ดด้านราว 79 กับอีกหนึ่งด้านที่ 10 ได้ดัชนี 42 ทั้งที่ค่าเฉลี่ยเท่ากับ 70 เหมือนกัน นี่เป็นความตั้งใจ เพราะตัวเลขเดียวที่ให้รางวัลกับค่าเฉลี่ยสูง ย่อมให้รางวัลกับการละเลยบางด้านไปเลย และแอปนี้ว่าด้วยเรื่องสมดุล",
   "Because the index is dominated by your weakest aspect, raising a low score moves it far more than raising an already-high one. Treat it as a prompt about where attention is missing, not as a verdict on your life.":
     "เพราะดัชนีนี้ถูกกำหนดโดยด้านที่อ่อนที่สุดของคุณเป็นหลัก การยกคะแนนที่ต่ำจึงทำให้ดัชนีขยับมากกว่าการยกคะแนนที่สูงอยู่แล้วมาก ให้มองว่านี่เป็นสัญญาณว่าคุณกำลังละเลยด้านไหน ไม่ใช่คำตัดสินชีวิตของคุณ",
+  "Grades also steer suggestions: when you add a weekly pledge, the ones tied to your lowest-graded aspects are listed first, so the easiest win to act on is already at the top.":
+    "เกรดยังชี้นำคำแนะนำด้วย: เมื่อคุณเพิ่มคำมั่นรายสัปดาห์ คำมั่นที่ผูกกับด้านที่คุณได้เกรดต่ำที่สุดจะแสดงก่อน เพื่อให้เป้าหมายที่ลงมือทำได้ง่ายที่สุดอยู่บนสุดแล้ว",
 
   // Deep section titles & blurbs
   "Finance — in depth": "การเงิน — เชิงลึก",

@@ -14,7 +14,7 @@ import {
   renderMethodology,
   getLumiTip,
   openDialog
-} from "./ui.js?v=28";
+} from "./ui.js?v=29";
 import { ASPECT_KEYS, ASPECT_META } from "./aspects.js";
 import { t, tp, getLang, setLang } from "./i18n.js";
 import { APP_VERSION } from "./version.js";

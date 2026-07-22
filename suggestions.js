@@ -7,6 +7,8 @@
 // fully testable in node.
 
 import { ASPECT_KEYS, getAspectDetail } from "./aspects.js";
+import { goalTemplate } from "./goals.js";
+import { GRADE_PRIORITY } from "./grades.js";
 import { t } from "./i18n.js";
 
 // Components at or above this are considered healthy — no suggestion needed.
@@ -174,6 +176,46 @@ export function getTopSuggestions(state, limit = 3) {
     .filter(Boolean)
     .sort((a, b) => a.componentValue - b.componentValue)
     .slice(0, limit);
+}
+
+// --- Grade-driven pledge ordering (Phase 4) ---
+// The pledge catalog is a flat menu; this orders it so the pledges tagged to
+// the user's WEAKEST-GRADED aspects come first. It joins two things the app
+// already produces — each goals.js template carries an `aspect`, and grades.js
+// scores each aspect A–F — through GRADE_PRIORITY (F needs the most attention,
+// A the least). No new data: a D/F aspect simply surfaces its pledges ahead of
+// a healthy one.
+
+// An aspect with no grade yet (its baseline instruments are unanswered) is
+// neither urgent nor bottom-of-list — treat it as typical. Among the aspects
+// any template is tagged to, only personalGoals can be ungraded;
+// finance/physical/environment/socialContribution always have a benchmark.
+const UNGRADED_ATTENTION = GRADE_PRIORITY.C;
+
+// How much attention the aspect behind a pledge template needs: F=5 … A=0,
+// ungraded = typical. Higher sorts earlier. A templateId that names no
+// template sorts last.
+function pledgeAttention(templateId, grades) {
+  const tmpl = goalTemplate(templateId);
+  if (!tmpl) return -1;
+  const g = (grades || {})[tmpl.aspect];
+  return g ? (GRADE_PRIORITY[g.grade] ?? UNGRADED_ATTENTION) : UNGRADED_ATTENTION;
+}
+
+// True when a pledge targets an aspect graded D or F — the "needs support"
+// band the catalog caption calls out.
+export function isPriorityPledge(templateId, grades) {
+  return pledgeAttention(templateId, grades) >= GRADE_PRIORITY.D;
+}
+
+// Order pledge template ids so the neediest aspects lead. Stable within equal
+// attention (input order preserved), so with no grades — or all-equal grades —
+// the original order is returned unchanged.
+export function rankPledgesByGrade(templateIds, grades) {
+  return [...templateIds]
+    .map((id, i) => ({ id, i, attention: pledgeAttention(id, grades) }))
+    .sort((a, b) => b.attention - a.attention || a.i - b.i)
+    .map(entry => entry.id);
 }
 
 // --- Duty of care (finding #4) ---
