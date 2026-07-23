@@ -119,7 +119,7 @@ export function balanceIndexBlock(index, band, weakest) {
       </div>
       <div class="balance-index-body">
         <p class="balance-index-title">${t("Balance Index")} <span class="balance-band band-${band.key}">${t(band.label)}</span></p>
-        <p class="balance-index-caption">${t("A harmonic mean of your eight aspects — it rises fastest when your lowest aspect rises. This is this app's own summary figure, not a published measure.")}</p>
+        <p class="balance-index-caption">${t("A harmonic mean of how your eight aspects compare with the population — 50 is the average person, and it rises fastest when your weakest aspect rises. This is this app's own summary figure, not a published measure.")}</p>
         ${weakest ? `<p class="balance-index-weakest">${tp("Lifting {aspect} would move it most.", { aspect: aspectLabel(weakest.aspect) })}</p>` : ""}
       </div>
     </div>`;

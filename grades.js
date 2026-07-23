@@ -20,6 +20,7 @@
 // unit-testable without a DOM; the UI localizes them with t().
 
 import { ASPECT_KEYS } from "./aspects.js";
+import { AVERAGE_ASPECT_SCORES } from "./averages.js";
 
 // Cutoffs are percentile floors, so a grade always has a plain-language
 // reading: A = top decile, F = bottom decile. The wide C band (30-69) is
@@ -77,34 +78,56 @@ export function isBottomGrade(grade) {
   return !!grade && grade.grade === "F";
 }
 
-// BALANCE INDEX — harmonic mean of the eight aspect scores.
+// Rescale one raw aspect score against its population average so the average
+// person always sits at 50. The transform is piecewise-linear through three
+// fixed points — (0 → 0), (populationAverage → 50), (100 → 100) — so every
+// aspect's whole range stays reachable and "typical" reads as 50 no matter how
+// high or low the population sits on that aspect.
 //
-// Chosen over the arithmetic mean because this app is about balance, and the
-// arithmetic mean is indifferent to it: at an identical mean of 70, eight 70s
-// and "seven ~79s plus a 10" score the same. The harmonic mean does not —
-// 70 vs 42 — because it is dominated by the smallest term. That means it
-// rewards lifting a neglected aspect far more than polishing a strong one,
-// and it cannot be gamed by grinding whichever aspect is cheapest.
+// This is what makes the Balance Index POPULATION-RELATIVE, and coherent with
+// the percentile-based grades: an aspect the whole population scores low on
+// (social contribution averages ~32) no longer structurally anchors everyone's
+// index down — being typical there counts as 50, not 32. Falls back to the raw
+// score when no average is known for the key, keeping the function total.
+export function relativeToPopulation(rawScore, avg) {
+  const s = Math.max(0, Math.min(100, Number.isFinite(rawScore) ? rawScore : 0));
+  if (!Number.isFinite(avg) || avg <= 0 || avg >= 100) return s;
+  return s <= avg ? (50 * s) / avg : 50 + (50 * (s - avg)) / (100 - avg);
+}
+
+// BALANCE INDEX — harmonic mean of the eight aspects' POPULATION-RELATIVE
+// standings (each raw score first passed through relativeToPopulation, so 50 is
+// the average person and each aspect is equally reachable).
+//
+// Harmonic (not arithmetic) mean because this app is about balance: at an
+// identical mean of 70, eight 70s and "seven ~79s plus a 10" differ (70 vs 42)
+// because the harmonic mean is dominated by the smallest term. It rewards
+// lifting a neglected aspect far more than polishing a strong one and cannot be
+// gamed by grinding whichever aspect is cheapest. Taking the mean over the
+// population-relative standings means "neglected" is judged against what is
+// normal for each aspect, not against a flat 0-100 scale that some aspects can
+// never realistically top.
 //
 // It is NOT a validated construct and no source proposes it; it is this app's
 // own aggregate, and the methodology page says so.
 export function balanceIndex(aspects) {
   const scores = ASPECT_KEYS.map(key => {
-    const raw = (aspects || {})[key];
-    const value = Number.isFinite(raw) ? raw : 0;
-    return Math.max(MIN_SCORE, Math.min(100, value));
+    const rel = relativeToPopulation((aspects || {})[key], AVERAGE_ASPECT_SCORES[key]);
+    return Math.max(MIN_SCORE, Math.min(100, rel));
   });
   const reciprocalSum = scores.reduce((sum, v) => sum + 1 / v, 0);
   return Math.round(scores.length / reciprocalSum);
 }
 
 // Plain-language band for a Balance Index, for the personal-page caption and
-// (Phase 3) the comparison board tier. Same canonical-English convention as
-// GRADE_BANDS.
+// the comparison board tier. Same canonical-English convention as GRADE_BANDS.
+// Thresholds sit on the population-relative scale where 50 is the average
+// person, so an all-average life reads "Steady", never "Uneven" — you drop to
+// "Uneven"/"Strained" only when an aspect falls below what is typical for it.
 export const BALANCE_BANDS = [
-  { min: 80, key: "strong", label: "Strong balance" },
-  { min: 60, key: "steady", label: "Steady balance" },
-  { min: 40, key: "uneven", label: "Uneven balance" },
+  { min: 75, key: "strong", label: "Strong balance" },
+  { min: 50, key: "steady", label: "Steady balance" },
+  { min: 30, key: "uneven", label: "Uneven balance" },
   { min: 0, key: "strained", label: "Strained balance" }
 ];
 
@@ -113,16 +136,17 @@ export function balanceBand(index) {
 }
 
 // The aspect dragging the Balance Index down hardest — the single largest
-// contributor to the reciprocal sum. Drives the "lift this first" line and,
-// in Phase 4, pledge ordering.
+// contributor to the reciprocal sum, i.e. the lowest POPULATION-RELATIVE
+// standing (the aspect furthest below what is typical for it, not merely the
+// lowest raw score). Drives the "lift this first" line. `score` is the relative
+// standing (0-100, 50 = average), matching the index it explains.
 export function weakestAspect(aspects) {
   let worstKey = null;
   let worstValue = Infinity;
   for (const key of ASPECT_KEYS) {
-    const raw = (aspects || {})[key];
-    const value = Number.isFinite(raw) ? raw : 0;
-    if (value < worstValue) {
-      worstValue = value;
+    const rel = relativeToPopulation((aspects || {})[key], AVERAGE_ASPECT_SCORES[key]);
+    if (rel < worstValue) {
+      worstValue = rel;
       worstKey = key;
     }
   }

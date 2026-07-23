@@ -10,9 +10,17 @@ import assert from "node:assert/strict";
 import {
   GRADE_BANDS, GRADE_PRIORITY, BALANCE_BANDS,
   gradeForPercentile, gradeForBenchmark, gradeAllAspects,
-  isBottomGrade, balanceIndex, balanceBand, weakestAspect
+  isBottomGrade, balanceIndex, balanceBand, weakestAspect, relativeToPopulation
 } from "../grades.js";
 import { ASPECT_KEYS } from "../aspects.js";
+import { AVERAGE_ASPECT_SCORES } from "../averages.js";
+
+// Invert relativeToPopulation: the raw score whose population-relative standing
+// is `rel` for an aspect whose population average is `avg`. Lets these tests
+// build profiles by desired RELATIVE standing (50 = the average person), which
+// is the scale the Balance Index now runs on.
+const rawForRelative = (rel, avg) =>
+  rel <= 50 ? (rel * avg) / 50 : avg + ((rel - 50) * (100 - avg)) / 50;
 import { getAllBenchmarks } from "../benchmarks.js";
 import { getMentalHealthNotice } from "../suggestions.js";
 
@@ -112,36 +120,50 @@ test("isBottomGrade only fires on F", () => {
 
 // --- BALANCE INDEX ---
 
-test("a uniform profile scores its own value", () => {
-  assert.equal(balanceIndex(uniform(70)), 70);
-  assert.equal(balanceIndex(uniform(100)), 100);
+test("a profile sitting at the population average scores exactly 50", () => {
+  // The whole point of the population-relative scale: being typical on every
+  // aspect maps to 50, no matter that the raw averages range from ~32 to ~70.
+  assert.equal(balanceIndex(AVERAGE_ASPECT_SCORES), 50);
 });
 
-test("balanced beats spiky at an identical arithmetic mean", () => {
-  const balanced = uniform(70);
-  // Same arithmetic mean of 70: seven at ~78.6 (rounded 79/78) and one at 10.
-  const spiky = {
-    finance: 79, physical: 79, mental: 79, relationships: 79,
-    personalGoals: 78, socialContribution: 78, environment: 78, humanityFuture: 10
-  };
-  const meanOf = a => ASPECT_KEYS.reduce((s, k) => s + a[k], 0) / ASPECT_KEYS.length;
-  assert.ok(Math.abs(meanOf(balanced) - meanOf(spiky)) < 1, "test fixtures must share a mean");
+test("an aspect the population scores low on no longer anchors the index down", () => {
+  // socialContribution is the lowest-average aspect (~32). Sitting AT that
+  // average reads as 50 there, not ~32 — so a person average everywhere lands
+  // at 50, never dragged into the 40s by one structurally-low aspect.
+  const rel = relativeToPopulation(
+    AVERAGE_ASPECT_SCORES.socialContribution, AVERAGE_ASPECT_SCORES.socialContribution);
+  assert.equal(Math.round(rel), 50);
+});
 
-  assert.equal(balanceIndex(balanced), 70);
-  assert.ok(balanceIndex(spiky) < 50,
+test("balanced beats spiky at an identical mean RELATIVE standing", () => {
+  // Both average a relative standing of 50; the spiky one collapses one aspect
+  // (relative 1) and compensates with seven at 57 — (7*57 + 1)/8 = 50. The
+  // harmonic mean must still punish the collapse.
+  const even = { ...AVERAGE_ASPECT_SCORES }; // every aspect at relative 50
+  const spikyRel = { humanityFuture: 1 };
+  for (const k of ASPECT_KEYS) if (k !== "humanityFuture") spikyRel[k] = 57;
+  const spiky = Object.fromEntries(
+    ASPECT_KEYS.map(k => [k, rawForRelative(spikyRel[k], AVERAGE_ASPECT_SCORES[k])])
+  );
+  assert.equal(balanceIndex(even), 50);
+  assert.ok(balanceIndex(spiky) < 20,
     `spiky profile scored ${balanceIndex(spiky)} — the index stopped rewarding balance`);
 });
 
-test("the index never exceeds the arithmetic mean", () => {
+test("the index never exceeds the mean of the relative standings", () => {
+  // Harmonic <= arithmetic still holds, but the arithmetic bound is now the
+  // mean of each aspect's POPULATION-RELATIVE standing, not of the raw scores.
   const samples = [
     uniform(50),
     { finance: 90, physical: 10, mental: 50, relationships: 60, personalGoals: 40, socialContribution: 30, environment: 70, humanityFuture: 20 },
     { finance: 1, physical: 99, mental: 50, relationships: 50, personalGoals: 50, socialContribution: 50, environment: 50, humanityFuture: 50 }
   ];
   for (const aspects of samples) {
-    const mean = ASPECT_KEYS.reduce((s, k) => s + aspects[k], 0) / ASPECT_KEYS.length;
-    assert.ok(balanceIndex(aspects) <= Math.round(mean) + 1,
-      "harmonic mean must not exceed the arithmetic mean");
+    const relMean = ASPECT_KEYS
+      .map(k => relativeToPopulation(aspects[k], AVERAGE_ASPECT_SCORES[k]))
+      .reduce((s, v) => s + v, 0) / ASPECT_KEYS.length;
+    assert.ok(balanceIndex(aspects) <= Math.round(relMean) + 1,
+      "harmonic mean must not exceed the arithmetic mean of relative standings");
   }
 });
 
@@ -153,10 +175,10 @@ test("zero and missing scores do not produce Infinity or NaN", () => {
   }
 });
 
-test("lifting the weakest aspect moves the index more than lifting the strongest", () => {
-  const base = { ...uniform(70), humanityFuture: 20 };
+test("lifting the relatively-weakest aspect moves the index more than a strong one", () => {
+  const base = { ...AVERAGE_ASPECT_SCORES, humanityFuture: 15 }; // its relative min
   const liftWeak = { ...base, humanityFuture: 30 };
-  const liftStrong = { ...base, finance: 80 };
+  const liftStrong = { ...base, finance: base.finance + 15 };
   assert.ok(balanceIndex(liftWeak) - balanceIndex(base) > balanceIndex(liftStrong) - balanceIndex(base),
     "the index must reward lifting a neglected aspect over polishing a strong one");
 });
@@ -167,16 +189,25 @@ test("balance bands are contiguous and cover the whole range", () => {
   const mins = BALANCE_BANDS.map(b => b.min);
   assert.deepEqual(mins, [...mins].sort((a, b) => b - a));
   assert.equal(mins[mins.length - 1], 0);
-  for (const index of [0, 39, 40, 59, 60, 79, 80, 100]) {
+  for (const index of [0, 29, 30, 49, 50, 74, 75, 100]) {
     assert.ok(balanceBand(index), `no band for index ${index}`);
   }
-  assert.equal(balanceBand(80).key, "strong");
-  assert.equal(balanceBand(79).key, "steady");
+  // 50 is the population average and must read "steady", never "uneven".
+  assert.equal(balanceBand(75).key, "strong");
+  assert.equal(balanceBand(74).key, "steady");
+  assert.equal(balanceBand(50).key, "steady");
+  assert.equal(balanceBand(49).key, "uneven");
+  assert.equal(balanceBand(30).key, "uneven");
+  assert.equal(balanceBand(29).key, "strained");
   assert.equal(balanceBand(0).key, "strained");
 });
 
-test("weakestAspect names the lowest-scoring aspect", () => {
-  const aspects = { ...uniform(70), environment: 12 };
-  assert.deepEqual(weakestAspect(aspects), { aspect: "environment", score: 12 });
+test("weakestAspect names the aspect with the lowest population-relative standing", () => {
+  // environment forced far below its average; every other aspect sits at its
+  // average (relative 50), so environment must be the weakest.
+  const aspects = { ...AVERAGE_ASPECT_SCORES, environment: 5 };
+  const weak = weakestAspect(aspects);
+  assert.equal(weak.aspect, "environment");
+  assert.ok(weak.score < 50);
   assert.equal(weakestAspect({}).score, 0);
 });

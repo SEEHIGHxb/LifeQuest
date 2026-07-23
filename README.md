@@ -68,8 +68,11 @@ set in Sarabun.
   dashboard shows a pace bar, not a climb to an arbitrary next level
 - **Letter grades + Balance Index**: each aspect gets an A–F grade from its
   cited population percentile (personal pages only, never on a shared code), and
-  a single **Balance Index** — the harmonic mean of the eight scores — summarises
-  overall balance. The *Add a Pledge* catalog leads with pledges for your
+  a single **Balance Index** — the harmonic mean of your eight aspects'
+  population-relative standings, where 50 is the average person — summarises
+  overall balance. Rescaling against the population average means an aspect the
+  whole population scores low on (like social contribution) no longer anchors
+  your balance down. The *Add a Pledge* catalog leads with pledges for your
   lowest-graded aspects
 - **PWA**: installable with offline support — a network-first service worker
   always serves fresh files online and the cached shell offline

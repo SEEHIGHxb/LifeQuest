@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Two version numbers, on purpose
 
-- **`APP_VERSION`** (`version.js`, currently `29`) is a monotonic **cache-bust
+- **`APP_VERSION`** (`version.js`, currently `30`) is a monotonic **cache-bust
   counter**, not semver. It appears in the `?v=N` query on every versioned
   asset and in the service worker's `CACHE_NAME`. Bump it on *any* release that
   changes a shipped file. `tests/consistency.test.mjs` fails CI if the sites
@@ -15,6 +15,51 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 They are deliberately independent: a one-character CSS fix needs a cache bust
 but not a minor version.
+
+## [2.1.0] — 2026-07-23 (APP_VERSION 30)
+
+The **Balance Index is now population-relative**. Each aspect is rescaled
+against its population average before the harmonic mean, so being *typical* on
+any aspect counts as 50 — regardless that some aspects sit low across the whole
+population (social contribution averages ~32, humanity's future ~44). An aspect
+the whole population scores low on no longer structurally anchors everyone's
+balance down. No data or schema change — every user's Balance *number* shifts,
+but nothing needs migrating.
+
+### Why
+
+The index was the harmonic mean of the raw 0-100 scores, which have no
+population reference. Because aspects like social contribution are low for
+nearly everyone, they dominated the harmonic mean's drag: a person sitting at
+the population average on all eight aspects scored ~52 ("Uneven balance") while
+their *grades* — which are percentile-based — read straight C's ("typical
+across the board"). The two readings contradicted each other, and the harsher
+one was the one no realistic behavior could move. Rescaling against the
+population average makes the index agree with the grades: average everywhere is
+now exactly 50.
+
+### Changed
+
+- **Balance Index is population-relative.** `relativeToPopulation(score, avg)`
+  maps each aspect through the fixed points `(0→0, populationAverage→50,
+  100→100)` before the harmonic mean. 50 = the average person, and every aspect
+  is equally reachable. The comparison board recomputes from each participant's
+  shared aspect scores, so comparison codes are unchanged and codes shared
+  before v2.1 still decode identically.
+- **Balance bands recalibrated** to the relative scale: Strong ≥75, Steady ≥50,
+  Uneven ≥30, Strained <30. An all-average life now reads "Steady balance",
+  never "Uneven".
+- **"Lift this first"** and the dashboard's weakest-aspect prompt now name the
+  aspect furthest below *what is typical for it*, not merely the lowest raw
+  score.
+- Methodology page and the Balance Index caption rewritten to explain the
+  population-relative scale; the dashed population-average line on the radar is
+  now the index's 50 mark (EN + TH).
+
+### Notes
+
+- Aspect scores, comparison codes, and storage (schemaVersion 5) are untouched.
+  Only the derived Balance *Index* changes meaning.
 
 ## [2.0.0] — 2026-07-22 (APP_VERSION 29)
 
