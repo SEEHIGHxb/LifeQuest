@@ -397,6 +397,52 @@ export function ageBandShifts(profile, oldAge, newAge, baseline) {
   return rounded === 0 ? {} : { finance: rounded };
 }
 
+// The per-aspect score deltas implied by a MANUAL profile edit (the Profile
+// page: demographics, income, body metrics, digital literacy, investments)
+// changing score-affecting fields. Same delta philosophy as weeklyAspectShifts
+// and ageBandShifts: recompute through the SAME formulas onboarding uses, apply
+// the difference so accumulated check-in/deep/weekly adjustments survive.
+//
+// finance/physical are whole-calculator diffs over the stored [sum] (those
+// calculators rawSum their answers internally, so a one-element array feeds
+// them correctly — the established idiom). humanityFuture/personalGoals/
+// socialContribution use component-weight diffs because their calculators read
+// positional answer arrays that a single stored sum cannot reconstruct; only
+// the profile-driven term of each moves, and its published weight chain is
+// applied to the change.
+//
+// Deliberately absent: mental (no profile-driven term) and relationships. A
+// Single<->Coupled flip SHOULD change the relationships weighting, but there
+// are no romantic-satisfaction (RAS) answers on file for a user who onboarded
+// single, so fabricating a delta would invent data — the score refines at the
+// next monthly check-in instead, and the Profile page says so.
+export function profileEditShifts(oldProfile, newProfile, baseline) {
+  const cfpb = [Number(baseline && baseline.cfpb) || 0];
+  const jss = [Number(baseline && baseline.jss) || 0];
+  const pension = p => (p.longTermInvestments ? 100 : 0);
+  const deltas = {
+    // income, region, age (CFPB band), savings all live inside this calculator
+    finance: calculateFinanceScore(newProfile, cfpb) - calculateFinanceScore(oldProfile, cfpb),
+    // weight/height -> BMI (plus any behavioural field, unchanged here)
+    physical: calculatePhysicalScore(newProfile, jss) - calculatePhysicalScore(oldProfile, jss),
+    // digital literacy (half of learningScore), 0.3-weighted into the aspect
+    personalGoals: 0.3 * (learningScore(newProfile) - learningScore(oldProfile)),
+    // income moves the donation-to-income ratio, 0.4*0.5 into the aspect
+    socialContribution: (0.4 * 0.5) * (donationVolumeFactor(newProfile) - donationVolumeFactor(oldProfile)),
+    // long-term investments (pension term, 0.25*0.5) + shared learning hours
+    // (futureStudy term, 0.25*0.5) are the only future fields on the page
+    humanityFuture:
+      (0.25 * 0.5) * (pension(newProfile) - pension(oldProfile))
+      + (0.25 * 0.5) * (futureStudyScore(newProfile) - futureStudyScore(oldProfile))
+  };
+  const shifts = {};
+  for (const [aspect, delta] of Object.entries(deltas)) {
+    const rounded = Math.round(delta);
+    if (rounded !== 0) shifts[aspect] = rounded;
+  }
+  return shifts;
+}
+
 // --- DEEP (LONG-FORM) INSTRUMENTS ---
 
 // Deep raw sum -> 0-100. Shared by deepAspectScore below and the component

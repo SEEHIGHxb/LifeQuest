@@ -1219,5 +1219,25 @@ export const TH = {
   "I only act to satisfy immediate concerns, figuring that I will take care of future problems that may occur at a later date.":
     "ฉันทำเพียงเพื่อตอบโจทย์เรื่องเฉพาะหน้า โดยคิดว่าปัญหาในอนาคตค่อยไปแก้ทีหลัง",
   "Since my day-to-day work has specific outcomes, it is more important to me than behavior that has distant outcomes.":
-    "เพราะงานประจำวันของฉันให้ผลลัพธ์ที่ชัดเจน มันจึงสำคัญกับฉันมากกว่าสิ่งที่ให้ผลในระยะไกล"
+    "เพราะงานประจำวันของฉันให้ผลลัพธ์ที่ชัดเจน มันจึงสำคัญกับฉันมากกว่าสิ่งที่ให้ผลในระยะไกล",
+  // --- Profile & Data page (#/profile) ---
+  "Profile": "โปรไฟล์",
+  "Your Profile": "โปรไฟล์ของคุณ",
+  "Update the slower-moving facts about you. Day-to-day quantities like sleep, water, and activity live in the Weekly Review.":
+    "อัปเดตข้อมูลที่เปลี่ยนแปลงช้าเกี่ยวกับตัวคุณ ปริมาณรายวัน เช่น การนอน น้ำ และการออกกำลังกาย อยู่ในแบบทบทวนประจำสัปดาห์",
+  "Identity": "ข้อมูลส่วนตัว",
+  "Life Context": "บริบทชีวิต",
+  "Change this and your recommendations update now; your relationship score refines at your next monthly check-in.":
+    "เปลี่ยนค่านี้แล้วคำแนะนำจะอัปเดตทันที ส่วนคะแนนความสัมพันธ์จะปรับให้แม่นยำขึ้นในการทบทวนรายเดือนครั้งถัดไป",
+  "Gender and employment guide your benchmarks and recommendations — they don't change your scores.":
+    "เพศและสถานะการงานใช้เลือกเกณฑ์เทียบและคำแนะนำ — ไม่ได้เปลี่ยนคะแนนของคุณ",
+  "Finance & Body": "การเงินและร่างกาย",
+  "Save changes": "บันทึกการเปลี่ยนแปลง",
+  "Data & Backup": "ข้อมูลและการสำรอง",
+  "Your data lives only in this browser. Export a backup regularly — clearing site data erases it.":
+    "ข้อมูลของคุณอยู่ในเบราว์เซอร์นี้เท่านั้น ควรส่งออกสำรองข้อมูลเป็นประจำ — การล้างข้อมูลเว็บไซต์จะลบข้อมูลทิ้ง",
+  "Choose both a month and a day, or leave both blank.": "เลือกทั้งเดือนและวัน หรือเว้นว่างทั้งคู่",
+  "That isn't a real date — check the day for that month.": "วันที่นี้ไม่ถูกต้อง — ตรวจสอบวันของเดือนนั้นอีกครั้ง",
+  "Profile updated.": "อัปเดตโปรไฟล์แล้ว",
+  "Profile updated — {parts}": "อัปเดตโปรไฟล์แล้ว — {parts}"
 };

@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Two version numbers, on purpose
 
-- **`APP_VERSION`** (`version.js`, currently `30`) is a monotonic **cache-bust
+- **`APP_VERSION`** (`version.js`, currently `31`) is a monotonic **cache-bust
   counter**, not semver. It appears in the `?v=N` query on every versioned
   asset and in the service worker's `CACHE_NAME`. Bump it on *any* release that
   changes a shipped file. `tests/consistency.test.mjs` fails CI if the sites
@@ -15,6 +15,51 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 They are deliberately independent: a one-character CSS fix needs a cache bust
 but not a minor version.
+
+## [2.2.0] — 2026-07-24 (APP_VERSION 31)
+
+A **Profile & Data page** (`#/profile`), reached from a new **Profile** button in
+the header. It lets you hand-edit the slow-moving facts about yourself that
+onboarding captured once and previously locked in: name, age, gender, region,
+employment, relationship status, income, height/weight, digital literacy,
+long-term investments, and birthday. Day-to-day quantities (sleep, water,
+activity, plastics, donations…) stay in the Weekly Review — they are measured,
+not typed.
+
+The Export / Import / Reset Data controls **moved off the header** onto this
+page, leaving the header as `[ไทย] [Profile]`.
+
+### Why
+
+Everything demographic was write-once at onboarding. A raise, a move to Bangkok,
+a new relationship, or losing weight had no home — the only way to correct a
+demographic fact was to wipe all data and re-onboard. Several of those facts feed
+live scores (income and region drive finance; weight/height drive the BMI half of
+physical; investments drive humanity's future; digital literacy feeds personal
+goals), so being unable to update them meant the scores slowly drifted from the
+truth.
+
+### How scores update
+
+A score-affecting edit is **re-measured through the same formulas onboarding
+uses** and applied as a **delta** (`profileEditShifts`), so accumulated
+check-in, deep-assessment, and weekly-review adjustments are preserved — the
+edit never rebuilds a score from scratch and discards months of history. This is
+the same delta philosophy as `weeklyAspectShifts` and the birthday-driven
+`ageBandShifts`.
+
+- **gender** and **employment** move only your benchmarks and recommendations,
+  never a score — the page says so.
+- A **relationship-status** flip updates recommendations immediately, but the
+  relationships score refines at your **next monthly check-in**: a user who
+  onboarded single has no romantic-satisfaction answers on file, and inventing a
+  delta from data that doesn't exist would be dishonest.
+- Editing **age** re-syncs your **Level** (Level *is* your age) — but only when
+  you actually change age, so it never undoes a birthday-driven level-up.
+- Editing profile facts awards **no XP** (a correction is not an achievement, and
+  it can't be farmed).
+
+No schema change and no migration — every field already existed on the profile.
 
 ## [2.1.0] — 2026-07-23 (APP_VERSION 30)
 

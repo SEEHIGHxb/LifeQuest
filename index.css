@@ -1057,6 +1057,24 @@ header {
   color: var(--color-text-secondary);
   margin: -6px 0 18px;
 }
+/* Profile & Data page (#/profile) */
+.profile-view {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.profile-note {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  margin: -6px 0 14px;
+}
+.profile-data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .onb-optional {
   display: inline-block;
   font-family: var(--font-sans);

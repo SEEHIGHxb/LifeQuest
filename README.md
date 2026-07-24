@@ -54,7 +54,16 @@ set in Sarabun.
   aspects — shifts are capped at ±15 per re-assessment, with a small bonus for
   consistent weekly reviews (the hybrid scoring model)
 - **Weekly snapshots** of all aspect scores, drawn as trend lines on aspect pages
-- **Backup**: one-click JSON export / import from the header
+- **Profile & Data page**: a header **Profile** button opens an editor for the
+  slow-moving facts about you — name, age, gender, region, employment,
+  relationship status, income, height/weight, digital literacy, long-term
+  investments, and birthday. Score-affecting edits (income, region, age, body,
+  investments) are re-measured through the same cited formulas onboarding uses
+  and applied as deltas, so accumulated check-in/deep/weekly adjustments survive.
+  Gender and employment move only benchmarks and recommendations; a
+  relationship-status change refines the relationships score at the next monthly
+  check-in. Day-to-day quantities stay in the Weekly Review, not here
+- **Backup**: one-click JSON export / import, on the Profile & Data page
 - **Hash routing** (`#/dashboard`, `#/review`, `#/aspect/<key>`, `#/checkin`, ...) — browser back/forward work
 - **Radar chart**: dependency-free SVG rendering of the 8 aspects
 - **Peer comparison (comparison codes)**: share your `LQ1-...` code with

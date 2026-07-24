@@ -8,13 +8,14 @@ import {
   renderYearReview,
   renderQuests,
   renderLeaderboard,
+  renderProfile,
   renderAspectPage,
   renderCheckin,
   renderDeepAssessment,
   renderMethodology,
   getLumiTip,
   openDialog
-} from "./ui.js?v=30";
+} from "./ui.js?v=31";
 import { ASPECT_KEYS, ASPECT_META } from "./aspects.js";
 import { t, tp, getLang, setLang } from "./i18n.js";
 import { APP_VERSION } from "./version.js";
@@ -52,6 +53,12 @@ function routeFromHash() {
   if (path === "year") {
     return { type: "year" };
   }
+  // Personal-info editor + the relocated data controls. A non-tab route like
+  // methodology/checkin: reached from the header Profile button, not a fifth
+  // slot in the four-wide mobile tab grid.
+  if (path === "profile") {
+    return { type: "profile" };
+  }
   return { type: "tab", tab: TABS.includes(path) ? path : DEFAULT_TAB };
 }
 
@@ -76,9 +83,7 @@ function applyChromeTranslations() {
     const el = document.getElementById(id);
     if (el) el.textContent = text;
   };
-  setText("btn-export-data", t("Export"));
-  setText("btn-import-data", t("Import"));
-  setText("btn-reset-data", t("Reset Data"));
+  setText("btn-profile", t("Profile"));
   setText("tab-dashboard", t("Overview"));
   setText("tab-review", t("Weekly Review"));
   setText("tab-quests", t("Goals"));
@@ -126,7 +131,6 @@ function initializeApp() {
     document.getElementById("assistant-mount").classList.remove("d-none");
     setupNavigation();
     setupAssistant();
-    setupBackupControls();
     renderActiveTab();
   }
 }
@@ -144,12 +148,13 @@ function setupNavigation() {
     }
   });
 
-  // Bind Reset button
-  const resetBtn = document.getElementById("btn-reset-data");
-  if (resetBtn) {
-    const newResetBtn = resetBtn.cloneNode(true);
-    resetBtn.parentNode.replaceChild(newResetBtn, resetBtn);
-    newResetBtn.addEventListener("click", confirmReset);
+  // Bind the header Profile button. Reset/Export/Import moved onto the Profile
+  // & Data page and are bound there when that view renders.
+  const profileBtn = document.getElementById("btn-profile");
+  if (profileBtn) {
+    const newProfileBtn = profileBtn.cloneNode(true);
+    profileBtn.parentNode.replaceChild(newProfileBtn, profileBtn);
+    newProfileBtn.addEventListener("click", () => navigateTo("profile"));
   }
 }
 
@@ -235,6 +240,13 @@ function renderActiveTab() {
     renderMethodology("main-view", state);
   } else if (route.type === "year") {
     renderYearReview("main-view", state, renderActiveTab);
+  } else if (route.type === "profile") {
+    renderProfile("main-view", state, handleProfileSaved);
+    // The Export/Import/Reset controls live on this page now, so bind them
+    // here — the freshly rendered buttons carry no stale listeners.
+    setupBackupControls();
+    const resetBtn = document.getElementById("btn-reset-data");
+    if (resetBtn) resetBtn.addEventListener("click", confirmReset);
   } else if (activeTab === "dashboard") {
     renderDashboard("main-view", state, downloadBackup);
   } else if (activeTab === "review") {
@@ -260,6 +272,7 @@ function announceRoute(route) {
   else if (route.type === "deep") label = t("In-depth assessment");
   else if (route.type === "methodology") label = t("Methodology");
   else if (route.type === "year") label = t("Your year");
+  else if (route.type === "profile") label = t("Profile");
   else label = t(tabNames[route.tab] || "Overview");
   el.textContent = tp("{view} view", { view: label });
 }
@@ -302,6 +315,19 @@ function handleReviewComplete(record) {
       ? tp("Weekly review saved: {met}/{total} pledges met.", { met, total: record.goals.length })
       : t("Weekly review saved."));
   }
+  renderActiveTab();
+}
+
+// A profile edit re-renders the page (so the new values + scores show) and
+// reports any score movement. `result.shifts` is the same aspect-keyed delta
+// shape the check-in/review handlers already format.
+function handleProfileSaved(result) {
+  const shifts = (result && result.shifts) || {};
+  const parts = Object.entries(shifts)
+    .map(([key, v]) => `${t(ASPECT_META[key]?.label || key)} ${v >= 0 ? "+" : ""}${v}`);
+  showToast(parts.length
+    ? tp("Profile updated — {parts}", { parts: parts.join(" · ") })
+    : t("Profile updated."));
   renderActiveTab();
 }
 

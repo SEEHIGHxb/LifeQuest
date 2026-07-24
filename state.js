@@ -26,7 +26,7 @@ import {
   calculateRelationshipsScore, calculatePersonalGoalsScore,
   calculateSocialContributionScore, calculateEnvironmentScore,
   calculateHumanityFutureScore, deepAspectScore, weeklyAspectShifts,
-  ageBandShifts, clamp100
+  ageBandShifts, profileEditShifts, clamp100
 } from "./scoring.js";
 import { INSTRUMENTS, DEEP_INSTRUMENTS } from "./surveys.js";
 import { isStraightLined } from "./validation.js";
@@ -63,6 +63,20 @@ const FRIEND_LIMIT = 50;
 // remind the user to export once they have enough logged to actually miss.
 const BACKUP_NUDGE_DAYS = 30;
 const BACKUP_NUDGE_MIN_LOGS = 10;
+
+// The slow-moving profile fields the Profile page lets a user hand-edit. The
+// fast, behaviour-driven quantities (sleep, water, activity, plastics...) are
+// deliberately NOT here — those are measured in the weekly review, not typed in.
+// name and age are coerced bespoke in updateProfile (name isn't an enum/number
+// sanitizeProfileFields knows, and age is bounded tighter than the importer's
+// 1-120). birthMonth/birthDay ride the existing setBirthday path, not this one.
+const PROFILE_EDIT_ENUMS = ["gender", "region", "employment", "relationshipStatus"];
+const PROFILE_EDIT_NUMERIC = ["income", "weight", "height", "digitalLiteracy"];
+// The numeric fields whose hand-entry should upgrade the confidence tier: a
+// value the user just typed is provided data, same as answering it at onboarding.
+const PROFILE_EDIT_PROVIDED = ["income", "weight", "height", "digitalLiteracy"];
+const AGE_MIN = 15;
+const AGE_MAX = 100;
 
 function getStorage() {
   return typeof localStorage === "undefined" ? null : localStorage;
@@ -144,6 +158,76 @@ export class GameStateManager {
   dismissBirthdayPrompt() {
     this.state.profile.birthdayPromptDismissed = true;
     this.saveState();
+  }
+
+  // Apply a hand edit from the Profile page. `edits` is a partial map of the
+  // slow-moving fields (name, age, gender, region, employment,
+  // relationshipStatus, income, weight, height, digitalLiteracy,
+  // longTermInvestments). Score-affecting fields are re-measured through the
+  // SAME formulas onboarding uses and applied as deltas (profileEditShifts) so
+  // accumulated check-in/deep/weekly adjustments are preserved. No XP: editing
+  // your own facts is a correction, not an achievement — and can't be farmed.
+  // Birthday edits ride the existing setBirthday path (subtle level-up
+  // semantics), so they are handled separately by the view, not here.
+  updateProfile(edits = {}) {
+    if (!this.state.onboarded) return { shifts: {} };
+    const p = this.state.profile;
+
+    // Build a candidate profile, coercing each editable field; behavioural
+    // fields not in the lists below are carried through untouched.
+    const candidate = { ...p };
+    if (typeof edits.name === "string") {
+      candidate.name = safeString(edits.name, 60).trim() || "Guest";
+    }
+    const ageEdited = edits.age !== undefined && String(edits.age).trim() !== "";
+    if (ageEdited) {
+      candidate.age = Math.max(AGE_MIN, Math.min(AGE_MAX, Math.round(Number(edits.age)) || p.age));
+    }
+    for (const key of PROFILE_EDIT_ENUMS) {
+      if (edits[key] !== undefined) candidate[key] = edits[key];
+    }
+    for (const key of PROFILE_EDIT_NUMERIC) {
+      if (edits[key] !== undefined && String(edits[key]).trim() !== "") candidate[key] = edits[key];
+    }
+    if (edits.longTermInvestments !== undefined) {
+      candidate.longTermInvestments = edits.longTermInvestments === true || edits.longTermInvestments === "true";
+    }
+
+    // Snap enums + numerics back to known shapes (unknown enum -> its default,
+    // out-of-range number -> clamped). Mutates and returns `candidate`; name is
+    // untouched by it (handled above) and age is already within its bounds.
+    const newProfile = sanitizeProfileFields(candidate);
+
+    // Re-measure the affected aspects and apply as deltas — preserves layered
+    // check-in/deep/weekly adjustments. Empty when nothing score-affecting moved.
+    const shifts = this.state.baseline ? profileEditShifts(p, newProfile, this.state.baseline) : {};
+    for (const [aspect, shift] of Object.entries(shifts)) {
+      this.state.aspects[aspect] = Math.max(0, Math.min(100, this.state.aspects[aspect] + shift));
+    }
+
+    // Commit the edited fields onto the live profile.
+    p.name = newProfile.name;
+    p.age = newProfile.age;
+    for (const key of [...PROFILE_EDIT_ENUMS, ...PROFILE_EDIT_NUMERIC]) p[key] = newProfile[key];
+    p.longTermInvestments = newProfile.longTermInvestments;
+
+    // A hand-entered number is provided data — upgrade the confidence tier for
+    // the fields the user actually typed this time.
+    const provided = { ...(p.provided || {}) };
+    for (const key of PROFILE_EDIT_PROVIDED) {
+      if (edits[key] !== undefined && String(edits[key]).trim() !== "") provided[key] = true;
+    }
+    p.provided = provided;
+
+    // Level IS the user's age. It normally advances only on birthdays (the age
+    // field here is the stale onboarding figure), so it is re-synced ONLY when
+    // the user deliberately edits age — an edit that leaves age alone never
+    // disturbs birthday-driven level-ups.
+    if (ageEdited) p.level = Math.round(clampNumber(p.age, 1, 999, 1));
+
+    this.maybeTakeSnapshot(); // reflect the new scores on the trend (weekly-gated)
+    this.saveState();
+    return { shifts };
   }
 
   processBirthdays(now = new Date()) {
